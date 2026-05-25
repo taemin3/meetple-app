@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_navigation.dart';
+import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/meeting_style.dart';
 import '../../data/repositories/meeting_repository.dart';
@@ -9,7 +11,6 @@ import '../../widgets/category_pill.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/section_title.dart';
-import '../meeting_detail/meeting_detail_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -239,11 +240,7 @@ class HomeMeetingTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MeetingDetailPage(meeting: meeting),
-            ),
-          ),
+          onTap: () => AppRoutes.openMeetingDetail(context, meeting),
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
@@ -363,11 +360,21 @@ class CreateMeetingBanner extends StatelessWidget {
             width: 90,
             child: PrimaryGradientButton(
               label: '+',
-              onPressed: () {},
+              onPressed: () => _openCreateMeeting(context),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _openCreateMeeting(BuildContext context) {
+    final navigation = AppNavigation.maybeOf(context);
+    if (navigation != null) {
+      navigation.selectTab(AppTab.createMeeting);
+      return;
+    }
+
+    AppRoutes.openCreateMeeting(context);
   }
 }
