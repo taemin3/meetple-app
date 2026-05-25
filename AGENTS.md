@@ -82,7 +82,11 @@ lib/
 
 ## Git 작업 규칙
 
-- Codex가 작업 브랜치를 만들 때는 `codex/<short-kebab-summary>` 형식을 사용한다.
+- 브랜치 이름은 `type/<short-kebab-summary>` 형식을 사용한다.
+- 브랜치 type은 작업 성격에 맞춰 `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `style`, `ci` 중에서 고른다.
+- 예시: `feat/home-recommendations`
+- 예시: `fix/discover-overflow`
+- 예시: `docs/branch-naming-rules`
 - 커밋 메시지는 Conventional Commits 형식을 사용하고, 요약은 한국어로 작성한다.
 - 커밋 메시지 형식은 `type: 한국어 요약`이다.
 - 주로 사용하는 type은 `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `style`, `ci`이다.
