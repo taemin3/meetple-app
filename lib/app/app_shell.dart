@@ -16,25 +16,25 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
+  static const _tabs = <AppTab>[
+    AppTab.home,
+    AppTab.discover,
+    AppTab.createMeeting,
+    AppTab.chat,
+    AppTab.profile,
+  ];
+
   AppTab currentTab = AppTab.home;
 
   @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
-      const HomePage(),
-      const DiscoverPage(),
-      const CreateMeetingPage(),
-      const ChatPage(),
-      const ProfilePage(),
-    ];
-
     return AppNavigation(
       currentTab: currentTab,
       selectTab: _selectTab,
       child: Scaffold(
         body: SafeArea(
           bottom: false,
-          child: pages[currentTab.index],
+          child: _buildPage(currentTab),
         ),
         bottomNavigationBar: SafeArea(
           top: false,
@@ -52,9 +52,9 @@ class _AppShellState extends State<AppShell> {
                       elevation: 0,
                       backgroundColor: Colors.white,
                       indicatorColor: AppColors.softSurface,
-                      selectedIndex: currentTab.index,
+                      selectedIndex: _indexOfTab(currentTab),
                       onDestinationSelected: (value) {
-                        _selectTab(AppTab.values[value]);
+                        _selectTab(_tabAt(value));
                       },
                       destinations: const [
                         NavigationDestination(
@@ -97,5 +97,28 @@ class _AppShellState extends State<AppShell> {
 
   void _selectTab(AppTab tab) {
     setState(() => currentTab = tab);
+  }
+
+  int _indexOfTab(AppTab tab) {
+    return _tabs.indexOf(tab);
+  }
+
+  AppTab _tabAt(int index) {
+    return _tabs[index];
+  }
+
+  Widget _buildPage(AppTab tab) {
+    switch (tab) {
+      case AppTab.home:
+        return const HomePage();
+      case AppTab.discover:
+        return const DiscoverPage();
+      case AppTab.createMeeting:
+        return const CreateMeetingPage();
+      case AppTab.chat:
+        return const ChatPage();
+      case AppTab.profile:
+        return const ProfilePage();
+    }
   }
 }
