@@ -1,5 +1,6 @@
 class Meeting {
   const Meeting({
+    this.id,
     required this.title,
     required this.category,
     required this.tags,
@@ -14,8 +15,10 @@ class Meeting {
     required this.fee,
     required this.rating,
     required this.reviewCount,
+    this.thumbnailImageUrl,
   });
 
+  final int? id;
   final String title;
   final String category;
   final List<String> tags;
@@ -30,4 +33,5 @@ class Meeting {
   final String fee;
   final double rating;
   final int reviewCount;
+  final String? thumbnailImageUrl;
 }
