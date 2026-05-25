@@ -55,7 +55,7 @@ class ApiMeetingRepository implements MeetingRepository {
   }
 
   void _ensureSuccess(Map<String, dynamic> response) {
-    if (response['success'] == false) {
+    if (response['success'] != true) {
       throw ApiException(
         statusCode: _readInt(response['status']),
         message:
@@ -63,6 +63,7 @@ class ApiMeetingRepository implements MeetingRepository {
         body: response,
       );
     }
+  }
   }
 
   Meeting _meetingFromJson(Map<String, dynamic> json) {
