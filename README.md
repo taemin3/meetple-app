@@ -61,6 +61,10 @@ node tools/serve_web_build.js
 lib/
   main.dart
   app/
+    app_navigation.dart
+    app_routes.dart
+    app_shell.dart
+    meeting_mock_app.dart
   core/
     theme/
     ui/
@@ -74,7 +78,7 @@ lib/
 역할 기준:
 
 - `main.dart`: 앱 실행 진입점
-- `app/`: `MaterialApp`, 앱 shell, 탭 연결
+- `app/`: `MaterialApp`, 앱 shell, 탭/상세 화면 라우팅 연결
 - `core/theme/`: 전역 색상과 테마
 - `core/ui/`: 화면 표현용 공통 변환 규칙
 - `data/mock/`: 현재 목업 데이터
@@ -99,7 +103,7 @@ lib/
 
 ## 다음 작업 후보
 
-1. 라우팅 구조 정리
-2. `ApiMeetingRepository` 추가
-3. 목업/API repository 교체 방식 정리
-4. 화면별 로딩/에러/빈 상태 추가
+1. `ApiMeetingRepository` 추가
+2. 목업/API repository 교체 방식 정리
+3. 화면별 로딩/에러/빈 상태 추가
+4. 백엔드 meeting API 연동

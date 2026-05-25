@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_navigation.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/primary_gradient_button.dart';
 
@@ -41,7 +42,7 @@ class CreateHeader extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          onPressed: () {},
+          onPressed: () => _close(context),
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
         const Expanded(
@@ -58,6 +59,19 @@ class CreateHeader extends StatelessWidget {
         const SizedBox(width: 48),
       ],
     );
+  }
+
+  void _close(BuildContext context) {
+    final navigation = AppNavigation.maybeOf(context);
+    if (navigation != null) {
+      navigation.selectTab(AppTab.home);
+      return;
+    }
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
+    }
   }
 }
 

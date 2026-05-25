@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/meeting_style.dart';
 import '../../data/repositories/meeting_repository.dart';
@@ -8,7 +9,6 @@ import '../../models/meeting.dart';
 import '../../widgets/category_pill.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
-import '../meeting_detail/meeting_detail_page.dart';
 
 class DiscoverPage extends StatefulWidget {
   const DiscoverPage({
@@ -427,11 +427,7 @@ class MapMeetingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => MeetingDetailPage(meeting: meeting),
-            ),
-          ),
+          onTap: () => AppRoutes.openMeetingDetail(context, meeting),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
