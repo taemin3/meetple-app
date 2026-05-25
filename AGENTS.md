@@ -40,7 +40,7 @@ lib/
     app_navigation.dart
     app_routes.dart
     app_shell.dart
-    meeting_mock_app.dart
+    meetple_app.dart
   core/
     theme/
       app_colors.dart
