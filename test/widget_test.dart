@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:meetple/app/meeting_mock_app.dart';
+import 'package:meetple/app/meetple_app.dart';
 
 void main() {
-  testWidgets('shows Meeting mock home', (WidgetTester tester) async {
+  testWidgets('shows Meetple home', (WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(540, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const MeetingMockApp());
+    await tester.pumpWidget(const MeetpleApp());
     await tester.pump();
 
     expect(
@@ -23,7 +23,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(540, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const MeetingMockApp());
+    await tester.pumpWidget(const MeetpleApp());
     await tester.pump();
 
     await tester.tap(find.text('+'));
