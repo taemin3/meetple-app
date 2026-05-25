@@ -64,7 +64,6 @@ class ApiMeetingRepository implements MeetingRepository {
       );
     }
   }
-  }
 
   Meeting _meetingFromJson(Map<String, dynamic> json) {
     final category = _readString(json['categoryName'], fallback: '기타');
@@ -171,7 +170,7 @@ class ApiMeetingRepository implements MeetingRepository {
       return null;
     }
 
-    return DateTime.tryParse(value);
+    return DateTime.tryParse(value)?.toLocal();
   }
 
   String _firstNonBlank(List<Object?> values, {required String fallback}) {

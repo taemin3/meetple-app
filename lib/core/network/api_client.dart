@@ -32,9 +32,9 @@ class HttpApiClient implements ApiClient {
   }) async {
     final uri = _buildUri(path, queryParameters);
     final response = await _httpClient.get(uri, headers: await _headers());
-    final decoded = _decodeBody(response);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final decoded = _tryDecodeBody(response);
       throw ApiException(
         statusCode: response.statusCode,
         message: _messageFrom(decoded) ?? 'API request failed.',
@@ -42,6 +42,7 @@ class HttpApiClient implements ApiClient {
       );
     }
 
+    final decoded = _decodeBody(response);
     return decoded;
   }
 
@@ -60,8 +61,7 @@ class HttpApiClient implements ApiClient {
   }
 
   Uri _buildUri(String path, Map<String, String?> queryParameters) {
-    final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
-    final uri = _baseUri.resolve(normalizedPath);
+    final uri = _baseUri.resolve(path);
     final query = <String, String>{
       ...uri.queryParameters,
       for (final entry in queryParameters.entries)
@@ -91,6 +91,14 @@ class HttpApiClient implements ApiClient {
     }
 
     throw const FormatException('Expected API response body to be an object.');
+  }
+
+  static Map<String, dynamic> _tryDecodeBody(http.Response response) {
+    try {
+      return _decodeBody(response);
+    } on FormatException {
+      return const {};
+    }
   }
 
   static String? _messageFrom(Map<String, dynamic> body) {

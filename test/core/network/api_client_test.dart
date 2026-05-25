@@ -9,10 +9,14 @@ void main() {
       baseUri: Uri.parse('http://localhost:8080'),
       accessTokenProvider: () => 'access-token',
       httpClient: MockClient((request) async {
-        expect(
-          request.url.toString(),
-          'http://localhost:8080/api/v1/meetings?page=0&size=20',
-        );
+        expect(request.url.scheme, 'http');
+        expect(request.url.host, 'localhost');
+        expect(request.url.port, 8080);
+        expect(request.url.path, '/api/v1/meetings');
+        expect(request.url.queryParameters, {
+          'page': '0',
+          'size': '20',
+        });
         expect(request.headers['Accept'], 'application/json');
         expect(request.headers['Authorization'], 'Bearer access-token');
 
@@ -48,5 +52,38 @@ void main() {
             .having((error) => error.message, 'message', 'server error'),
       ),
     );
+  });
+
+  test('throws ApiException for non-json error body', () {
+    final client = HttpApiClient(
+      baseUri: Uri.parse('http://localhost:8080'),
+      httpClient: MockClient((request) async {
+        return http.Response('<html>Bad gateway</html>', 502);
+      }),
+    );
+
+    expect(
+      client.getJson('/api/v1/meetings'),
+      throwsA(
+        isA<ApiException>()
+            .having((error) => error.statusCode, 'statusCode', 502)
+            .having((error) => error.message, 'message', 'API request failed.'),
+      ),
+    );
+  });
+
+  test('preserves absolute API path when base URL has path', () async {
+    final client = HttpApiClient(
+      baseUri: Uri.parse('https://api.example.com/api'),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/api/v1/meetings');
+
+        return http.Response('{"success":true}', 200);
+      }),
+    );
+
+    final response = await client.getJson('/api/v1/meetings');
+
+    expect(response['success'], true);
   });
 }

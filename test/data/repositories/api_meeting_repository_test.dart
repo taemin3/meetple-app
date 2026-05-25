@@ -4,6 +4,8 @@ import 'package:meetple/data/repositories/api_meeting_repository.dart';
 
 void main() {
   test('maps paged meeting API response to meetings', () async {
+    final scheduledAt = DateTime.utc(2026, 5, 30, 0, 30);
+    final localScheduledAt = scheduledAt.toLocal();
     final apiClient = FakeApiClient(
       response: {
         'status': 200,
@@ -24,7 +26,7 @@ void main() {
               'address': '서울 영등포구',
               'latitude': 37.5219,
               'longitude': 126.9245,
-              'scheduledAt': '2026-05-30T09:30:00',
+              'scheduledAt': scheduledAt.toIso8601String(),
               'capacity': 20,
               'currentPeople': 12,
               'status': 'RECRUITING',
@@ -61,8 +63,8 @@ void main() {
     expect(meetings.single.category, '운동');
     expect(meetings.single.tags, ['운동']);
     expect(meetings.single.area, '여의나루역');
-    expect(meetings.single.date, '5/30');
-    expect(meetings.single.time, '09:30');
+    expect(meetings.single.date, _dateLabel(localScheduledAt));
+    expect(meetings.single.time, _timeLabel(localScheduledAt));
     expect(meetings.single.capacity, 20);
     expect(meetings.single.joined, 12);
     expect(meetings.single.host, '민준');
@@ -90,6 +92,18 @@ void main() {
       ),
     );
   });
+}
+
+String _dateLabel(DateTime dateTime) {
+  return '${dateTime.month}/${dateTime.day}';
+}
+
+String _timeLabel(DateTime dateTime) {
+  return '${_twoDigits(dateTime.hour)}:${_twoDigits(dateTime.minute)}';
+}
+
+String _twoDigits(int value) {
+  return value.toString().padLeft(2, '0');
 }
 
 class FakeApiClient implements ApiClient {
