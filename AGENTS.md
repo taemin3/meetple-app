@@ -38,23 +38,26 @@ lib/
   main.dart
   app/
     app_shell.dart
-    meetup_mock_app.dart
+    meeting_mock_app.dart
   core/
     theme/
       app_colors.dart
       app_theme.dart
     ui/
-      meetup_style.dart
+      meeting_style.dart
   data/
     mock/
-      mock_meetups.dart
+      mock_meetings.dart
+    repositories/
+      meeting_repository.dart
+      mock_meeting_repository.dart
   models/
-    meetup.dart
+    meeting.dart
   screens/
     home/
     discover/
-    meetup_detail/
-    create_meetup/
+    meeting_detail/
+    create_meeting/
     chat/
     profile/
     requests/
@@ -73,7 +76,7 @@ lib/
 - 새 기능은 기존 폴더 구조와 네이밍을 따른다.
 - 화면에서 공통으로 쓰이는 UI는 `lib/widgets/`로 분리한다.
 - 전역 색상과 테마는 `lib/core/theme/`의 `AppColors`, `AppTheme` 기준을 우선 사용한다.
-- 화면 전용 스타일 변환은 `lib/core/ui/meetup_style.dart`에 둔다.
+- 화면 전용 스타일 변환은 `lib/core/ui/meeting_style.dart`에 둔다.
 - `main.dart`에는 앱 실행 진입점 이상의 화면/데이터 로직을 넣지 않는다.
 - 도메인 모델에는 Flutter UI 타입을 직접 넣지 않는다.
 - 플랫폼 폴더(`android/`, `ios/`, `web/`, `macos/`, `linux/`, `windows/`)는 실제 설정 변경이 필요할 때만 수정한다.
@@ -101,15 +104,14 @@ lib/
 
 ## 목업 데이터와 연동 준비
 
-현재 목업 데이터는 `lib/data/mock/mock_meetups.dart`에 있다.
+현재 목업 데이터는 `lib/data/mock/mock_meetings.dart`에 있고, 화면은 `lib/data/repositories/MeetingRepository`를 통해 데이터를 받는다.
 
 다음 구조 정리의 우선순위:
 
-1. `lib/data/repositories/` 추가
-2. `MockMeetupRepository` 추가
-3. 화면에서 `mockMeetups` 직접 참조 제거
-4. 라우팅 구조 정리
-5. API 명세 확정 후 `ApiMeetupRepository` 추가
+1. 라우팅 구조 정리
+2. API 명세 확정 후 `ApiMeetingRepository` 추가
+3. `MockMeetingRepository`와 `ApiMeetingRepository`를 쉽게 교체할 수 있는 주입 구조 정리
+4. 화면별 로딩/에러/빈 상태 추가
 
 백엔드 API가 붙기 전에도 화면은 repository 인터페이스를 통해 데이터를 받도록 점진적으로 바꾼다.
 

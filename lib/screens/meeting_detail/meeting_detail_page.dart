@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../models/meetup.dart';
-import '../../widgets/meetup_photo.dart';
+import '../../models/meeting.dart';
+import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/surface_panel.dart';
 import '../../widgets/tag_chip.dart';
 
-class MeetupDetailPage extends StatelessWidget {
-  const MeetupDetailPage({super.key, required this.meetup});
+class MeetingDetailPage extends StatelessWidget {
+  const MeetingDetailPage({super.key, required this.meeting});
 
-  final Meetup meetup;
+  final Meeting meeting;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,7 @@ class MeetupDetailPage extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          DetailHero(meetup: meetup),
+          DetailHero(meeting: meeting),
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 110),
             child: Column(
@@ -28,12 +28,12 @@ class MeetupDetailPage extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final tag in meetup.tags) TagChip(label: tag),
+                    for (final tag in meeting.tags) TagChip(label: tag),
                   ],
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  meetup.title,
+                  meeting.title,
                   style: const TextStyle(
                     color: AppColors.ink,
                     fontSize: 28,
@@ -45,7 +45,7 @@ class MeetupDetailPage extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '${meetup.joined} / ${meetup.capacity}명',
+                      '${meeting.joined} / ${meeting.capacity}명',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontWeight: FontWeight.w800,
@@ -56,7 +56,7 @@ class MeetupDetailPage extends StatelessWidget {
                         color: AppColors.orange, size: 18),
                     const SizedBox(width: 4),
                     Text(
-                      '${meetup.rating} (${meetup.reviewCount})',
+                      '${meeting.rating} (${meeting.reviewCount})',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontWeight: FontWeight.w800,
@@ -65,7 +65,7 @@ class MeetupDetailPage extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 22),
-                DetailInfoRow(meetup: meetup),
+                DetailInfoRow(meeting: meeting),
                 const SizedBox(height: 28),
                 const Text(
                   '모임 소개',
@@ -77,7 +77,7 @@ class MeetupDetailPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  meetup.description,
+                  meeting.description,
                   style: const TextStyle(
                     color: AppColors.muted,
                     height: 1.65,
@@ -126,9 +126,9 @@ class MeetupDetailPage extends StatelessWidget {
 }
 
 class DetailHero extends StatelessWidget {
-  const DetailHero({super.key, required this.meetup});
+  const DetailHero({super.key, required this.meeting});
 
-  final Meetup meetup;
+  final Meeting meeting;
 
   @override
   Widget build(BuildContext context) {
@@ -137,8 +137,8 @@ class DetailHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          MeetupPhoto(
-              meetup: meetup, height: 330, borderRadius: 0, showIcon: false),
+          MeetingPhoto(
+              meeting: meeting, height: 330, borderRadius: 0, showIcon: false),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -204,16 +204,16 @@ class CircleIconButton extends StatelessWidget {
 }
 
 class DetailInfoRow extends StatelessWidget {
-  const DetailInfoRow({super.key, required this.meetup});
+  const DetailInfoRow({super.key, required this.meeting});
 
-  final Meetup meetup;
+  final Meeting meeting;
 
   @override
   Widget build(BuildContext context) {
     final items = [
-      ('일시', '${meetup.date}\n${meetup.time}'),
-      ('장소', '${meetup.area}\n서울 영등포구'),
-      ('참가비', meetup.fee),
+      ('일시', '${meeting.date}\n${meeting.time}'),
+      ('장소', '${meeting.area}\n서울 영등포구'),
+      ('참가비', meeting.fee),
     ];
 
     return Row(

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 import '../screens/chat/chat_page.dart';
-import '../screens/create_meetup/create_meetup_page.dart';
+import '../screens/create_meeting/create_meeting_page.dart';
 import '../screens/discover/discover_page.dart';
 import '../screens/home/home_page.dart';
 import '../screens/profile/profile_page.dart';
@@ -22,7 +22,7 @@ class _AppShellState extends State<AppShell> {
     final pages = [
       const HomePage(),
       const DiscoverPage(),
-      const CreateMeetupPage(),
+      const CreateMeetingPage(),
       const ChatPage(),
       const ProfilePage(),
     ];

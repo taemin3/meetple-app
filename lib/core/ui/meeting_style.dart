@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import '../../models/meetup.dart';
+import '../../models/meeting.dart';
 import '../theme/app_colors.dart';
 
-Color meetupAccent(Meetup meetup) {
-  switch (meetup.category) {
+Color meetingAccent(Meeting meeting) {
+  switch (meeting.category) {
     case '스터디':
       return AppColors.blue;
     case '취미':
@@ -15,8 +15,8 @@ Color meetupAccent(Meetup meetup) {
   }
 }
 
-List<Color> meetupPhotoColors(Meetup meetup) {
-  switch (meetup.title) {
+List<Color> meetingPhotoColors(Meeting meeting) {
+  switch (meeting.title) {
     case '퇴근 후 영화 모임 🎬':
       return const [Color(0xFFB57C45), Color(0xFF2C2530)];
     case '감성 사진 출사 📸':
@@ -29,8 +29,8 @@ List<Color> meetupPhotoColors(Meetup meetup) {
   }
 }
 
-IconData meetupIcon(Meetup meetup) {
-  switch (meetup.category) {
+IconData meetingIcon(Meeting meeting) {
+  switch (meeting.category) {
     case '스터디':
       return Icons.menu_book_outlined;
     case '취미':

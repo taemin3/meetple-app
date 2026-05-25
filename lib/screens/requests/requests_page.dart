@@ -16,13 +16,13 @@ class RequestsPage extends StatelessWidget {
         SizedBox(height: 14),
         RequestCard(
           name: '도윤',
-          meetup: '한강 러닝 5km',
+          meeting: '한강 러닝 5km',
           message: '러닝은 처음이지만 꾸준히 참여하고 싶어요.',
           color: AppColors.primary,
         ),
         RequestCard(
           name: '하린',
-          meetup: '토요일 알고리즘 스터디',
+          meeting: '토요일 알고리즘 스터디',
           message: '자바로 코테 준비 중입니다.',
           color: AppColors.blue,
         ),
@@ -35,13 +35,13 @@ class RequestCard extends StatelessWidget {
   const RequestCard({
     super.key,
     required this.name,
-    required this.meetup,
+    required this.meeting,
     required this.message,
     required this.color,
   });
 
   final String name;
-  final String meetup;
+  final String meeting;
   final String message;
   final Color color;
 
@@ -73,7 +73,7 @@ class RequestCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        meetup,
+                        meeting,
                         style: const TextStyle(
                           color: AppColors.muted,
                           fontWeight: FontWeight.w700,

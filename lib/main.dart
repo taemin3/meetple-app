@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'app/meetup_mock_app.dart';
+import 'app/meeting_mock_app.dart';
 
 void main() {
-  runApp(const MeetupMockApp());
+  runApp(const MeetingMockApp());
 }

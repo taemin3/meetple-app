@@ -1,25 +1,25 @@
 import 'package:flutter/material.dart';
 
-import '../core/ui/meetup_style.dart';
-import '../models/meetup.dart';
+import '../core/ui/meeting_style.dart';
+import '../models/meeting.dart';
 
-class MeetupPhoto extends StatelessWidget {
-  const MeetupPhoto({
+class MeetingPhoto extends StatelessWidget {
+  const MeetingPhoto({
     super.key,
-    required this.meetup,
+    required this.meeting,
     this.height = 120,
     this.borderRadius = 18,
     this.showIcon = true,
   });
 
-  final Meetup meetup;
+  final Meeting meeting;
   final double height;
   final double borderRadius;
   final bool showIcon;
 
   @override
   Widget build(BuildContext context) {
-    final colors = meetupPhotoColors(meetup);
+    final colors = meetingPhotoColors(meeting);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -35,7 +35,7 @@ class MeetupPhoto extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            CustomPaint(painter: MeetupPhotoPainter(meetup: meetup)),
+            CustomPaint(painter: MeetingPhotoPainter(meeting: meeting)),
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
@@ -51,7 +51,7 @@ class MeetupPhoto extends StatelessWidget {
             if (showIcon)
               Center(
                 child: Icon(
-                  meetupIcon(meetup),
+                  meetingIcon(meeting),
                   color: Colors.white.withOpacity(0.84),
                   size: height * 0.32,
                 ),
@@ -63,10 +63,10 @@ class MeetupPhoto extends StatelessWidget {
   }
 }
 
-class MeetupPhotoPainter extends CustomPainter {
-  MeetupPhotoPainter({required this.meetup});
+class MeetingPhotoPainter extends CustomPainter {
+  MeetingPhotoPainter({required this.meeting});
 
-  final Meetup meetup;
+  final Meeting meeting;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -98,7 +98,7 @@ class MeetupPhotoPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant MeetupPhotoPainter oldDelegate) {
-    return oldDelegate.meetup != meetup;
+  bool shouldRepaint(covariant MeetingPhotoPainter oldDelegate) {
+    return oldDelegate.meeting != meeting;
   }
 }

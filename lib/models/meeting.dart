@@ -1,5 +1,5 @@
-class Meetup {
-  const Meetup({
+class Meeting {
+  const Meeting({
     required this.title,
     required this.category,
     required this.tags,
