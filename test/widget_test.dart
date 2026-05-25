@@ -1,13 +1,13 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:meetple/app/meetup_mock_app.dart';
+import 'package:meetple/app/meeting_mock_app.dart';
 
 void main() {
-  testWidgets('shows meetup mock home', (WidgetTester tester) async {
+  testWidgets('shows Meeting mock home', (WidgetTester tester) async {
     await tester.binding.setSurfaceSize(const Size(540, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const MeetupMockApp());
+    await tester.pumpWidget(const MeetingMockApp());
     await tester.pump();
 
     expect(

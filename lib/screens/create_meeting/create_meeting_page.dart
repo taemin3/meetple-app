@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../widgets/primary_gradient_button.dart';
 
-class CreateMeetupPage extends StatelessWidget {
-  const CreateMeetupPage({super.key});
+class CreateMeetingPage extends StatelessWidget {
+  const CreateMeetingPage({super.key});
 
   @override
   Widget build(BuildContext context) {

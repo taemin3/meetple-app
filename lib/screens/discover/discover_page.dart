@@ -1,16 +1,43 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/ui/meetup_style.dart';
-import '../../data/mock/mock_meetups.dart';
-import '../../models/meetup.dart';
+import '../../core/ui/meeting_style.dart';
+import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_meeting_repository.dart';
+import '../../models/meeting.dart';
 import '../../widgets/category_pill.dart';
-import '../../widgets/meetup_photo.dart';
+import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
-import '../meetup_detail/meetup_detail_page.dart';
+import '../meeting_detail/meeting_detail_page.dart';
 
-class DiscoverPage extends StatelessWidget {
-  const DiscoverPage({super.key});
+class DiscoverPage extends StatefulWidget {
+  const DiscoverPage({
+    super.key,
+    this.meetingRepository = const MockMeetingRepository(),
+  });
+
+  final MeetingRepository meetingRepository;
+
+  @override
+  State<DiscoverPage> createState() => _DiscoverPageState();
+}
+
+class _DiscoverPageState extends State<DiscoverPage> {
+  late Future<List<Meeting>> _meetingsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _meetingsFuture = widget.meetingRepository.findAll();
+  }
+
+  @override
+  void didUpdateWidget(covariant DiscoverPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.meetingRepository != widget.meetingRepository) {
+      _meetingsFuture = widget.meetingRepository.findAll();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,14 +48,38 @@ class DiscoverPage extends StatelessWidget {
           bottom: false,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(24, 18, 24, 26),
-            children: const [
-              MapTopBar(),
-              SizedBox(height: 18),
-              MapSearchRow(),
-              SizedBox(height: 16),
-              CategoryFilterRow(),
-              SizedBox(height: 270),
-              NearbyMeetupSheet(),
+            children: [
+              const MapTopBar(),
+              const SizedBox(height: 18),
+              const MapSearchRow(),
+              const SizedBox(height: 16),
+              const CategoryFilterRow(),
+              const SizedBox(height: 270),
+              FutureBuilder<List<Meeting>>(
+                future: _meetingsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const NearbyMeetingStatusSheet(
+                      message: '모임을 불러오는 중입니다.',
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return const NearbyMeetingStatusSheet(
+                      message: '모임을 불러오지 못했습니다.',
+                    );
+                  }
+
+                  final meetings = snapshot.data ?? const <Meeting>[];
+                  if (meetings.isEmpty) {
+                    return const NearbyMeetingStatusSheet(
+                      message: '주변 모임이 없습니다.',
+                    );
+                  }
+
+                  return NearbyMeetingSheet(meetings: meetings);
+                },
+              ),
             ],
           ),
         ),
@@ -255,8 +306,44 @@ class CountPin extends StatelessWidget {
   }
 }
 
-class NearbyMeetupSheet extends StatelessWidget {
-  const NearbyMeetupSheet({super.key});
+class NearbyMeetingStatusSheet extends StatelessWidget {
+  const NearbyMeetingStatusSheet({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1717151F),
+            blurRadius: 34,
+            offset: Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          message,
+          style: const TextStyle(
+            color: AppColors.muted,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class NearbyMeetingSheet extends StatelessWidget {
+  const NearbyMeetingSheet({super.key, required this.meetings});
+
+  final List<Meeting> meetings;
 
   @override
   Widget build(BuildContext context) {
@@ -311,10 +398,10 @@ class NearbyMeetupSheet extends StatelessWidget {
             height: 230,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              itemCount: mockMeetups.length,
+              itemCount: meetings.length,
               separatorBuilder: (_, __) => const SizedBox(width: 14),
               itemBuilder: (context, index) {
-                return MapMeetupCard(meetup: mockMeetups[index]);
+                return MapMeetingCard(meeting: meetings[index]);
               },
             ),
           ),
@@ -324,14 +411,14 @@ class NearbyMeetupSheet extends StatelessWidget {
   }
 }
 
-class MapMeetupCard extends StatelessWidget {
-  const MapMeetupCard({super.key, required this.meetup});
+class MapMeetingCard extends StatelessWidget {
+  const MapMeetingCard({super.key, required this.meeting});
 
-  final Meetup meetup;
+  final Meeting meeting;
 
   @override
   Widget build(BuildContext context) {
-    final color = meetupAccent(meetup);
+    final color = meetingAccent(meeting);
 
     return SizedBox(
       width: 172,
@@ -342,16 +429,16 @@ class MapMeetupCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => MeetupDetailPage(meetup: meetup),
+              builder: (_) => MeetingDetailPage(meeting: meeting),
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              MeetupPhoto(meetup: meetup, height: 104, borderRadius: 18),
+              MeetingPhoto(meeting: meeting, height: 104, borderRadius: 18),
               const SizedBox(height: 10),
               Text(
-                meetup.title,
+                meeting.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -360,10 +447,10 @@ class MapMeetupCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              CategoryPill(label: meetup.category, color: color),
+              CategoryPill(label: meeting.category, color: color),
               const SizedBox(height: 8),
               Text(
-                '${meetup.date} · ${meetup.area}',
+                '${meeting.date} · ${meeting.area}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
@@ -379,7 +466,7 @@ class MapMeetupCard extends StatelessWidget {
                       size: 14, color: AppColors.primary),
                   const SizedBox(width: 4),
                   Text(
-                    meetup.distance,
+                    meeting.distance,
                     style: const TextStyle(
                       color: AppColors.muted,
                       fontSize: 12,

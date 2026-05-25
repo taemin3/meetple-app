@@ -1,17 +1,44 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../core/ui/meetup_style.dart';
-import '../../data/mock/mock_meetups.dart';
-import '../../models/meetup.dart';
+import '../../core/ui/meeting_style.dart';
+import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_meeting_repository.dart';
+import '../../models/meeting.dart';
 import '../../widgets/category_pill.dart';
-import '../../widgets/meetup_photo.dart';
+import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/section_title.dart';
-import '../meetup_detail/meetup_detail_page.dart';
+import '../meeting_detail/meeting_detail_page.dart';
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({
+    super.key,
+    this.meetingRepository = const MockMeetingRepository(),
+  });
+
+  final MeetingRepository meetingRepository;
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  late Future<List<Meeting>> _meetingsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _meetingsFuture = widget.meetingRepository.findAll();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.meetingRepository != widget.meetingRepository) {
+      _meetingsFuture = widget.meetingRepository.findAll();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +53,32 @@ class HomePage extends StatelessWidget {
         const SizedBox(height: 30),
         const SectionTitle(title: '추천 모임', action: '전체보기 >'),
         const SizedBox(height: 14),
-        for (final meetup in mockMeetups.take(3))
-          HomeMeetupTile(meetup: meetup),
+        FutureBuilder<List<Meeting>>(
+          future: _meetingsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const MeetingListStatus(message: '모임을 불러오는 중입니다.');
+            }
+
+            if (snapshot.hasError) {
+              return const MeetingListStatus(message: '모임을 불러오지 못했습니다.');
+            }
+
+            final meetings = snapshot.data ?? const <Meeting>[];
+            if (meetings.isEmpty) {
+              return const MeetingListStatus(message: '추천 모임이 없습니다.');
+            }
+
+            return Column(
+              children: [
+                for (final meeting in meetings.take(3))
+                  HomeMeetingTile(meeting: meeting),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 18),
-        const CreateMeetupBanner(),
+        const CreateMeetingBanner(),
       ],
     );
   }
@@ -152,14 +201,36 @@ class CategoryShortcutRow extends StatelessWidget {
   }
 }
 
-class HomeMeetupTile extends StatelessWidget {
-  const HomeMeetupTile({super.key, required this.meetup});
+class MeetingListStatus extends StatelessWidget {
+  const MeetingListStatus({super.key, required this.message});
 
-  final Meetup meetup;
+  final String message;
 
   @override
   Widget build(BuildContext context) {
-    final color = meetupAccent(meetup);
+    return SizedBox(
+      height: 104,
+      child: Center(
+        child: Text(
+          message,
+          style: const TextStyle(
+            color: AppColors.muted,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeMeetingTile extends StatelessWidget {
+  const HomeMeetingTile({super.key, required this.meeting});
+
+  final Meeting meeting;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = meetingAccent(meeting);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -170,7 +241,7 @@ class HomeMeetupTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => MeetupDetailPage(meetup: meetup),
+              builder: (_) => MeetingDetailPage(meeting: meeting),
             ),
           ),
           child: Padding(
@@ -179,8 +250,8 @@ class HomeMeetupTile extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 112,
-                  child: MeetupPhoto(
-                    meetup: meetup,
+                  child: MeetingPhoto(
+                    meeting: meeting,
                     height: 92,
                     borderRadius: 14,
                     showIcon: false,
@@ -192,7 +263,7 @@ class HomeMeetupTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        meetup.title,
+                        meeting.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -205,13 +276,13 @@ class HomeMeetupTile extends StatelessWidget {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          for (final tag in meetup.tags.take(3))
+                          for (final tag in meeting.tags.take(3))
                             CategoryPill(label: tag, color: color),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${meetup.date} ${meetup.time} · ${meetup.area}',
+                        '${meeting.date} ${meeting.time} · ${meeting.area}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -222,7 +293,7 @@ class HomeMeetupTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${meetup.joined}/${meetup.capacity}명',
+                        '${meeting.joined}/${meeting.capacity}명',
                         style: const TextStyle(
                           color: AppColors.muted,
                           fontSize: 12,
@@ -242,8 +313,8 @@ class HomeMeetupTile extends StatelessWidget {
   }
 }
 
-class CreateMeetupBanner extends StatelessWidget {
-  const CreateMeetupBanner({super.key});
+class CreateMeetingBanner extends StatelessWidget {
+  const CreateMeetingBanner({super.key});
 
   @override
   Widget build(BuildContext context) {

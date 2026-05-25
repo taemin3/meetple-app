@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
-import '../models/meetup.dart';
+import '../models/meeting.dart';
 
 class CapacityBar extends StatelessWidget {
   const CapacityBar({
     super.key,
-    required this.meetup,
+    required this.meeting,
     required this.color,
   });
 
-  final Meetup meetup;
+  final Meeting meeting;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    final progress = meetup.joined / meetup.capacity;
+    final progress = meeting.capacity <= 0
+        ? 0.0
+        : (meeting.joined / meeting.capacity).clamp(0.0, 1.0).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,7 +26,7 @@ class CapacityBar extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '참여 ${meetup.joined}/${meetup.capacity}명',
+                '참여 ${meeting.joined}/${meeting.capacity}명',
                 style: const TextStyle(
                   color: AppColors.muted,
                   fontSize: 13,
@@ -33,7 +35,7 @@ class CapacityBar extends StatelessWidget {
               ),
             ),
             Text(
-              '모임장 ${meetup.host}',
+              '모임장 ${meeting.host}',
               style: const TextStyle(
                 color: AppColors.muted,
                 fontSize: 13,

@@ -1,7 +1,7 @@
-import '../../models/meetup.dart';
+import '../../models/meeting.dart';
 
-const mockMeetups = [
-  Meetup(
+const mockMeetings = [
+  Meeting(
     title: '한강 러닝 크루 🏃',
     category: '운동',
     tags: ['운동', '러닝', '초보환영'],
@@ -17,7 +17,7 @@ const mockMeetups = [
     reviewCount: 32,
     description: '함께 한강을 뛰며 건강한 습관을 만들어가요. 초보도 환영합니다. 페이스 상관없이 즐겁게 달려요!',
   ),
-  Meetup(
+  Meeting(
     title: '퇴근 후 영화 모임 🎬',
     category: '취미',
     tags: ['취미', '영화', '힐링'],
@@ -33,7 +33,7 @@ const mockMeetups = [
     reviewCount: 18,
     description: '퇴근 후 가볍게 영화 보고 감상을 나누는 모임입니다. 처음 오셔도 편하게 어울릴 수 있어요.',
   ),
-  Meetup(
+  Meeting(
     title: '감성 사진 출사 📸',
     category: '취미',
     tags: ['취미', '사진', '출사'],
@@ -49,7 +49,7 @@ const mockMeetups = [
     reviewCount: 21,
     description: '자연광이 예쁜 산책 코스를 걸으며 사진을 찍어요. 휴대폰 카메라도 괜찮습니다.',
   ),
-  Meetup(
+  Meeting(
     title: '보드게임 모임 🎲',
     category: '취미',
     tags: ['취미', '보드게임', '친목'],

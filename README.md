@@ -99,8 +99,7 @@ lib/
 
 ## 다음 작업 후보
 
-1. `lib/data/repositories/` 추가
-2. `MeetupRepository`와 `MockMeetupRepository` 추가
-3. 화면에서 `mockMeetups` 직접 참조 제거
-4. 라우팅 구조 정리
-5. API 연동 준비용 repository 구현 분리
+1. 라우팅 구조 정리
+2. `ApiMeetingRepository` 추가
+3. 목업/API repository 교체 방식 정리
+4. 화면별 로딩/에러/빈 상태 추가
