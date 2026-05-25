@@ -1,10 +1,10 @@
 # AGENTS.md
 
-이 문서는 Codex가 `meetple/app` Flutter 앱을 다시 열었을 때 바로 이어서 작업하기 위한 기준이다.
+이 문서는 Codex가 `meetple-app` Flutter 앱 저장소를 다시 열었을 때 바로 이어서 작업하기 위한 기준이다.
 
 ## 앱 개요
 
-`meetple/app`은 사용자가 운동, 스터디, 취미 모임을 탐색하고 만들고 참여 신청할 수 있는 Flutter 모바일 앱이다.
+`meetple-app`은 사용자가 운동, 스터디, 취미 모임을 탐색하고 만들고 참여 신청할 수 있는 Flutter 모바일 앱이다.
 
 현재 단계:
 
@@ -16,10 +16,9 @@
 
 ## 작업 루트
 
-Flutter 명령은 항상 `app/`에서 실행한다.
+Flutter 명령은 항상 `pubspec.yaml`이 있는 저장소 루트에서 실행한다.
 
 ```bash
-cd app
 dart format lib test
 flutter analyze
 flutter test
@@ -65,9 +64,8 @@ lib/
 
 구조 기준 문서:
 
-- `../docs/package-structure.md`
-- `../docs/ui-design-spec.md`
-- `../docs/project-plan.md`
+- `README.md`
+- `CONTRIBUTING.md`
 
 ## 개발 원칙
 
@@ -92,7 +90,7 @@ lib/
 2. `MockMeetupRepository` 추가
 3. 화면에서 `mockMeetups` 직접 참조 제거
 4. 라우팅 구조 정리
-5. API 명세 확정 후 `ApiMeetingRepository` 추가
+5. API 명세 확정 후 `ApiMeetupRepository` 추가
 
 백엔드 API가 붙기 전에도 화면은 repository 인터페이스를 통해 데이터를 받도록 점진적으로 바꾼다.
 
@@ -102,8 +100,7 @@ lib/
 - 지도 중심 탐색, 지도 핀, 하단 바텀시트, 사진형 모임 카드를 핵심 시각 요소로 둔다.
 - 하단 탭은 `홈 / 탐색 / 모임 만들기 / 채팅 / 마이` 구성을 유지한다.
 - 모바일 화면에서 텍스트가 넘치거나 버튼/카드가 깨지지 않게 확인한다.
-- 화면 구현은 `../docs/ui-design-spec.md`의 토큰과 화면별 명세를 우선 참고한다.
-- 레퍼런스 이미지는 루트 `AGENTS.md`에 적힌 로컬 이미지 경로를 기준으로 한다.
+- 화면 구현은 기존 `lib/core/theme`, `lib/core/ui`, `lib/widgets` 패턴을 우선 참고한다.
 
 ## 테스트와 검증
 

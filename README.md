@@ -1,6 +1,6 @@
 # Meetple Flutter App
 
-`meetple/app`은 모임 탐색, 모임 만들기, 참여 신청, 채팅 흐름을 검증하기 위한 Flutter 모바일 앱이다. 현재는 백엔드 API 연동 전 단계이며, 목업 데이터로 화면과 사용자 흐름을 먼저 다듬는다.
+`meetple-app`은 모임 탐색, 모임 만들기, 참여 신청, 채팅 흐름을 검증하기 위한 Flutter 모바일 앱이다. 현재는 백엔드 API 연동 전 단계이며, 목업 데이터로 화면과 사용자 흐름을 먼저 다듬는다.
 
 ## 현재 상태
 
@@ -12,17 +12,11 @@
 
 ## 실행 준비
 
-Flutter SDK가 설치되어 있어야 한다.
+Flutter SDK가 설치되어 있어야 한다. 모든 Flutter 명령은 `pubspec.yaml`이 있는 저장소 루트에서 실행한다.
 
 ```bash
 flutter --version
 flutter pub get
-```
-
-프로젝트 루트에서 시작한다면 먼저 `app/`으로 이동한다.
-
-```bash
-cd app
 ```
 
 ## 개발 실행
@@ -90,12 +84,9 @@ lib/
 
 ## 관련 문서
 
-- `../AGENTS.md`: 프로젝트 전체 작업 기준
 - `AGENTS.md`: 앱 전용 Codex 작업 기준
 - `.github/copilot-instructions.md`: 앱 PR 리뷰 기준
-- `../docs/package-structure.md`: 폴더 구조 명세
-- `../docs/ui-design-spec.md`: UI 디자인 명세
-- `../docs/project-plan.md`: 서비스 개발 계획
+- `CONTRIBUTING.md`: Git/GitHub 작업 규칙
 
 ## 개발 원칙
 

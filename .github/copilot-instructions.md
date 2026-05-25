@@ -14,7 +14,7 @@ Review Flutter app changes with these project rules:
 - Avoid putting Flutter UI types directly into domain models.
 - Check that mobile layouts handle long Korean text without overflow.
 - Check that bottom tabs remain `홈 / 탐색 / 모임 만들기 / 채팅 / 마이`.
-- Check that changes respect the purple map/card UI direction from `docs/ui-design-spec.md`.
+- Check that changes respect the purple map/card UI direction already used by the existing screens.
 - If `pubspec.yaml` changes, verify that the dependency is necessary and `pubspec.lock` is consistent.
 - Avoid changing generated platform folders unless the app behavior or platform configuration requires it.
 - Preserve user changes and avoid broad refactors that are not needed for the requested app work.
