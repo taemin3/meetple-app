@@ -15,7 +15,9 @@ class CapacityBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = meeting.joined / meeting.capacity;
+    final progress = meeting.capacity <= 0
+        ? 0.0
+        : (meeting.joined / meeting.capacity).clamp(0.0, 1.0).toDouble();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

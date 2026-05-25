@@ -10,7 +10,7 @@ import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
 import '../meeting_detail/meeting_detail_page.dart';
 
-class DiscoverPage extends StatelessWidget {
+class DiscoverPage extends StatefulWidget {
   const DiscoverPage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
@@ -19,9 +19,28 @@ class DiscoverPage extends StatelessWidget {
   final MeetingRepository meetingRepository;
 
   @override
-  Widget build(BuildContext context) {
-    final meetings = meetingRepository.findAll();
+  State<DiscoverPage> createState() => _DiscoverPageState();
+}
 
+class _DiscoverPageState extends State<DiscoverPage> {
+  late Future<List<Meeting>> _meetingsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _meetingsFuture = widget.meetingRepository.findAll();
+  }
+
+  @override
+  void didUpdateWidget(covariant DiscoverPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.meetingRepository != widget.meetingRepository) {
+      _meetingsFuture = widget.meetingRepository.findAll();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       children: [
         const Positioned.fill(child: MapCanvas()),
@@ -36,7 +55,31 @@ class DiscoverPage extends StatelessWidget {
               const SizedBox(height: 16),
               const CategoryFilterRow(),
               const SizedBox(height: 270),
-              NearbyMeetingSheet(meetings: meetings),
+              FutureBuilder<List<Meeting>>(
+                future: _meetingsFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const NearbyMeetingStatusSheet(
+                      message: '모임을 불러오는 중입니다.',
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return const NearbyMeetingStatusSheet(
+                      message: '모임을 불러오지 못했습니다.',
+                    );
+                  }
+
+                  final meetings = snapshot.data ?? const <Meeting>[];
+                  if (meetings.isEmpty) {
+                    return const NearbyMeetingStatusSheet(
+                      message: '주변 모임이 없습니다.',
+                    );
+                  }
+
+                  return NearbyMeetingSheet(meetings: meetings);
+                },
+              ),
             ],
           ),
         ),
@@ -256,6 +299,40 @@ class CountPin extends StatelessWidget {
               color: Colors.white,
               fontWeight: FontWeight.w900,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class NearbyMeetingStatusSheet extends StatelessWidget {
+  const NearbyMeetingStatusSheet({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 160,
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1717151F),
+            blurRadius: 34,
+            offset: Offset(0, 18),
+          ),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          message,
+          style: const TextStyle(
+            color: AppColors.muted,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

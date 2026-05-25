@@ -11,7 +11,7 @@ import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/section_title.dart';
 import '../meeting_detail/meeting_detail_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
@@ -20,9 +20,28 @@ class HomePage extends StatelessWidget {
   final MeetingRepository meetingRepository;
 
   @override
-  Widget build(BuildContext context) {
-    final meetings = meetingRepository.findAll();
+  State<HomePage> createState() => _HomePageState();
+}
 
+class _HomePageState extends State<HomePage> {
+  late Future<List<Meeting>> _meetingsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _meetingsFuture = widget.meetingRepository.findAll();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.meetingRepository != widget.meetingRepository) {
+      _meetingsFuture = widget.meetingRepository.findAll();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
       children: [
@@ -34,8 +53,30 @@ class HomePage extends StatelessWidget {
         const SizedBox(height: 30),
         const SectionTitle(title: '추천 모임', action: '전체보기 >'),
         const SizedBox(height: 14),
-        for (final meeting in meetings.take(3))
-          HomeMeetingTile(meeting: meeting),
+        FutureBuilder<List<Meeting>>(
+          future: _meetingsFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const MeetingListStatus(message: '모임을 불러오는 중입니다.');
+            }
+
+            if (snapshot.hasError) {
+              return const MeetingListStatus(message: '모임을 불러오지 못했습니다.');
+            }
+
+            final meetings = snapshot.data ?? const <Meeting>[];
+            if (meetings.isEmpty) {
+              return const MeetingListStatus(message: '추천 모임이 없습니다.');
+            }
+
+            return Column(
+              children: [
+                for (final meeting in meetings.take(3))
+                  HomeMeetingTile(meeting: meeting),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: 18),
         const CreateMeetingBanner(),
       ],
@@ -155,6 +196,28 @@ class CategoryShortcutRow extends StatelessWidget {
             const SizedBox(width: 18),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class MeetingListStatus extends StatelessWidget {
+  const MeetingListStatus({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 104,
+      child: Center(
+        child: Text(
+          message,
+          style: const TextStyle(
+            color: AppColors.muted,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
       ),
     );
   }

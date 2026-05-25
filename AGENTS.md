@@ -104,7 +104,7 @@ lib/
 
 ## 목업 데이터와 연동 준비
 
-현재 목업 데이터는 `lib/data/mock/mock_meetings.dart`에 있고, 화면은 `lib/data/repositories/MeetingRepository`를 통해 데이터를 받는다.
+현재 목업 데이터는 `lib/data/mock/mock_meetings.dart`에 있고, 화면은 `MeetingRepository`(`lib/data/repositories/meeting_repository.dart`)를 통해 데이터를 받는다.
 
 다음 구조 정리의 우선순위:
 

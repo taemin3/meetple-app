@@ -6,5 +6,5 @@ class MockMeetingRepository implements MeetingRepository {
   const MockMeetingRepository();
 
   @override
-  List<Meeting> findAll() => mockMeetings;
+  Future<List<Meeting>> findAll() => Future.value(mockMeetings);
 }
