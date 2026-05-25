@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
+import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/mock_meeting_repository.dart';
 import '../screens/chat/chat_page.dart';
 import '../screens/create_meeting/create_meeting_page.dart';
 import '../screens/discover/discover_page.dart';
@@ -9,7 +11,12 @@ import '../screens/profile/profile_page.dart';
 import 'app_navigation.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({
+    super.key,
+    this.meetingRepository = const MockMeetingRepository(),
+  });
+
+  final MeetingRepository meetingRepository;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -110,9 +117,9 @@ class _AppShellState extends State<AppShell> {
   Widget _buildPage(AppTab tab) {
     switch (tab) {
       case AppTab.home:
-        return const HomePage();
+        return HomePage(meetingRepository: widget.meetingRepository);
       case AppTab.discover:
-        return const DiscoverPage();
+        return DiscoverPage(meetingRepository: widget.meetingRepository);
       case AppTab.createMeeting:
         return const CreateMeetingPage();
       case AppTab.chat:

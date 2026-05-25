@@ -42,6 +42,10 @@ lib/
     app_shell.dart
     meetple_app.dart
   core/
+    config/
+      app_config.dart
+    network/
+      api_client.dart
     theme/
       app_colors.dart
       app_theme.dart
@@ -51,6 +55,7 @@ lib/
     mock/
       mock_meetings.dart
     repositories/
+      api_meeting_repository.dart
       meeting_repository.dart
       mock_meeting_repository.dart
   models/
@@ -110,10 +115,10 @@ lib/
 
 다음 구조 정리의 우선순위:
 
-1. API 명세 확정 후 `ApiMeetingRepository` 추가
-2. `MockMeetingRepository`와 `ApiMeetingRepository`를 쉽게 교체할 수 있는 주입 구조 정리
+1. 인증 토큰을 `HttpApiClient`에 주입하는 구조 정리
+2. 개발 환경에서 `ApiMeetingRepository`로 교체하는 진입점 추가
 3. 화면별 로딩/에러/빈 상태 추가
-4. 백엔드 meeting API 연동
+4. 백엔드 meeting API 연동 검증
 
 백엔드 API가 붙기 전에도 화면은 repository 인터페이스를 통해 데이터를 받도록 점진적으로 바꾼다.
 

@@ -66,10 +66,13 @@ lib/
     app_shell.dart
     meetple_app.dart
   core/
+    config/
+    network/
     theme/
     ui/
   data/
     mock/
+    repositories/
   models/
   screens/
   widgets/
@@ -79,9 +82,12 @@ lib/
 
 - `main.dart`: 앱 실행 진입점
 - `app/`: `MaterialApp`, 앱 shell, 탭/상세 화면 라우팅 연결
+- `core/config/`: 빌드 환경별 설정값
+- `core/network/`: HTTP API 클라이언트
 - `core/theme/`: 전역 색상과 테마
 - `core/ui/`: 화면 표현용 공통 변환 규칙
 - `data/mock/`: 현재 목업 데이터
+- `data/repositories/`: 목업/API 데이터 접근 구현체
 - `models/`: 화면과 API가 공유할 데이터 모델
 - `screens/`: 사용자 화면 단위 구현
 - `widgets/`: 여러 화면에서 쓰는 공통 위젯
@@ -103,7 +109,7 @@ lib/
 
 ## 다음 작업 후보
 
-1. `ApiMeetingRepository` 추가
-2. 목업/API repository 교체 방식 정리
-3. 화면별 로딩/에러/빈 상태 추가
-4. 백엔드 meeting API 연동
+1. 인증 토큰을 `HttpApiClient`에 주입하는 구조 정리
+2. 개발 환경에서 `ApiMeetingRepository`로 교체하는 진입점 추가
+3. 화면별 로딩/에러/빈 상태 UI 다듬기
+4. 백엔드 meeting API 연동 검증
