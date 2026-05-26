@@ -33,6 +33,20 @@ flutter run
 flutter run -d chrome
 ```
 
+## API 연동 실행
+
+기본 실행은 목업 데이터를 사용한다. 백엔드 API로 모임 목록을 불러오려면 `MEETPLE_USE_API=true`와 `MEETPLE_API_BASE_URL`을 함께 넘긴다.
+
+```bash
+flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://localhost:8080
+```
+
+Android 에뮬레이터에서 로컬 백엔드에 연결할 때는 `localhost` 대신 `10.0.2.2`를 사용한다.
+
+```bash
+flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://10.0.2.2:8080
+```
+
 ## 검증 명령
 
 작업 후 가능한 경우 아래 순서로 확인한다.
