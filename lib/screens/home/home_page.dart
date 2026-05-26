@@ -7,6 +7,7 @@ import '../../core/ui/meeting_style.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
+import '../../widgets/app_state_view.dart';
 import '../../widgets/category_pill.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
@@ -30,15 +31,23 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _meetingsFuture = widget.meetingRepository.findAll();
+    _loadMeetings();
   }
 
   @override
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.meetingRepository != widget.meetingRepository) {
-      _meetingsFuture = widget.meetingRepository.findAll();
+      _loadMeetings();
     }
+  }
+
+  void _loadMeetings() {
+    _meetingsFuture = widget.meetingRepository.findAll();
+  }
+
+  void _reloadMeetings() {
+    setState(_loadMeetings);
   }
 
   @override
@@ -58,16 +67,19 @@ class _HomePageState extends State<HomePage> {
           future: _meetingsFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const MeetingListStatus(message: '모임을 불러오는 중입니다.');
+              return const AppLoadingView(message: '모임을 불러오는 중입니다.');
             }
 
             if (snapshot.hasError) {
-              return const MeetingListStatus(message: '모임을 불러오지 못했습니다.');
+              return AppErrorView(
+                message: '모임을 불러오지 못했습니다.',
+                onRetry: _reloadMeetings,
+              );
             }
 
             final meetings = snapshot.data ?? const <Meeting>[];
             if (meetings.isEmpty) {
-              return const MeetingListStatus(message: '추천 모임이 없습니다.');
+              return const AppEmptyView(message: '추천 모임이 없습니다.');
             }
 
             return Column(
@@ -197,28 +209,6 @@ class CategoryShortcutRow extends StatelessWidget {
             const SizedBox(width: 18),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class MeetingListStatus extends StatelessWidget {
-  const MeetingListStatus({super.key, required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 104,
-      child: Center(
-        child: Text(
-          message,
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
       ),
     );
   }
