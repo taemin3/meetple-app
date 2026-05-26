@@ -68,7 +68,7 @@ void main() {
 
     await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
     await tester.enterText(find.byType(TextField).at(1), 'password');
-    await tester.tap(find.text('로그인하기'));
+    await tester.tap(find.text('로그인'));
     await tester.pumpAndSettle();
 
     expect(find.text('김모임'), findsOneWidget);
@@ -80,5 +80,28 @@ void main() {
 
     expect(find.text('김모임'), findsOneWidget);
     expect(find.text('로그인이 필요합니다.'), findsNothing);
+  });
+
+  testWidgets('shows reference login form copy', (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MeetpleApp(authRepository: MockAuthRepository(session: null)),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('마이'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('로그인하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('밋플'), findsOneWidget);
+    expect(find.text('우리, 가까운 모임으로 연결되는 순간'), findsOneWidget);
+    expect(find.text('이메일을 입력해주세요'), findsOneWidget);
+    expect(find.text('비밀번호를 입력해주세요'), findsOneWidget);
+    expect(find.text('비밀번호 찾기'), findsOneWidget);
+    expect(find.text('계정이 없으신가요?'), findsOneWidget);
+    expect(find.text('회원가입'), findsOneWidget);
   });
 }
