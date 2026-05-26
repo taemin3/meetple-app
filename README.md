@@ -47,6 +47,12 @@ Android 에뮬레이터에서 로컬 백엔드에 연결할 때는 `localhost` �
 flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://10.0.2.2:8080
 ```
 
+목록 API가 인증을 요구하는 백엔드 설정이면 로그인으로 받은 access token도 함께 넘긴다.
+
+```bash
+flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://10.0.2.2:8080 --dart-define=MEETPLE_ACCESS_TOKEN=access-token
+```
+
 ## 검증 명령
 
 작업 후 가능한 경우 아래 순서로 확인한다.
