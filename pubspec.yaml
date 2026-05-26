@@ -107,10 +107,10 @@ flutter_launcher_icons:
 
 flutter_native_splash:
   color: "#F8F7FC"
-  image: assets/splash/splash-logo.png
+  image: assets/splash/splash-brand.png
   android: true
   ios: true
   web: false
   android_12:
     color: "#F8F7FC"
-    image: assets/splash/splash-logo.png
+    image: assets/splash/splash-brand.png
