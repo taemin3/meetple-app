@@ -4,5 +4,10 @@ import 'app/app_dependencies.dart';
 import 'app/meetple_app.dart';
 
 void main() {
-  runApp(MeetpleApp(meetingRepository: createMeetingRepository()));
+  runApp(
+    MeetpleApp(
+      authRepository: createAuthRepository(),
+      meetingRepository: createMeetingRepository(),
+    ),
+  );
 }

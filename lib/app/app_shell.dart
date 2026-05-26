@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
+import '../data/repositories/auth_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../screens/chat/chat_page.dart';
 import '../screens/create_meeting/create_meeting_page.dart';
@@ -13,9 +15,11 @@ import 'app_navigation.dart';
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
+    this.authRepository = const MockAuthRepository(),
     this.meetingRepository = const MockMeetingRepository(),
   });
 
+  final AuthRepository authRepository;
   final MeetingRepository meetingRepository;
 
   @override
@@ -125,7 +129,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.chat:
         return const ChatPage();
       case AppTab.profile:
-        return const ProfilePage();
+        return ProfilePage(authRepository: widget.authRepository);
     }
   }
 }

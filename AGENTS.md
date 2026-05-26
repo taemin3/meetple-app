@@ -53,14 +53,20 @@ lib/
       meeting_style.dart
   data/
     mock/
+      mock_auth.dart
       mock_meetings.dart
     repositories/
       api_meeting_repository.dart
+      auth_repository.dart
       meeting_repository.dart
+      mock_auth_repository.dart
       mock_meeting_repository.dart
   models/
+    auth_session.dart
+    auth_user.dart
     meeting.dart
   screens/
+    auth/
     home/
     discover/
     meeting_detail/
@@ -115,9 +121,9 @@ lib/
 
 다음 구조 정리의 우선순위:
 
-1. 인증 토큰을 `HttpApiClient`에 주입하는 구조 정리
-2. 개발 환경에서 `ApiMeetingRepository`로 교체하는 진입점 추가
-3. 화면별 로딩/에러/빈 상태 추가
+1. 인증 토큰 저장소와 `HttpApiClient` token provider 연결
+2. `ApiAuthRepository` 추가 후 로그인/회원가입 API 연동
+3. 모임 만들기 화면 입력 상태와 검증 흐름 정리
 4. 백엔드 meeting API 연동 검증
 
 백엔드 API가 붙기 전에도 화면은 repository 인터페이스를 통해 데이터를 받도록 점진적으로 바꾼다.

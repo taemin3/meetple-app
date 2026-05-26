@@ -31,4 +31,21 @@ void main() {
 
     expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
   });
+
+  testWidgets('shows authenticated profile from auth repository', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MeetpleApp());
+    await tester.pump();
+
+    await tester.tap(find.text('마이'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('김모임'), findsOneWidget);
+    expect(find.text('@gather_together'), findsOneWidget);
+    expect(find.text('내 정보'), findsOneWidget);
+  });
 }
