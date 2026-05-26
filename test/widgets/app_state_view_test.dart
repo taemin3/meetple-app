@@ -48,4 +48,23 @@ void main() {
     expect(find.text('추천 모임이 없습니다.'), findsOneWidget);
     expect(find.byIcon(Icons.event_busy_outlined), findsOneWidget);
   });
+
+  testWidgets('limits long messages to prevent fixed-height overflow', (
+    tester,
+  ) async {
+    const message = '참여 가능한 추천 모임을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: AppErrorView(message: message),
+        ),
+      ),
+    );
+
+    final text = tester.widget<Text>(find.text(message));
+
+    expect(text.maxLines, 2);
+    expect(text.overflow, TextOverflow.ellipsis);
+  });
 }

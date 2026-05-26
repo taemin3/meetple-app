@@ -71,7 +71,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     return const NearbyMeetingStateSheet(
                       child: AppLoadingView(
                         message: '모임을 불러오는 중입니다.',
-                        height: 118,
                       ),
                     );
                   }
@@ -80,7 +79,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     return NearbyMeetingStateSheet(
                       child: AppErrorView(
                         message: '모임을 불러오지 못했습니다.',
-                        height: 132,
                         onRetry: _reloadMeetings,
                       ),
                     );
@@ -91,7 +89,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     return const NearbyMeetingStateSheet(
                       child: AppEmptyView(
                         message: '주변 모임이 없습니다.',
-                        height: 118,
                       ),
                     );
                   }

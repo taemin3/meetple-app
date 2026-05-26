@@ -48,6 +48,8 @@ class AppStateView extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: AppColors.muted,
                   fontWeight: FontWeight.w800,
@@ -60,6 +62,10 @@ class AppStateView extends StatelessWidget {
                   onPressed: onAction,
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.primary,
+                    minimumSize: const Size(0, 34),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
                     textStyle: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   icon: const Icon(Icons.refresh_rounded, size: 18),
