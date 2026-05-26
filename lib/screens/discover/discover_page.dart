@@ -6,6 +6,7 @@ import '../../core/ui/meeting_style.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
+import '../../widgets/app_state_view.dart';
 import '../../widgets/category_pill.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
@@ -28,15 +29,23 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   void initState() {
     super.initState();
-    _meetingsFuture = widget.meetingRepository.findAll();
+    _loadMeetings();
   }
 
   @override
   void didUpdateWidget(covariant DiscoverPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.meetingRepository != widget.meetingRepository) {
-      _meetingsFuture = widget.meetingRepository.findAll();
+      _loadMeetings();
     }
+  }
+
+  void _loadMeetings() {
+    _meetingsFuture = widget.meetingRepository.findAll();
+  }
+
+  void _reloadMeetings() {
+    setState(_loadMeetings);
   }
 
   @override
@@ -59,21 +68,31 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 future: _meetingsFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState != ConnectionState.done) {
-                    return const NearbyMeetingStatusSheet(
-                      message: '모임을 불러오는 중입니다.',
+                    return const NearbyMeetingStateSheet(
+                      child: AppLoadingView(
+                        message: '모임을 불러오는 중입니다.',
+                        height: 118,
+                      ),
                     );
                   }
 
                   if (snapshot.hasError) {
-                    return const NearbyMeetingStatusSheet(
-                      message: '모임을 불러오지 못했습니다.',
+                    return NearbyMeetingStateSheet(
+                      child: AppErrorView(
+                        message: '모임을 불러오지 못했습니다.',
+                        height: 132,
+                        onRetry: _reloadMeetings,
+                      ),
                     );
                   }
 
                   final meetings = snapshot.data ?? const <Meeting>[];
                   if (meetings.isEmpty) {
-                    return const NearbyMeetingStatusSheet(
-                      message: '주변 모임이 없습니다.',
+                    return const NearbyMeetingStateSheet(
+                      child: AppEmptyView(
+                        message: '주변 모임이 없습니다.',
+                        height: 118,
+                      ),
                     );
                   }
 
@@ -306,15 +325,15 @@ class CountPin extends StatelessWidget {
   }
 }
 
-class NearbyMeetingStatusSheet extends StatelessWidget {
-  const NearbyMeetingStatusSheet({super.key, required this.message});
+class NearbyMeetingStateSheet extends StatelessWidget {
+  const NearbyMeetingStateSheet({super.key, required this.child});
 
-  final String message;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 160,
+      height: 176,
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -327,15 +346,7 @@ class NearbyMeetingStatusSheet extends StatelessWidget {
           ),
         ],
       ),
-      child: Center(
-        child: Text(
-          message,
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
+      child: child,
     );
   }
 }
