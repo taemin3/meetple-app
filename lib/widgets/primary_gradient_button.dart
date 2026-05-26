@@ -19,7 +19,7 @@ class PrimaryGradientButton extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryDark],
+          colors: [AppColors.primary, AppColors.secondary],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
