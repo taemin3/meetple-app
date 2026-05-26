@@ -44,3 +44,8 @@ macos/Flutter/ephemeral/
 # Symbolication / obfuscation
 app.*.symbols
 app.*.map.json
+
+# Local AI work logs
+docs/work-logs/*.md
+!docs/work-logs/README.md
+!docs/work-logs/TEMPLATE.md
