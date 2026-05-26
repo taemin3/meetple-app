@@ -1,14 +1,16 @@
 # Meetple Flutter App
 
-`meetple-app`은 모임 탐색, 모임 만들기, 참여 신청, 채팅 흐름을 검증하기 위한 Flutter 모바일 앱이다. 현재는 백엔드 API 연동 전 단계이며, 목업 데이터로 화면과 사용자 흐름을 먼저 다듬는다.
+`meetple-app`은 모임 탐색, 모임 만들기, 참여 신청, 채팅 흐름을 구현하는 Flutter 모바일 앱이다. 백엔드 API가 준비된 기능은 API repository를 우선 연결하고, mock은 테스트와 오프라인 프리뷰 보조용으로 사용한다.
 
 ## 현재 상태
 
-- Flutter 기반 화면 목업
+- Flutter 기반 모바일 앱
 - iOS/Android 우선 개발
 - Web은 리뷰와 프리뷰 용도
-- 모임 목록은 목업/API repository 전환 구조 준비
-- 인증은 mock repository 기반 foundation 준비
+- 모임 목록은 repository 기반 목업/API 전환 구조 준비
+- 인증은 repository 기반 foundation 준비
+- 백엔드 API가 준비된 기능은 API repository 우선 연동
+- MockRepository는 테스트, 오프라인 프리뷰, API 미구현 화면 보조용
 - 보라색 지도/카드형 UI 방향 적용 중
 
 ## 실행 준비
@@ -36,7 +38,7 @@ flutter run -d chrome
 
 ## API 연동 실행
 
-기본 실행은 목업 데이터를 사용한다. 백엔드 API로 모임 목록을 불러오려면 `MEETPLE_USE_API=true`와 `MEETPLE_API_BASE_URL`을 함께 넘긴다.
+기본 실행은 로컬 프리뷰를 위해 mock repository를 사용한다. 백엔드 API로 모임 목록을 불러오려면 `MEETPLE_USE_API=true`와 `MEETPLE_API_BASE_URL`을 함께 넘긴다.
 
 ```bash
 flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://localhost:8080
@@ -102,8 +104,8 @@ lib/
 - `core/network/`: HTTP API 클라이언트
 - `core/theme/`: 전역 색상과 테마
 - `core/ui/`: 화면 표현용 공통 변환 규칙
-- `data/mock/`: 현재 목업 데이터
-- `data/repositories/`: 목업/API 데이터 접근 인터페이스와 구현체
+- `data/mock/`: 테스트와 오프라인 프리뷰용 mock 데이터
+- `data/repositories/`: API/mock 데이터 접근 인터페이스와 구현체
 - `models/`: 화면과 API가 공유할 데이터 모델
 - `screens/`: 사용자 화면 단위 구현
 - `widgets/`: 여러 화면에서 쓰는 공통 위젯
@@ -116,8 +118,10 @@ lib/
 
 ## 개발 원칙
 
-- 백엔드 연동 전에는 화면 흐름과 목업 UX를 우선한다.
-- 화면에서 목업 데이터를 직접 참조하는 부분은 점진적으로 repository 계층으로 이동한다.
+- 백엔드 API가 준비된 기능은 API repository를 우선 구현한다.
+- MockRepository는 테스트, 오프라인 프리뷰, API 미구현 화면 보조용으로만 사용한다.
+- 화면은 mock 데이터를 직접 참조하지 않고 repository 인터페이스를 통해 데이터를 받는다.
+- 새 기능은 가능하면 백엔드 API contract 기준으로 구현하고, mock은 같은 인터페이스를 따르는 최소 구현만 둔다.
 - 공통 UI는 `widgets/`, 전역 스타일은 `core/` 기준으로 정리한다.
 - 새 패키지는 꼭 필요할 때만 추가한다.
 - 플랫폼 폴더는 실제 설정 변경이 필요한 경우에만 수정한다.

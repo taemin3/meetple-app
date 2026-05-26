@@ -6,7 +6,8 @@ Review Flutter app changes with these project rules:
 
 - Keep comments concise and actionable.
 - Prioritize functional bugs, navigation regressions, broken state flows, UI overflow, missing validation, missing tests, and unnecessary package additions.
-- Preserve the current Flutter app scope: mock UI first, no direct backend integration until the data/repository layer is prepared.
+- Prefer API repository integration when the backend API contract is available; use mock repositories only for tests, offline preview, or features whose API is not ready yet.
+- Keep screens dependent on repository interfaces rather than direct mock data or direct API clients.
 - Follow the existing structure under `lib/app`, `lib/core`, `lib/data`, `lib/models`, `lib/screens`, and `lib/widgets`.
 - Use existing theme and UI helpers such as `AppColors`, `AppTheme`, and `MeetupStyle` before adding new styling patterns.
 - Keep shared UI in `lib/widgets`; keep one-screen-only widgets close to the screen that owns them.
