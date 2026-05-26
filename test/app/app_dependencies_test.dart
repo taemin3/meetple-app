@@ -18,14 +18,4 @@ void main() {
 
     expect(repository, isA<ApiMeetingRepository>());
   });
-
-  test('creates API meeting repository with access token', () {
-    final repository = createMeetingRepository(
-      useApiRepository: true,
-      apiBaseUrl: 'http://localhost:8080',
-      accessToken: 'access-token',
-    );
-
-    expect(repository, isA<ApiMeetingRepository>());
-  });
 }

@@ -8,9 +8,4 @@ abstract final class AppConfig {
     'MEETPLE_API_BASE_URL',
     defaultValue: 'http://localhost:8080',
   );
-
-  static const accessToken = String.fromEnvironment(
-    'MEETPLE_ACCESS_TOKEN',
-    defaultValue: '',
-  );
 }
