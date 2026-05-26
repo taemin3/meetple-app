@@ -5,14 +5,36 @@ import 'app_colors.dart';
 class AppTheme {
   const AppTheme._();
 
+  static const fontFamily = 'Pretendard';
+
   static ThemeData light() {
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
-        brightness: Brightness.light,
+      fontFamily: fontFamily,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.primary,
+        onPrimary: Colors.white,
+        primaryContainer: AppColors.softSurface,
+        onPrimaryContainer: AppColors.ink,
+        secondary: AppColors.secondary,
+        onSecondary: Colors.white,
+        secondaryContainer: AppColors.softSurface,
+        onSecondaryContainer: AppColors.ink,
+        tertiary: AppColors.accent,
+        onTertiary: Colors.white,
+        error: AppColors.error,
+        onError: Colors.white,
+        surface: AppColors.surface,
+        onSurface: AppColors.ink,
+        outline: AppColors.line,
+        outlineVariant: AppColors.line,
       ),
       scaffoldBackgroundColor: AppColors.canvas,
+      textTheme: ThemeData.light().textTheme.apply(
+            fontFamily: fontFamily,
+            bodyColor: AppColors.ink,
+            displayColor: AppColors.ink,
+          ),
       appBarTheme: const AppBarTheme(
         centerTitle: false,
         backgroundColor: AppColors.canvas,
@@ -20,8 +42,29 @@ class AppTheme {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: AppColors.surface,
+        indicatorColor: AppColors.softSurface,
+        surfaceTintColor: Colors.transparent,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+
+          return TextStyle(
+            color: selected ? AppColors.primary : AppColors.muted,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+
+          return IconThemeData(
+            color: selected ? AppColors.primary : AppColors.muted,
+          );
+        }),
+      ),
       cardTheme: CardTheme(
-        color: Colors.white,
+        color: AppColors.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
@@ -31,10 +74,14 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 18,
           vertical: 16,
+        ),
+        hintStyle: const TextStyle(
+          color: AppColors.muted,
+          fontWeight: FontWeight.w600,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
@@ -52,6 +99,7 @@ class AppTheme {
           ),
         ),
       ),
+      iconTheme: const IconThemeData(color: AppColors.ink),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.primary,
@@ -62,6 +110,20 @@ class AppTheme {
           ),
           textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.line,
+        thickness: 1,
       ),
     );
   }
