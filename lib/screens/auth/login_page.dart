@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_route_names.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
-import '../../data/repositories/mock_auth_repository.dart';
 import '../../models/auth_session.dart';
 import '../../widgets/primary_gradient_button.dart';
 import 'auth_form_widgets.dart';
@@ -11,7 +11,7 @@ import 'signup_page.dart';
 class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
-    this.authRepository = const MockAuthRepository(),
+    required this.authRepository,
   });
 
   final AuthRepository authRepository;
@@ -94,6 +94,9 @@ class _LoginPageState extends State<LoginPage> {
       );
       _complete(session);
     } on Exception catch (error) {
+      if (!mounted) {
+        return;
+      }
       setState(() => _errorMessage = authErrorMessage(error));
     } finally {
       if (mounted) {
@@ -105,7 +108,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _openSignUp() async {
     final session = await Navigator.of(context).push<AuthSession>(
       MaterialPageRoute<AuthSession>(
-        settings: const RouteSettings(name: '/auth/signup'),
+        settings: const RouteSettings(name: AppRouteNames.signUp),
         builder: (_) => SignUpPage(authRepository: widget.authRepository),
       ),
     );

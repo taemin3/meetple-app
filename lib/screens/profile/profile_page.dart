@@ -13,10 +13,10 @@ import '../../widgets/surface_panel.dart';
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
-    this.authRepository = const MockAuthRepository(),
+    this.authRepository,
   });
 
-  final AuthRepository authRepository;
+  final AuthRepository? authRepository;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -24,23 +24,27 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late Future<AuthSession?> _sessionFuture;
+  late AuthRepository _authRepository;
 
   @override
   void initState() {
     super.initState();
+    _authRepository = widget.authRepository ?? MockAuthRepository();
     _loadSession();
   }
 
   @override
   void didUpdateWidget(covariant ProfilePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.authRepository != widget.authRepository) {
+    if (oldWidget.authRepository != widget.authRepository &&
+        widget.authRepository != null) {
+      _authRepository = widget.authRepository!;
       _loadSession();
     }
   }
 
   void _loadSession() {
-    _sessionFuture = widget.authRepository.restoreSession();
+    _sessionFuture = _authRepository.restoreSession();
   }
 
   void _reloadSession() {
@@ -66,7 +70,7 @@ class _ProfilePageState extends State<ProfilePage> {
         final session = snapshot.data;
         if (session == null) {
           return SignedOutProfile(
-            authRepository: widget.authRepository,
+            authRepository: _authRepository,
             onSignedIn: _showSession,
           );
         }

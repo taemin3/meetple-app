@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
-import '../../data/repositories/mock_auth_repository.dart';
 import '../../models/auth_session.dart';
 import '../../widgets/primary_gradient_button.dart';
 import 'auth_form_widgets.dart';
@@ -10,7 +9,7 @@ import 'auth_form_widgets.dart';
 class SignUpPage extends StatefulWidget {
   const SignUpPage({
     super.key,
-    this.authRepository = const MockAuthRepository(),
+    required this.authRepository,
   });
 
   final AuthRepository authRepository;
@@ -97,6 +96,9 @@ class _SignUpPageState extends State<SignUpPage> {
       );
       _complete(session);
     } on Exception catch (error) {
+      if (!mounted) {
+        return;
+      }
       setState(() => _errorMessage = authErrorMessage(error));
     } finally {
       if (mounted) {

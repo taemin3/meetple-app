@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
-import '../../data/repositories/mock_auth_repository.dart';
+import '../../data/repositories/auth_repository.dart';
 
 class AuthHeader extends StatelessWidget {
   const AuthHeader({
@@ -75,8 +75,11 @@ class AuthTextField extends StatelessWidget {
         const SizedBox(height: 10),
         TextField(
           controller: controller,
-          keyboardType: keyboardType,
+          keyboardType:
+              obscureText ? TextInputType.visiblePassword : keyboardType,
           obscureText: obscureText,
+          enableSuggestions: !obscureText,
+          autocorrect: !obscureText,
           decoration: InputDecoration(hintText: hintText),
         ),
       ],

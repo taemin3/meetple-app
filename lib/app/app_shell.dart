@@ -15,11 +15,11 @@ import 'app_navigation.dart';
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
-    this.authRepository = const MockAuthRepository(),
+    this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
   });
 
-  final AuthRepository authRepository;
+  final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
 
   @override
@@ -36,6 +36,22 @@ class _AppShellState extends State<AppShell> {
   ];
 
   AppTab currentTab = AppTab.home;
+  late AuthRepository _authRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    _authRepository = widget.authRepository ?? MockAuthRepository();
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.authRepository != widget.authRepository &&
+        widget.authRepository != null) {
+      _authRepository = widget.authRepository!;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +145,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.chat:
         return const ChatPage();
       case AppTab.profile:
-        return ProfilePage(authRepository: widget.authRepository);
+        return ProfilePage(authRepository: _authRepository);
     }
   }
 }

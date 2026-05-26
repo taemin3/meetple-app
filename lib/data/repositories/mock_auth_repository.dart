@@ -3,13 +3,14 @@ import '../mock/mock_auth.dart';
 import 'auth_repository.dart';
 
 class MockAuthRepository implements AuthRepository {
-  const MockAuthRepository({this.session = mockAuthSession});
+  MockAuthRepository({AuthSession? session = mockAuthSession})
+      : _session = session;
 
-  final AuthSession? session;
+  AuthSession? _session;
 
   @override
   Future<AuthSession?> restoreSession() async {
-    return session;
+    return _session;
   }
 
   @override
@@ -20,11 +21,14 @@ class MockAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
 
-    return AuthSession(
+    final session = AuthSession(
       user: mockAuthUser.copyWith(email: email),
       accessToken: mockAuthSession.accessToken,
       refreshToken: mockAuthSession.refreshToken,
     );
+    _session = session;
+
+    return session;
   }
 
   @override
@@ -37,7 +41,7 @@ class MockAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
 
-    return AuthSession(
+    final session = AuthSession(
       user: mockAuthUser.copyWith(
         nickname: nickname,
         handle: nickname,
@@ -49,23 +53,19 @@ class MockAuthRepository implements AuthRepository {
       accessToken: mockAuthSession.accessToken,
       refreshToken: mockAuthSession.refreshToken,
     );
+    _session = session;
+
+    return session;
   }
 
   @override
-  Future<void> signOut() async {}
+  Future<void> signOut() async {
+    _session = null;
+  }
 
   void _ensureNotBlank(String value, String message) {
     if (value.trim().isEmpty) {
       throw AuthException(message);
     }
   }
-}
-
-class AuthException implements Exception {
-  const AuthException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }

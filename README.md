@@ -79,6 +79,7 @@ lib/
   main.dart
   app/
     app_navigation.dart
+    app_route_names.dart
     app_routes.dart
     app_shell.dart
     meetple_app.dart

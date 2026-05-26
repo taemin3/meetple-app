@@ -6,7 +6,7 @@ import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 
 AuthRepository createAuthRepository() {
-  return const MockAuthRepository();
+  return MockAuthRepository();
 }
 
 MeetingRepository createMeetingRepository({
