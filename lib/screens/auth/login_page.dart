@@ -66,7 +66,7 @@ class _LoginPageState extends State<LoginPage> {
               final brandSpacing =
                   (constraints.maxHeight * 0.035).clamp(14.0, 30.0);
               final fieldHeight =
-                  isExtraCompact ? 48.0 : (isCompact ? 54.0 : 60.0);
+                  isExtraCompact ? 44.0 : (isCompact ? 50.0 : 56.0);
               final fieldGap = isCompact ? 10.0 : 14.0;
               final forgotGap = isCompact ? 4.0 : 8.0;
               final errorHeight = isCompact ? 24.0 : 28.0;
@@ -296,7 +296,7 @@ class _LoginTextField extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
+        borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
         border: Border.all(color: AppColors.line),
         boxShadow: [
           BoxShadow(
@@ -308,53 +308,67 @@ class _LoginTextField extends StatelessWidget {
       ),
       child: SizedBox(
         height: height,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(width: isCompact ? 18 : 20),
-            Icon(icon, color: AppColors.muted, size: isCompact ? 21 : 23),
-            const SizedBox(width: 12),
-            Expanded(
-              child: TextField(
-                controller: controller,
-                keyboardType: keyboardType,
-                obscureText: obscureText,
-                enableSuggestions: !obscureText,
-                autocorrect: !obscureText,
-                textAlignVertical: TextAlignVertical.center,
-                style: TextStyle(
-                  color: AppColors.ink,
-                  fontSize: isCompact ? 14 : 15,
-                  fontWeight: FontWeight.w800,
-                  height: 1.0,
-                ),
-                decoration: InputDecoration.collapsed(
-                  hintText: hintText,
-                  hintStyle: TextStyle(
-                    color: AppColors.subtle,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(width: isCompact ? 16 : 18),
+              Icon(icon, color: AppColors.muted, size: isCompact ? 20 : 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  obscureText: obscureText,
+                  enableSuggestions: !obscureText,
+                  autocorrect: !obscureText,
+                  textAlignVertical: TextAlignVertical.center,
+                  cursorColor: AppColors.primary,
+                  style: TextStyle(
+                    color: AppColors.ink,
                     fontSize: isCompact ? 14 : 15,
                     fontWeight: FontWeight.w800,
                     height: 1.0,
                   ),
-                ),
-              ),
-            ),
-            if (suffix != null) ...[
-              const SizedBox(width: 8),
-              SizedBox.square(
-                dimension: isCompact ? 38 : 42,
-                child: IconTheme(
-                  data: const IconThemeData(
-                    color: AppColors.muted,
-                    size: 23,
+                  decoration: InputDecoration(
+                    isCollapsed: true,
+                    hintText: hintText,
+                    hintStyle: TextStyle(
+                      color: AppColors.subtle,
+                      fontSize: isCompact ? 14 : 15,
+                      fontWeight: FontWeight.w800,
+                      height: 1.0,
+                    ),
+                    filled: false,
+                    fillColor: Colors.transparent,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    errorBorder: InputBorder.none,
+                    focusedErrorBorder: InputBorder.none,
+                    disabledBorder: InputBorder.none,
                   ),
-                  child: suffix!,
                 ),
               ),
-              SizedBox(width: isCompact ? 8 : 10),
-            ] else
-              SizedBox(width: isCompact ? 18 : 20),
-          ],
+              if (suffix != null) ...[
+                const SizedBox(width: 6),
+                SizedBox.square(
+                  dimension: isCompact ? 34 : 38,
+                  child: IconTheme(
+                    data: const IconThemeData(
+                      color: AppColors.muted,
+                      size: 22,
+                    ),
+                    child: suffix!,
+                  ),
+                ),
+                SizedBox(width: isCompact ? 6 : 8),
+              ] else
+                SizedBox(width: isCompact ? 16 : 18),
+            ],
+          ),
         ),
       ),
     );

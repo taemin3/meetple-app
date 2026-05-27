@@ -89,7 +89,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       horizontalPadding,
                       10,
                       horizontalPadding,
-                      96 + keyboardInset,
+                      220 + keyboardInset,
                     ),
                     child: Center(
                       child: ConstrainedBox(
@@ -958,6 +958,8 @@ class _SignUpField extends StatelessWidget {
                   autocorrect: !obscureText,
                   maxLength: maxLength,
                   maxLines: maxLines,
+                  scrollPadding: const EdgeInsets.fromLTRB(20, 24, 20, 240),
+                  onTap: () => _ensureVisible(context),
                   style: const TextStyle(
                     color: AppColors.ink,
                     fontSize: 14,
@@ -1037,6 +1039,27 @@ class _SignUpField extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  void _ensureVisible(BuildContext context) {
+    Scrollable.ensureVisible(
+      context,
+      alignment: 0.32,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+    );
+
+    Future<void>.delayed(const Duration(milliseconds: 280), () {
+      if (!context.mounted) {
+        return;
+      }
+      Scrollable.ensureVisible(
+        context,
+        alignment: 0.32,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 }
 
