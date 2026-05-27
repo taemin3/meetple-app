@@ -38,6 +38,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      resizeToAvoidBottomInset: false,
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -53,100 +54,121 @@ class _LoginPageState extends State<LoginPage> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final isCompact = constraints.maxHeight < 800;
+              final isExtraCompact = constraints.maxHeight < 620;
               final horizontalPadding =
                   constraints.maxWidth < 380 ? 24.0 : 36.0;
-              final topSpacing =
-                  (constraints.maxHeight * 0.12).clamp(48.0, 108.0);
+              final topSpacing = isExtraCompact
+                  ? 12.0
+                  : (constraints.maxHeight * 0.07).clamp(34.0, 72.0);
+              final brandHeight =
+                  (constraints.maxHeight * 0.28).clamp(124.0, 238.0);
               final brandSpacing =
-                  (constraints.maxHeight * 0.062).clamp(34.0, 64.0);
+                  (constraints.maxHeight * 0.042).clamp(18.0, 38.0);
+              final fieldHeight =
+                  isExtraCompact ? 54.0 : (isCompact ? 62.0 : 70.0);
+              final fieldGap = isCompact ? 12.0 : 18.0;
+              final forgotGap = isCompact ? 6.0 : 12.0;
+              final errorHeight = isCompact ? 26.0 : 30.0;
               final buttonSpacing =
-                  (constraints.maxHeight * 0.052).clamp(32.0, 54.0);
+                  (constraints.maxHeight * 0.043).clamp(18.0, 42.0);
+              final buttonHeight =
+                  isExtraCompact ? 52.0 : (isCompact ? 58.0 : 64.0);
               final signUpSpacing =
-                  (constraints.maxHeight * 0.092).clamp(56.0, 92.0);
+                  (constraints.maxHeight * 0.07).clamp(28.0, 68.0);
+              final bottomPadding = isCompact ? 18.0 : 30.0;
 
-              return SingleChildScrollView(
-                physics: const ClampingScrollPhysics(),
+              return Center(
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 430),
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          horizontalPadding,
-                          0,
-                          horizontalPadding,
-                          34,
+                  constraints: const BoxConstraints(maxWidth: 430),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      0,
+                      horizontalPadding,
+                      bottomPadding,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(height: topSpacing),
+                        _LoginBrand(
+                          height: brandHeight,
+                          isCompact: isCompact,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(height: topSpacing),
-                            const _LoginBrand(),
-                            SizedBox(height: brandSpacing),
-                            _LoginTextField(
-                              controller: _emailController,
-                              icon: Icons.mail_outline_rounded,
-                              hintText: '이메일을 입력해주세요',
-                              keyboardType: TextInputType.emailAddress,
+                        SizedBox(height: brandSpacing),
+                        _LoginTextField(
+                          controller: _emailController,
+                          height: fieldHeight,
+                          icon: Icons.mail_outline_rounded,
+                          hintText: '이메일을 입력해주세요',
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        SizedBox(height: fieldGap),
+                        _LoginTextField(
+                          controller: _passwordController,
+                          height: fieldHeight,
+                          icon: Icons.lock_outline_rounded,
+                          hintText: '비밀번호를 입력해주세요',
+                          obscureText: !_isPasswordVisible,
+                          keyboardType: TextInputType.visiblePassword,
+                          suffix: IconButton(
+                            tooltip:
+                                _isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
+                            onPressed: () {
+                              setState(() {
+                                _isPasswordVisible = !_isPasswordVisible;
+                              });
+                            },
+                            icon: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
                             ),
-                            const SizedBox(height: 18),
-                            _LoginTextField(
-                              controller: _passwordController,
-                              icon: Icons.lock_outline_rounded,
-                              hintText: '비밀번호를 입력해주세요',
-                              obscureText: !_isPasswordVisible,
-                              keyboardType: TextInputType.visiblePassword,
-                              suffix: IconButton(
-                                tooltip:
-                                    _isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
-                                onPressed: () {
-                                  setState(() {
-                                    _isPasswordVisible = !_isPasswordVisible;
-                                  });
-                                },
-                                icon: Icon(
-                                  _isPasswordVisible
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                ),
+                          ),
+                        ),
+                        SizedBox(height: forgotGap),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              FocusScope.of(context).unfocus();
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.ink,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 6,
+                              ),
+                              textStyle: TextStyle(
+                                fontSize: isCompact ? 14 : 15,
+                                fontWeight: FontWeight.w900,
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  FocusScope.of(context).unfocus();
-                                },
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.ink,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                    vertical: 6,
-                                  ),
-                                  textStyle: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                                child: const Text('비밀번호 찾기'),
-                              ),
-                            ),
-                            if (_errorMessage != null) ...[
-                              const SizedBox(height: 8),
-                              AuthErrorText(message: _errorMessage!),
-                            ],
-                            SizedBox(height: buttonSpacing),
-                            _LoginButton(
-                              label: _isSubmitting ? '로그인 중...' : '로그인',
-                              onPressed: _isSubmitting ? null : _submit,
-                            ),
-                            SizedBox(height: signUpSpacing),
-                            _SignUpPrompt(onPressed: _openSignUp),
-                          ],
+                            child: const Text('비밀번호 찾기'),
+                          ),
                         ),
-                      ),
+                        SizedBox(
+                          height: errorHeight,
+                          child: _errorMessage == null
+                              ? const SizedBox.shrink()
+                              : Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: AuthErrorText(message: _errorMessage!),
+                                ),
+                        ),
+                        SizedBox(height: buttonSpacing),
+                        _LoginButton(
+                          height: buttonHeight,
+                          label: _isSubmitting ? '로그인 중...' : '로그인',
+                          onPressed: _isSubmitting ? null : _submit,
+                        ),
+                        SizedBox(height: signUpSpacing),
+                        _SignUpPrompt(
+                          isCompact: isCompact,
+                          onPressed: _openSignUp,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -209,34 +231,36 @@ class _LoginPageState extends State<LoginPage> {
 }
 
 class _LoginBrand extends StatelessWidget {
-  const _LoginBrand();
+  const _LoginBrand({
+    required this.height,
+    required this.isCompact,
+  });
+
+  final double height;
+  final bool isCompact;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Image.asset(
-          'assets/icons/app-icon-foreground.png',
-          width: 172,
-          height: 172,
-          fit: BoxFit.contain,
-        ),
-        const SizedBox(height: 8),
-        const _GradientText(
-          '밋플',
-          style: TextStyle(
-            fontSize: 48,
-            fontWeight: FontWeight.w900,
-            height: 1.06,
+        Semantics(
+          label: '밋플',
+          image: true,
+          child: Image.asset(
+            'assets/splash/splash-brand.png',
+            height: height,
+            fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(height: 14),
-        const Text(
+        SizedBox(height: isCompact ? 6 : 10),
+        Text(
           '우리, 가까운 모임으로 연결되는 순간',
           textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: AppColors.muted,
-            fontSize: 17,
+            fontSize: isCompact ? 15 : 17,
             fontWeight: FontWeight.w800,
             height: 1.35,
           ),
@@ -249,6 +273,7 @@ class _LoginBrand extends StatelessWidget {
 class _LoginTextField extends StatelessWidget {
   const _LoginTextField({
     required this.controller,
+    required this.height,
     required this.icon,
     required this.hintText,
     this.keyboardType,
@@ -257,6 +282,7 @@ class _LoginTextField extends StatelessWidget {
   });
 
   final TextEditingController controller;
+  final double height;
   final IconData icon;
   final String hintText;
   final TextInputType? keyboardType;
@@ -265,10 +291,12 @@ class _LoginTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = height < 64;
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
         border: Border.all(color: AppColors.line),
         boxShadow: [
           BoxShadow(
@@ -279,34 +307,34 @@ class _LoginTextField extends StatelessWidget {
         ],
       ),
       child: SizedBox(
-        height: 70,
+        height: height,
         child: TextField(
           controller: controller,
           keyboardType: keyboardType,
           obscureText: obscureText,
           enableSuggestions: !obscureText,
           autocorrect: !obscureText,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.ink,
-            fontSize: 17,
+            fontSize: isCompact ? 15 : 17,
             fontWeight: FontWeight.w800,
           ),
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: const TextStyle(
+            hintStyle: TextStyle(
               color: AppColors.subtle,
-              fontSize: 17,
+              fontSize: isCompact ? 15 : 17,
               fontWeight: FontWeight.w800,
             ),
             prefixIcon: Padding(
-              padding: const EdgeInsets.only(left: 24, right: 14),
+              padding: EdgeInsets.only(left: isCompact ? 20 : 24, right: 14),
               child: Icon(icon),
             ),
             prefixIconColor: AppColors.muted,
             suffixIcon: suffix == null
                 ? null
                 : Padding(
-                    padding: const EdgeInsets.only(right: 18),
+                    padding: EdgeInsets.only(right: isCompact ? 12 : 18),
                     child: IconTheme(
                       data: const IconThemeData(
                         color: AppColors.muted,
@@ -317,8 +345,10 @@ class _LoginTextField extends StatelessWidget {
                   ),
             suffixIconColor: AppColors.muted,
             filled: false,
-            isDense: false,
-            contentPadding: const EdgeInsets.symmetric(vertical: 22),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              vertical: isCompact ? 17 : 22,
+            ),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
             focusedBorder: InputBorder.none,
@@ -332,16 +362,19 @@ class _LoginTextField extends StatelessWidget {
 
 class _LoginButton extends StatelessWidget {
   const _LoginButton({
+    required this.height,
     required this.label,
     required this.onPressed,
   });
 
+  final double height;
   final String label;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onPressed != null;
+    final isCompact = height < 60;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -357,7 +390,7 @@ class _LoginButton extends StatelessWidget {
                   AppColors.secondary.withOpacity(0.56),
                 ],
         ),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(isCompact ? 19 : 22),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(enabled ? 0.24 : 0.1),
@@ -370,15 +403,15 @@ class _LoginButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(isCompact ? 19 : 22),
           child: SizedBox(
-            height: 64,
+            height: height,
             child: Center(
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 21,
+                  fontSize: isCompact ? 18 : 21,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -391,21 +424,27 @@ class _LoginButton extends StatelessWidget {
 }
 
 class _SignUpPrompt extends StatelessWidget {
-  const _SignUpPrompt({required this.onPressed});
+  const _SignUpPrompt({
+    required this.isCompact,
+    required this.onPressed,
+  });
 
+  final bool isCompact;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
+    final fontSize = isCompact ? 14.0 : 16.0;
+
     return Row(
       children: [
         const Expanded(child: Divider()),
-        const SizedBox(width: 18),
-        const Text(
+        SizedBox(width: isCompact ? 12 : 18),
+        Text(
           '계정이 없으신가요?',
           style: TextStyle(
             color: AppColors.muted,
-            fontSize: 16,
+            fontSize: fontSize,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -416,43 +455,16 @@ class _SignUpPrompt extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            textStyle: const TextStyle(
-              fontSize: 16,
+            textStyle: TextStyle(
+              fontSize: fontSize,
               fontWeight: FontWeight.w900,
             ),
           ),
           child: const Text('회원가입'),
         ),
-        const SizedBox(width: 10),
+        SizedBox(width: isCompact ? 6 : 10),
         const Expanded(child: Divider()),
       ],
-    );
-  }
-}
-
-class _GradientText extends StatelessWidget {
-  const _GradientText(
-    this.text, {
-    required this.style,
-  });
-
-  final String text;
-  final TextStyle style;
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) {
-        return const LinearGradient(
-          colors: [AppColors.primary, AppColors.secondary],
-        ).createShader(bounds);
-      },
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: style,
-      ),
     );
   }
 }

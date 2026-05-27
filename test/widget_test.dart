@@ -96,7 +96,8 @@ void main() {
     await tester.tap(find.text('로그인하기'));
     await tester.pumpAndSettle();
 
-    expect(find.text('밋플'), findsOneWidget);
+    expect(find.bySemanticsLabel('밋플'), findsOneWidget);
+    expect(find.byType(SingleChildScrollView), findsNothing);
     expect(find.text('우리, 가까운 모임으로 연결되는 순간'), findsOneWidget);
     expect(find.text('이메일을 입력해주세요'), findsOneWidget);
     expect(find.text('비밀번호를 입력해주세요'), findsOneWidget);
