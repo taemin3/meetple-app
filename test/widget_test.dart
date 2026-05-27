@@ -131,7 +131,9 @@ void main() {
     await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
     await tester.enterText(find.byType(TextField).at(1), 'password1!');
     await tester.enterText(find.byType(TextField).at(2), 'password1!');
-    await tester.tap(find.text('모든 약관에 동의합니다'));
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sign_up_all_terms')));
     await tester.pump();
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();

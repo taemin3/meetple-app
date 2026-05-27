@@ -59,24 +59,24 @@ class _LoginPageState extends State<LoginPage> {
               final horizontalPadding =
                   constraints.maxWidth < 380 ? 24.0 : 36.0;
               final topSpacing = isExtraCompact
-                  ? 12.0
-                  : (constraints.maxHeight * 0.07).clamp(34.0, 72.0);
+                  ? 10.0
+                  : (constraints.maxHeight * 0.06).clamp(28.0, 58.0);
               final brandHeight =
-                  (constraints.maxHeight * 0.28).clamp(124.0, 238.0);
+                  (constraints.maxHeight * 0.24).clamp(110.0, 205.0);
               final brandSpacing =
-                  (constraints.maxHeight * 0.042).clamp(18.0, 38.0);
+                  (constraints.maxHeight * 0.035).clamp(14.0, 30.0);
               final fieldHeight =
-                  isExtraCompact ? 54.0 : (isCompact ? 62.0 : 70.0);
-              final fieldGap = isCompact ? 12.0 : 18.0;
-              final forgotGap = isCompact ? 6.0 : 12.0;
-              final errorHeight = isCompact ? 26.0 : 30.0;
+                  isExtraCompact ? 48.0 : (isCompact ? 54.0 : 60.0);
+              final fieldGap = isCompact ? 10.0 : 14.0;
+              final forgotGap = isCompact ? 4.0 : 8.0;
+              final errorHeight = isCompact ? 24.0 : 28.0;
               final buttonSpacing =
-                  (constraints.maxHeight * 0.043).clamp(18.0, 42.0);
+                  (constraints.maxHeight * 0.035).clamp(14.0, 32.0);
               final buttonHeight =
-                  isExtraCompact ? 52.0 : (isCompact ? 58.0 : 64.0);
+                  isExtraCompact ? 46.0 : (isCompact ? 50.0 : 54.0);
               final signUpSpacing =
-                  (constraints.maxHeight * 0.07).clamp(28.0, 68.0);
-              final bottomPadding = isCompact ? 18.0 : 30.0;
+                  (constraints.maxHeight * 0.055).clamp(22.0, 52.0);
+              final bottomPadding = isCompact ? 14.0 : 24.0;
 
               return Center(
                 child: ConstrainedBox(
@@ -141,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                                 vertical: 6,
                               ),
                               textStyle: TextStyle(
-                                fontSize: isCompact ? 14 : 15,
+                                fontSize: isCompact ? 13 : 14,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -252,7 +252,7 @@ class _LoginBrand extends StatelessWidget {
             fit: BoxFit.contain,
           ),
         ),
-        SizedBox(height: isCompact ? 6 : 10),
+        SizedBox(height: isCompact ? 4 : 8),
         Text(
           '우리, 가까운 모임으로 연결되는 순간',
           textAlign: TextAlign.center,
@@ -260,7 +260,7 @@ class _LoginBrand extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: AppColors.muted,
-            fontSize: isCompact ? 15 : 17,
+            fontSize: isCompact ? 13 : 15,
             fontWeight: FontWeight.w800,
             height: 1.35,
           ),
@@ -296,7 +296,7 @@ class _LoginTextField extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(isCompact ? 20 : 24),
+        borderRadius: BorderRadius.circular(isCompact ? 18 : 20),
         border: Border.all(color: AppColors.line),
         boxShadow: [
           BoxShadow(
@@ -316,25 +316,25 @@ class _LoginTextField extends StatelessWidget {
           autocorrect: !obscureText,
           style: TextStyle(
             color: AppColors.ink,
-            fontSize: isCompact ? 15 : 17,
+            fontSize: isCompact ? 14 : 15,
             fontWeight: FontWeight.w800,
           ),
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: TextStyle(
               color: AppColors.subtle,
-              fontSize: isCompact ? 15 : 17,
+              fontSize: isCompact ? 14 : 15,
               fontWeight: FontWeight.w800,
             ),
             prefixIcon: Padding(
-              padding: EdgeInsets.only(left: isCompact ? 20 : 24, right: 14),
+              padding: EdgeInsets.only(left: isCompact ? 18 : 20, right: 12),
               child: Icon(icon),
             ),
             prefixIconColor: AppColors.muted,
             suffixIcon: suffix == null
                 ? null
                 : Padding(
-                    padding: EdgeInsets.only(right: isCompact ? 12 : 18),
+                    padding: EdgeInsets.only(right: isCompact ? 10 : 14),
                     child: IconTheme(
                       data: const IconThemeData(
                         color: AppColors.muted,
@@ -347,7 +347,7 @@ class _LoginTextField extends StatelessWidget {
             filled: false,
             isDense: true,
             contentPadding: EdgeInsets.symmetric(
-              vertical: isCompact ? 17 : 22,
+              vertical: isCompact ? 14 : 18,
             ),
             border: InputBorder.none,
             enabledBorder: InputBorder.none,
@@ -390,7 +390,7 @@ class _LoginButton extends StatelessWidget {
                   AppColors.secondary.withOpacity(0.56),
                 ],
         ),
-        borderRadius: BorderRadius.circular(isCompact ? 19 : 22),
+        borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(enabled ? 0.24 : 0.1),
@@ -403,7 +403,7 @@ class _LoginButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(isCompact ? 19 : 22),
+          borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
           child: SizedBox(
             height: height,
             child: Center(
@@ -411,7 +411,7 @@ class _LoginButton extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: isCompact ? 18 : 21,
+                  fontSize: isCompact ? 15 : 17,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -434,7 +434,7 @@ class _SignUpPrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fontSize = isCompact ? 14.0 : 16.0;
+    final fontSize = isCompact ? 13.0 : 14.0;
 
     return Row(
       children: [

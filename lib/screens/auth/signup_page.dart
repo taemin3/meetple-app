@@ -60,7 +60,7 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: false,
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -79,108 +79,128 @@ class _SignUpPageState extends State<SignUpPage> {
               final horizontalPadding =
                   constraints.maxWidth < 380 ? 24.0 : 36.0;
 
-              return SingleChildScrollView(
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.fromLTRB(
-                  horizontalPadding,
-                  10,
-                  horizontalPadding,
-                  20,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 430),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _SignUpHeader(
-                          step: _step,
-                          onBackPressed: _handleBackPressed,
+              return Stack(
+                children: [
+                  SingleChildScrollView(
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.fromLTRB(
+                      horizontalPadding,
+                      10,
+                      horizontalPadding,
+                      132,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 430),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _SignUpHeader(
+                              step: _step,
+                              onBackPressed: _handleBackPressed,
+                            ),
+                            const SizedBox(height: 10),
+                            _StepIndicator(step: _step),
+                            const SizedBox(height: 18),
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 220),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child: _step == 0
+                                  ? _AccountStep(
+                                      key: const ValueKey('account-step'),
+                                      emailController: _emailController,
+                                      passwordController: _passwordController,
+                                      passwordConfirmController:
+                                          _passwordConfirmController,
+                                      isPasswordVisible: _isPasswordVisible,
+                                      isPasswordConfirmVisible:
+                                          _isPasswordConfirmVisible,
+                                      isAllTermsAgreed: _isAllTermsAgreed,
+                                      isServiceTermsAgreed:
+                                          _isServiceTermsAgreed,
+                                      isPrivacyTermsAgreed:
+                                          _isPrivacyTermsAgreed,
+                                      isAgeAgreed: _isAgeAgreed,
+                                      errorMessage: _errorMessage,
+                                      togglePasswordVisibility: () {
+                                        setState(() {
+                                          _isPasswordVisible =
+                                              !_isPasswordVisible;
+                                        });
+                                      },
+                                      togglePasswordConfirmVisibility: () {
+                                        setState(() {
+                                          _isPasswordConfirmVisible =
+                                              !_isPasswordConfirmVisible;
+                                        });
+                                      },
+                                      toggleAllTerms: _toggleAllTerms,
+                                      toggleServiceTerms: () {
+                                        setState(() {
+                                          _isServiceTermsAgreed =
+                                              !_isServiceTermsAgreed;
+                                        });
+                                      },
+                                      togglePrivacyTerms: () {
+                                        setState(() {
+                                          _isPrivacyTermsAgreed =
+                                              !_isPrivacyTermsAgreed;
+                                        });
+                                      },
+                                      toggleAgeTerms: () {
+                                        setState(() {
+                                          _isAgeAgreed = !_isAgeAgreed;
+                                        });
+                                      },
+                                    )
+                                  : _ProfileStep(
+                                      key: const ValueKey('profile-step'),
+                                      nicknameController: _nicknameController,
+                                      introController: _introController,
+                                      hasProfilePhoto: _hasProfilePhoto,
+                                      birthDate: _birthDate,
+                                      region: _region,
+                                      isSubmitting: _isSubmitting,
+                                      errorMessage: _errorMessage,
+                                      toggleProfilePhoto: () {
+                                        setState(() {
+                                          _hasProfilePhoto = !_hasProfilePhoto;
+                                        });
+                                      },
+                                      selectBirthDate: _selectBirthDate,
+                                      selectRegion: _selectRegion,
+                                    ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 14),
-                        _StepIndicator(step: _step),
-                        const SizedBox(height: 22),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 220),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
-                          child: _step == 0
-                              ? _AccountStep(
-                                  key: const ValueKey('account-step'),
-                                  emailController: _emailController,
-                                  passwordController: _passwordController,
-                                  passwordConfirmController:
-                                      _passwordConfirmController,
-                                  isPasswordVisible: _isPasswordVisible,
-                                  isPasswordConfirmVisible:
-                                      _isPasswordConfirmVisible,
-                                  isAllTermsAgreed: _isAllTermsAgreed,
-                                  isServiceTermsAgreed: _isServiceTermsAgreed,
-                                  isPrivacyTermsAgreed: _isPrivacyTermsAgreed,
-                                  isAgeAgreed: _isAgeAgreed,
-                                  errorMessage: _errorMessage,
-                                  togglePasswordVisibility: () {
-                                    setState(() {
-                                      _isPasswordVisible = !_isPasswordVisible;
-                                    });
-                                  },
-                                  togglePasswordConfirmVisibility: () {
-                                    setState(() {
-                                      _isPasswordConfirmVisible =
-                                          !_isPasswordConfirmVisible;
-                                    });
-                                  },
-                                  toggleAllTerms: _toggleAllTerms,
-                                  toggleServiceTerms: () {
-                                    setState(() {
-                                      _isServiceTermsAgreed =
-                                          !_isServiceTermsAgreed;
-                                    });
-                                  },
-                                  togglePrivacyTerms: () {
-                                    setState(() {
-                                      _isPrivacyTermsAgreed =
-                                          !_isPrivacyTermsAgreed;
-                                    });
-                                  },
-                                  toggleAgeTerms: () {
-                                    setState(() {
-                                      _isAgeAgreed = !_isAgeAgreed;
-                                    });
-                                  },
-                                  goToNextStep: _goToProfileStep,
-                                  goToLogin: () => Navigator.of(context).pop(),
-                                )
-                              : _ProfileStep(
-                                  key: const ValueKey('profile-step'),
-                                  nicknameController: _nicknameController,
-                                  introController: _introController,
-                                  hasProfilePhoto: _hasProfilePhoto,
-                                  birthDate: _birthDate,
-                                  region: _region,
-                                  isSubmitting: _isSubmitting,
-                                  errorMessage: _errorMessage,
-                                  toggleProfilePhoto: () {
-                                    setState(() {
-                                      _hasProfilePhoto = !_hasProfilePhoto;
-                                    });
-                                  },
-                                  selectBirthDate: _selectBirthDate,
-                                  selectRegion: _selectRegion,
-                                  submit: _submit,
-                                  goToPreviousStep: () {
-                                    setState(() {
-                                      _step = 0;
-                                      _errorMessage = null;
-                                    });
-                                  },
-                                ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutCubic,
+                    left: 0,
+                    right: 0,
+                    bottom: MediaQuery.viewInsetsOf(context).bottom,
+                    child: _SignUpStickyFooter(
+                      step: _step,
+                      isSubmitting: _isSubmitting,
+                      onPrimaryPressed: _step == 0
+                          ? _goToProfileStep
+                          : (_isSubmitting ? null : _submit),
+                      onSecondaryPressed: _step == 0
+                          ? () => Navigator.of(context).pop()
+                          : () {
+                              setState(() {
+                                _step = 0;
+                                _errorMessage = null;
+                              });
+                            },
+                    ),
+                  ),
+                ],
               );
             },
           ),
@@ -407,8 +427,8 @@ class _SignUpHeader extends StatelessWidget {
           children: [
             Image.asset(
               'assets/icons/app-icon-foreground.png',
-              width: 50,
-              height: 50,
+              width: 44,
+              height: 44,
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 6),
@@ -417,7 +437,7 @@ class _SignUpHeader extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: AppColors.ink,
-                fontSize: 28,
+                fontSize: 26,
                 fontWeight: FontWeight.w900,
                 height: 1.08,
               ),
@@ -428,7 +448,7 @@ class _SignUpHeader extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AppColors.muted,
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -459,9 +479,9 @@ class _StepIndicator extends StatelessWidget {
           isDone: accountDone,
         ),
         Container(
-          width: 78,
+          width: 72,
           height: 2,
-          margin: const EdgeInsets.only(top: 20),
+          margin: const EdgeInsets.only(top: 19),
           color: AppColors.line,
         ),
         _StepMarker(
@@ -494,12 +514,12 @@ class _StepMarker extends StatelessWidget {
     final textColor = isActive || isDone ? AppColors.primary : AppColors.muted;
 
     return SizedBox(
-      width: 88,
+      width: 82,
       child: Column(
         children: [
           Container(
-            width: 42,
-            height: 42,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: isActive
@@ -524,24 +544,24 @@ class _StepMarker extends StatelessWidget {
                   ? const Icon(
                       Icons.check_rounded,
                       color: AppColors.primary,
-                      size: 22,
+                      size: 20,
                     )
                   : Text(
                       value ?? '',
                       style: TextStyle(
                         color: isActive ? Colors.white : AppColors.muted,
-                        fontSize: 16,
+                        fontSize: 15,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           Text(
             label,
             style: TextStyle(
               color: textColor,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -570,8 +590,6 @@ class _AccountStep extends StatelessWidget {
     required this.toggleServiceTerms,
     required this.togglePrivacyTerms,
     required this.toggleAgeTerms,
-    required this.goToNextStep,
-    required this.goToLogin,
   });
 
   final TextEditingController emailController;
@@ -590,8 +608,6 @@ class _AccountStep extends StatelessWidget {
   final VoidCallback toggleServiceTerms;
   final VoidCallback togglePrivacyTerms;
   final VoidCallback toggleAgeTerms;
-  final VoidCallback goToNextStep;
-  final VoidCallback goToLogin;
 
   @override
   Widget build(BuildContext context) {
@@ -662,13 +678,6 @@ class _AccountStep extends StatelessWidget {
           const SizedBox(height: 14),
           AuthErrorText(message: errorMessage!),
         ],
-        const SizedBox(height: 20),
-        _GradientActionButton(
-          label: '다음',
-          onPressed: goToNextStep,
-        ),
-        const SizedBox(height: 14),
-        _LoginPrompt(onPressed: goToLogin),
       ],
     );
   }
@@ -687,8 +696,6 @@ class _ProfileStep extends StatelessWidget {
     required this.toggleProfilePhoto,
     required this.selectBirthDate,
     required this.selectRegion,
-    required this.submit,
-    required this.goToPreviousStep,
   });
 
   final TextEditingController nicknameController;
@@ -701,8 +708,6 @@ class _ProfileStep extends StatelessWidget {
   final VoidCallback toggleProfilePhoto;
   final VoidCallback selectBirthDate;
   final VoidCallback selectRegion;
-  final VoidCallback submit;
-  final VoidCallback goToPreviousStep;
 
   @override
   Widget build(BuildContext context) {
@@ -710,14 +715,14 @@ class _ProfileStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _FieldLabel('프로필 사진'),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
         Row(
           children: [
             _ProfilePhotoPicker(
               isSelected: hasProfilePhoto,
               onTap: toggleProfilePhoto,
             ),
-            const SizedBox(width: 20),
+            const SizedBox(width: 16),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -726,16 +731,16 @@ class _ProfileStep extends StatelessWidget {
                     '프로필 사진을 등록해보세요!',
                     style: TextStyle(
                       color: AppColors.muted,
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  SizedBox(height: 6),
                   Text(
                     '나중에 변경할 수 있어요.',
                     style: TextStyle(
                       color: AppColors.muted,
-                      fontSize: 14,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -744,7 +749,7 @@ class _ProfileStep extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
         _SignUpField(
           label: '닉네임',
           controller: nicknameController,
@@ -753,7 +758,7 @@ class _ProfileStep extends StatelessWidget {
           maxLength: 10,
           trailingText: '${nicknameController.text.length}/10',
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
         _SignUpField(
           label: '한줄 소개',
           controller: introController,
@@ -763,14 +768,14 @@ class _ProfileStep extends StatelessWidget {
           maxLines: 4,
           trailingText: '${introController.text.length}/30',
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
         _PickerField(
           label: '생년월일',
           icon: Icons.calendar_today_outlined,
           text: birthDate == null ? '생년월일을 선택해주세요' : _formatDate(birthDate!),
           onTap: selectBirthDate,
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
         _PickerField(
           label: '거주 지역',
           icon: Icons.location_on_outlined,
@@ -781,23 +786,6 @@ class _ProfileStep extends StatelessWidget {
           const SizedBox(height: 14),
           AuthErrorText(message: errorMessage!),
         ],
-        const SizedBox(height: 32),
-        _GradientActionButton(
-          label: isSubmitting ? '가입 중...' : '가입 완료',
-          onPressed: isSubmitting ? null : submit,
-        ),
-        const SizedBox(height: 22),
-        TextButton(
-          onPressed: goToPreviousStep,
-          child: const Text(
-            '이전 단계로 돌아가기',
-            style: TextStyle(
-              color: AppColors.muted,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -806,6 +794,78 @@ class _ProfileStep extends StatelessWidget {
     final month = date.month.toString().padLeft(2, '0');
     final day = date.day.toString().padLeft(2, '0');
     return '${date.year}.$month.$day';
+  }
+}
+
+class _SignUpStickyFooter extends StatelessWidget {
+  const _SignUpStickyFooter({
+    required this.step,
+    required this.isSubmitting,
+    required this.onPrimaryPressed,
+    required this.onSecondaryPressed,
+  });
+
+  final int step;
+  final bool isSubmitting;
+  final VoidCallback? onPrimaryPressed;
+  final VoidCallback onSecondaryPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final isProfileStep = step == 1;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      heightFactor: 1,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.canvas.withOpacity(0.97),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primary.withOpacity(0.08),
+              blurRadius: 24,
+              offset: const Offset(0, -8),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _GradientActionButton(
+                      label: isProfileStep
+                          ? (isSubmitting ? '가입 중...' : '가입 완료')
+                          : '다음',
+                      onPressed: onPrimaryPressed,
+                    ),
+                    const SizedBox(height: 10),
+                    isProfileStep
+                        ? TextButton(
+                            onPressed: onSecondaryPressed,
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.muted,
+                              textStyle: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            child: const Text('이전 단계로 돌아가기'),
+                          )
+                        : _LoginPrompt(onPressed: onSecondaryPressed),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -827,7 +887,7 @@ class _SectionTitle extends StatelessWidget {
           title,
           style: const TextStyle(
             color: AppColors.ink,
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.w900,
             height: 1.2,
           ),
@@ -837,7 +897,7 @@ class _SectionTitle extends StatelessWidget {
           subtitle,
           style: const TextStyle(
             color: AppColors.muted,
-            fontSize: 14,
+            fontSize: 13,
             fontWeight: FontWeight.w800,
             height: 1.35,
           ),
@@ -858,7 +918,7 @@ class _FieldLabel extends StatelessWidget {
       label,
       style: const TextStyle(
         color: AppColors.ink,
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: FontWeight.w900,
       ),
     );
@@ -900,15 +960,15 @@ class _SignUpField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _FieldLabel(label),
-        const SizedBox(height: 8),
+        const SizedBox(height: 7),
         DecoratedBox(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.line, width: 1.4),
           ),
           child: SizedBox(
-            height: isMultiline ? 104 : 52,
+            height: isMultiline ? 96 : 48,
             child: Stack(
               children: [
                 TextField(
@@ -923,7 +983,7 @@ class _SignUpField extends StatelessWidget {
                   maxLines: maxLines,
                   style: const TextStyle(
                     color: AppColors.ink,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
                   decoration: InputDecoration(
@@ -931,14 +991,14 @@ class _SignUpField extends StatelessWidget {
                     counterText: '',
                     hintStyle: const TextStyle(
                       color: AppColors.subtle,
-                      fontSize: 16,
+                      fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
                     prefixIcon: Padding(
                       padding: EdgeInsets.only(
-                        left: 18,
-                        right: 14,
-                        bottom: isMultiline ? 52 : 0,
+                        left: 16,
+                        right: 12,
+                        bottom: isMultiline ? 48 : 0,
                       ),
                       child: Icon(icon),
                     ),
@@ -946,7 +1006,7 @@ class _SignUpField extends StatelessWidget {
                     suffixIcon: suffix == null
                         ? null
                         : Padding(
-                            padding: const EdgeInsets.only(right: 18),
+                            padding: const EdgeInsets.only(right: 12),
                             child: IconTheme(
                               data: const IconThemeData(
                                 color: AppColors.muted,
@@ -960,9 +1020,9 @@ class _SignUpField extends StatelessWidget {
                     isDense: false,
                     contentPadding: EdgeInsets.fromLTRB(
                       0,
-                      isMultiline ? 16 : 14,
+                      isMultiline ? 14 : 12,
                       trailingText == null ? 18 : 58,
-                      isMultiline ? 28 : 14,
+                      isMultiline ? 24 : 12,
                     ),
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
@@ -973,12 +1033,12 @@ class _SignUpField extends StatelessWidget {
                 if (trailingText != null)
                   Positioned(
                     right: 20,
-                    bottom: isMultiline ? 14 : 16,
+                    bottom: isMultiline ? 12 : 14,
                     child: Text(
                       trailingText!,
                       style: const TextStyle(
                         color: AppColors.muted,
-                        fontSize: 14,
+                        fontSize: 12,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -988,12 +1048,12 @@ class _SignUpField extends StatelessWidget {
           ),
         ),
         if (helperText != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
             helperText!,
             style: const TextStyle(
               color: AppColors.muted,
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1022,30 +1082,30 @@ class _PickerField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _FieldLabel(label),
-        const SizedBox(height: 10),
+        const SizedBox(height: 7),
         Material(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(16),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              height: 64,
+              height: 52,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.line, width: 1.4),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
                   Icon(icon, color: AppColors.muted),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       text,
                       style: const TextStyle(
                         color: AppColors.muted,
-                        fontSize: 16,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1102,6 +1162,7 @@ class _TermsCard extends StatelessWidget {
       child: Column(
         children: [
           _TermsRow(
+            key: const Key('sign_up_all_terms'),
             label: '모든 약관에 동의합니다',
             isChecked: isAllTermsAgreed,
             onTap: toggleAllTerms,
@@ -1134,6 +1195,7 @@ class _TermsCard extends StatelessWidget {
 
 class _TermsRow extends StatelessWidget {
   const _TermsRow({
+    super.key,
     required this.label,
     required this.isChecked,
     required this.onTap,
@@ -1155,9 +1217,9 @@ class _TermsRow extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.fromLTRB(
           18,
-          isStrong ? 13 : 6,
+          isStrong ? 11 : 5,
           16,
-          isStrong ? 13 : 6,
+          isStrong ? 11 : 5,
         ),
         child: Row(
           children: [
@@ -1168,7 +1230,7 @@ class _TermsRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: isStrong ? AppColors.ink : AppColors.muted,
-                  fontSize: isStrong ? 15 : 14,
+                  fontSize: isStrong ? 14 : 13,
                   fontWeight: isStrong ? FontWeight.w900 : FontWeight.w800,
                 ),
               ),
@@ -1193,8 +1255,8 @@ class _RoundCheck extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 24,
-      height: 24,
+      width: 22,
+      height: 22,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: isChecked ? AppColors.primary : AppColors.softSurface,
@@ -1207,7 +1269,7 @@ class _RoundCheck extends StatelessWidget {
           ? const Icon(
               Icons.check_rounded,
               color: Colors.white,
-              size: 17,
+              size: 15,
             )
           : null,
     );
@@ -1236,8 +1298,8 @@ class _ProfilePhotoPicker extends StatelessWidget {
             radius: 18,
           ),
           child: SizedBox(
-            width: 104,
-            height: 104,
+            width: 92,
+            height: 92,
             child: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1247,14 +1309,14 @@ class _ProfilePhotoPicker extends StatelessWidget {
                         ? Icons.check_circle_outline_rounded
                         : Icons.photo_camera_outlined,
                     color: AppColors.primary,
-                    size: 34,
+                    size: 28,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   Text(
                     isSelected ? '추가됨' : '사진 추가',
                     style: const TextStyle(
                       color: AppColors.primary,
-                      fontSize: 15,
+                      fontSize: 13,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -1295,7 +1357,7 @@ class _GradientActionButton extends StatelessWidget {
                   AppColors.secondary.withOpacity(0.52),
                 ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color: AppColors.primary.withOpacity(enabled ? 0.22 : 0.08),
@@ -1308,15 +1370,15 @@ class _GradientActionButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           child: SizedBox(
-            height: 52,
+            height: 48,
             child: Center(
               child: Text(
                 label,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 17,
+                  fontSize: 16,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -1342,7 +1404,7 @@ class _LoginPrompt extends StatelessWidget {
           '이미 계정이 있으신가요?',
           style: TextStyle(
             color: AppColors.muted,
-            fontSize: 16,
+            fontSize: 13,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -1354,7 +1416,7 @@ class _LoginPrompt extends StatelessWidget {
             minimumSize: Size.zero,
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             textStyle: const TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),
