@@ -78,6 +78,7 @@ class _SignUpPageState extends State<SignUpPage> {
             builder: (context, constraints) {
               final horizontalPadding =
                   constraints.maxWidth < 380 ? 24.0 : 36.0;
+              final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
               return Stack(
                 children: [
@@ -88,7 +89,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       horizontalPadding,
                       10,
                       horizontalPadding,
-                      132,
+                      96 + keyboardInset,
                     ),
                     child: Center(
                       child: ConstrainedBox(
@@ -183,21 +184,13 @@ class _SignUpPageState extends State<SignUpPage> {
                     curve: Curves.easeOutCubic,
                     left: 0,
                     right: 0,
-                    bottom: MediaQuery.viewInsetsOf(context).bottom,
+                    bottom: keyboardInset,
                     child: _SignUpStickyFooter(
                       step: _step,
                       isSubmitting: _isSubmitting,
                       onPrimaryPressed: _step == 0
                           ? _goToProfileStep
                           : (_isSubmitting ? null : _submit),
-                      onSecondaryPressed: _step == 0
-                          ? () => Navigator.of(context).pop()
-                          : () {
-                              setState(() {
-                                _step = 0;
-                                _errorMessage = null;
-                              });
-                            },
                     ),
                   ),
                 ],
@@ -802,13 +795,11 @@ class _SignUpStickyFooter extends StatelessWidget {
     required this.step,
     required this.isSubmitting,
     required this.onPrimaryPressed,
-    required this.onSecondaryPressed,
   });
 
   final int step;
   final bool isSubmitting;
   final VoidCallback? onPrimaryPressed;
-  final VoidCallback onSecondaryPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -844,20 +835,6 @@ class _SignUpStickyFooter extends StatelessWidget {
                           : '다음',
                       onPressed: onPrimaryPressed,
                     ),
-                    const SizedBox(height: 10),
-                    isProfileStep
-                        ? TextButton(
-                            onPressed: onSecondaryPressed,
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.muted,
-                              textStyle: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            child: const Text('이전 단계로 돌아가기'),
-                          )
-                        : _LoginPrompt(onPressed: onSecondaryPressed),
                   ],
                 ),
               ),
@@ -1386,43 +1363,6 @@ class _GradientActionButton extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _LoginPrompt extends StatelessWidget {
-  const _LoginPrompt({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          '이미 계정이 있으신가요?',
-          style: TextStyle(
-            color: AppColors.muted,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        TextButton(
-          onPressed: onPressed,
-          style: TextButton.styleFrom(
-            foregroundColor: AppColors.primary,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            textStyle: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          child: const Text('로그인'),
-        ),
-      ],
     );
   }
 }

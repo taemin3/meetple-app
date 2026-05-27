@@ -308,52 +308,53 @@ class _LoginTextField extends StatelessWidget {
       ),
       child: SizedBox(
         height: height,
-        child: TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          obscureText: obscureText,
-          enableSuggestions: !obscureText,
-          autocorrect: !obscureText,
-          style: TextStyle(
-            color: AppColors.ink,
-            fontSize: isCompact ? 14 : 15,
-            fontWeight: FontWeight.w800,
-          ),
-          decoration: InputDecoration(
-            hintText: hintText,
-            hintStyle: TextStyle(
-              color: AppColors.subtle,
-              fontSize: isCompact ? 14 : 15,
-              fontWeight: FontWeight.w800,
-            ),
-            prefixIcon: Padding(
-              padding: EdgeInsets.only(left: isCompact ? 18 : 20, right: 12),
-              child: Icon(icon),
-            ),
-            prefixIconColor: AppColors.muted,
-            suffixIcon: suffix == null
-                ? null
-                : Padding(
-                    padding: EdgeInsets.only(right: isCompact ? 10 : 14),
-                    child: IconTheme(
-                      data: const IconThemeData(
-                        color: AppColors.muted,
-                        size: 24,
-                      ),
-                      child: suffix!,
-                    ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            SizedBox(width: isCompact ? 18 : 20),
+            Icon(icon, color: AppColors.muted, size: isCompact ? 21 : 23),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                keyboardType: keyboardType,
+                obscureText: obscureText,
+                enableSuggestions: !obscureText,
+                autocorrect: !obscureText,
+                textAlignVertical: TextAlignVertical.center,
+                style: TextStyle(
+                  color: AppColors.ink,
+                  fontSize: isCompact ? 14 : 15,
+                  fontWeight: FontWeight.w800,
+                  height: 1.0,
+                ),
+                decoration: InputDecoration.collapsed(
+                  hintText: hintText,
+                  hintStyle: TextStyle(
+                    color: AppColors.subtle,
+                    fontSize: isCompact ? 14 : 15,
+                    fontWeight: FontWeight.w800,
+                    height: 1.0,
                   ),
-            suffixIconColor: AppColors.muted,
-            filled: false,
-            isDense: true,
-            contentPadding: EdgeInsets.symmetric(
-              vertical: isCompact ? 14 : 18,
+                ),
+              ),
             ),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: InputBorder.none,
-            disabledBorder: InputBorder.none,
-          ),
+            if (suffix != null) ...[
+              const SizedBox(width: 8),
+              SizedBox.square(
+                dimension: isCompact ? 38 : 42,
+                child: IconTheme(
+                  data: const IconThemeData(
+                    color: AppColors.muted,
+                    size: 23,
+                  ),
+                  child: suffix!,
+                ),
+              ),
+              SizedBox(width: isCompact ? 8 : 10),
+            ] else
+              SizedBox(width: isCompact ? 18 : 20),
+          ],
         ),
       ),
     );

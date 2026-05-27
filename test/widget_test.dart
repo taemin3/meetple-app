@@ -143,6 +143,5 @@ void main() {
     expect(find.text('닉네임'), findsOneWidget);
     expect(find.text('한줄 소개'), findsOneWidget);
     expect(find.text('가입 완료'), findsOneWidget);
-    expect(find.text('이전 단계로 돌아가기'), findsOneWidget);
   });
 }
