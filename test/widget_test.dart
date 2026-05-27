@@ -105,4 +105,42 @@ void main() {
     expect(find.text('계정이 없으신가요?'), findsOneWidget);
     expect(find.text('회원가입'), findsOneWidget);
   });
+
+  testWidgets('moves sign up from account step to profile step', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MeetpleApp(authRepository: MockAuthRepository(session: null)),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text('마이'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('로그인하기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('회원가입'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('계정 정보를 입력해주세요'), findsOneWidget);
+    expect(find.text('약관 동의'), findsOneWidget);
+    expect(find.text('다음'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
+    await tester.enterText(find.byType(TextField).at(1), 'password1!');
+    await tester.enterText(find.byType(TextField).at(2), 'password1!');
+    await tester.tap(find.text('모든 약관에 동의합니다'));
+    await tester.pump();
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('프로필 정보를 입력해주세요'), findsOneWidget);
+    expect(find.text('프로필 사진'), findsOneWidget);
+    expect(find.text('닉네임'), findsOneWidget);
+    expect(find.text('한줄 소개'), findsOneWidget);
+    expect(find.text('가입 완료'), findsOneWidget);
+    expect(find.text('이전 단계로 돌아가기'), findsOneWidget);
+  });
 }
