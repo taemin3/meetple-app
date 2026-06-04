@@ -8,9 +8,9 @@
 
 현재 단계:
 
-- Flutter 화면 목업 구현 및 정리
-- 백엔드 API 직접 연동 전
-- 목업 데이터 기반 화면 흐름 검증
+- Flutter 앱 기본 구조와 화면 흐름 정리
+- 백엔드 API가 준비된 기능부터 API repository 연동 진행
+- MockRepository는 테스트, 오프라인 프리뷰, 아직 API가 없는 화면 보조용으로만 사용
 - 보라색 지도/카드형 UI 방향 유지
 - iOS/Android 우선, Web은 프리뷰와 리뷰 용도
 
@@ -38,6 +38,7 @@ lib/
   main.dart
   app/
     app_navigation.dart
+    app_route_names.dart
     app_routes.dart
     app_shell.dart
     meetple_app.dart
@@ -53,14 +54,20 @@ lib/
       meeting_style.dart
   data/
     mock/
+      mock_auth.dart
       mock_meetings.dart
     repositories/
       api_meeting_repository.dart
+      auth_repository.dart
       meeting_repository.dart
+      mock_auth_repository.dart
       mock_meeting_repository.dart
   models/
+    auth_session.dart
+    auth_user.dart
     meeting.dart
   screens/
+    auth/
     home/
     discover/
     meeting_detail/
@@ -79,7 +86,9 @@ lib/
 
 ## 개발 원칙
 
-- 백엔드 연동 전에는 화면 흐름, 목업 UX, 모바일 사용성을 우선한다.
+- 백엔드 API가 준비된 기능은 API repository를 우선 구현한다.
+- MockRepository는 테스트, 오프라인 프리뷰, API 미구현 화면 보조용으로만 사용한다.
+- 새 기능은 가능하면 백엔드 API contract 기준으로 구현하고, mock은 같은 repository 인터페이스를 따르는 최소 구현만 둔다.
 - 새 기능은 기존 폴더 구조와 네이밍을 따른다.
 - 화면에서 공통으로 쓰이는 UI는 `lib/widgets/`로 분리한다.
 - 전역 색상과 테마는 `lib/core/theme/`의 `AppColors`, `AppTheme` 기준을 우선 사용한다.
@@ -109,18 +118,23 @@ lib/
 - PR 본문 초안에는 `변경 사항`, `검증`, `참고 사항`을 포함한다.
 - 관련 없는 파일이나 사용자가 만든 변경은 스테이징하거나 커밋하지 않는다.
 
-## 목업 데이터와 연동 준비
+## API 연동과 Mock 사용 기준
 
-현재 목업 데이터는 `lib/data/mock/mock_meetings.dart`에 있고, 화면은 `MeetingRepository`(`lib/data/repositories/meeting_repository.dart`)를 통해 데이터를 받는다.
+화면은 mock 데이터를 직접 참조하지 않고 repository 인터페이스를 통해 데이터를 받는다.
+
+- 실제 기능 개발의 기본 방향은 `Api*Repository` 구현이다.
+- `Mock*Repository`는 테스트, 프리뷰, 백엔드 서버 없이 화면을 확인하는 용도다.
+- API가 준비된 기능은 mock 화면을 먼저 확장하지 말고 API contract에 맞춰 repository를 붙인다.
+- API가 아직 없는 기능만 mock을 최소 범위로 추가한다.
 
 다음 구조 정리의 우선순위:
 
-1. 인증 토큰을 `HttpApiClient`에 주입하는 구조 정리
-2. 개발 환경에서 `ApiMeetingRepository`로 교체하는 진입점 추가
-3. 화면별 로딩/에러/빈 상태 추가
+1. 인증 토큰 저장소와 `HttpApiClient` token provider 연결
+2. `ApiAuthRepository` 추가 후 로그인/회원가입 API 연동
+3. 모임 만들기 화면 입력 상태와 검증 흐름 정리
 4. 백엔드 meeting API 연동 검증
 
-백엔드 API가 붙기 전에도 화면은 repository 인터페이스를 통해 데이터를 받도록 점진적으로 바꾼다.
+API와 mock 구현체는 같은 repository 인터페이스를 유지해 화면 코드가 데이터 출처에 직접 의존하지 않게 한다.
 
 ## UI 기준
 

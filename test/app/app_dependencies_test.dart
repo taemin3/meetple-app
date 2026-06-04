@@ -1,9 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/app_dependencies.dart';
 import 'package:meetple/data/repositories/api_meeting_repository.dart';
+import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 
 void main() {
+  test('creates mock auth repository by default', () {
+    final repository = createAuthRepository();
+
+    expect(repository, isA<MockAuthRepository>());
+  });
+
   test('creates mock meeting repository by default', () {
     final repository = createMeetingRepository();
 

@@ -1,21 +1,107 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/mock_auth_repository.dart';
+import '../../models/auth_session.dart';
+import '../../models/auth_user.dart';
+import '../../widgets/app_state_view.dart';
+import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/surface_panel.dart';
 
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({
+    super.key,
+    this.authRepository,
+  });
+
+  final AuthRepository? authRepository;
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  late Future<AuthSession?> _sessionFuture;
+  late AuthRepository _authRepository;
+
+  @override
+  void initState() {
+    super.initState();
+    _authRepository = widget.authRepository ?? MockAuthRepository();
+    _loadSession();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfilePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.authRepository != widget.authRepository &&
+        widget.authRepository != null) {
+      _authRepository = widget.authRepository!;
+      _loadSession();
+    }
+  }
+
+  void _loadSession() {
+    _sessionFuture = _authRepository.restoreSession();
+  }
+
+  void _reloadSession() {
+    setState(_loadSession);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<AuthSession?>(
+      future: _sessionFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const AppLoadingView(message: '내 정보를 불러오는 중입니다.');
+        }
+
+        if (snapshot.hasError) {
+          return AppErrorView(
+            message: '내 정보를 불러오지 못했습니다.',
+            onRetry: _reloadSession,
+          );
+        }
+
+        final session = snapshot.data;
+        if (session == null) {
+          return SignedOutProfile(
+            authRepository: _authRepository,
+            onSignedIn: _showSession,
+          );
+        }
+
+        return ProfileContent(user: session.user);
+      },
+    );
+  }
+
+  void _showSession(AuthSession session) {
+    setState(() {
+      _sessionFuture = Future.value(session);
+    });
+  }
+}
+
+class ProfileContent extends StatelessWidget {
+  const ProfileContent({super.key, required this.user});
+
+  final AuthUser user;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
-      children: const [
-        ProfileHeader(),
-        SizedBox(height: 24),
-        ProfileStatsCard(),
-        SizedBox(height: 18),
-        ProfileMenuGroup(
+      children: [
+        ProfileHeader(user: user),
+        const SizedBox(height: 24),
+        ProfileStatsCard(user: user),
+        const SizedBox(height: 18),
+        const ProfileMenuGroup(
           items: [
             (Icons.event_available_outlined, '내가 만든 모임'),
             (Icons.group_outlined, '참여 중인 모임'),
@@ -23,8 +109,8 @@ class ProfilePage extends StatelessWidget {
             (Icons.history, '최근 본 모임'),
           ],
         ),
-        SizedBox(height: 18),
-        ProfileMenuGroup(
+        const SizedBox(height: 18),
+        const ProfileMenuGroup(
           items: [
             (Icons.notifications_none_rounded, '알림'),
             (Icons.settings_outlined, '설정'),
@@ -37,7 +123,9 @@ class ProfilePage extends StatelessWidget {
 }
 
 class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({super.key});
+  const ProfileHeader({super.key, required this.user});
+
+  final AuthUser user;
 
   @override
   Widget build(BuildContext context) {
@@ -49,22 +137,22 @@ class ProfileHeader extends StatelessWidget {
           child: Icon(Icons.person, color: AppColors.primary, size: 34),
         ),
         const SizedBox(width: 16),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '김모임',
-                style: TextStyle(
+                user.nickname,
+                style: const TextStyle(
                   color: AppColors.ink,
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
-                '@gather_together',
-                style: TextStyle(
+                '@${user.handle}',
+                style: const TextStyle(
                   color: AppColors.muted,
                   fontWeight: FontWeight.w700,
                 ),
@@ -82,27 +170,44 @@ class ProfileHeader extends StatelessWidget {
 }
 
 class ProfileStatsCard extends StatelessWidget {
-  const ProfileStatsCard({super.key});
+  const ProfileStatsCard({super.key, required this.user});
+
+  final AuthUser user;
 
   @override
   Widget build(BuildContext context) {
-    return const SurfacePanel(
+    return SurfacePanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
+          const Text(
             '내 정보',
             style: TextStyle(
               color: AppColors.ink,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 18),
+          const SizedBox(height: 18),
           Row(
             children: [
-              Expanded(child: ProfileStat(label: '내가 만든 모임', value: '12')),
-              Expanded(child: ProfileStat(label: '참여 중인 모임', value: '28')),
-              Expanded(child: ProfileStat(label: '찜한 모임', value: '15')),
+              Expanded(
+                child: ProfileStat(
+                  label: '내가 만든 모임',
+                  value: user.createdMeetingsCount.toString(),
+                ),
+              ),
+              Expanded(
+                child: ProfileStat(
+                  label: '참여 중인 모임',
+                  value: user.joinedMeetingsCount.toString(),
+                ),
+              ),
+              Expanded(
+                child: ProfileStat(
+                  label: '찜한 모임',
+                  value: user.likedMeetingsCount.toString(),
+                ),
+              ),
             ],
           ),
         ],
@@ -140,6 +245,64 @@ class ProfileStat extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class SignedOutProfile extends StatelessWidget {
+  const SignedOutProfile({
+    super.key,
+    required this.authRepository,
+    required this.onSignedIn,
+  });
+
+  final AuthRepository authRepository;
+  final ValueChanged<AuthSession> onSignedIn;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+      children: [
+        const SizedBox(height: 72),
+        const Icon(Icons.person_outline, color: AppColors.primary, size: 58),
+        const SizedBox(height: 18),
+        const Text(
+          '로그인이 필요합니다.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.ink,
+            fontSize: 22,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          '모임 참여와 마이페이지를 사용하려면 먼저 로그인해 주세요.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.muted,
+            fontWeight: FontWeight.w700,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 26),
+        PrimaryGradientButton(
+          label: '로그인하기',
+          onPressed: () => _openLogin(context),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openLogin(BuildContext context) async {
+    final session = await AppRoutes.openLogin(
+      context,
+      authRepository: authRepository,
+    );
+
+    if (session != null) {
+      onSignedIn(session);
+    }
   }
 }
 
