@@ -54,6 +54,53 @@ void main() {
     );
   });
 
+  test('builds POST JSON request with body and optional bearer token',
+      () async {
+    final client = HttpApiClient(
+      baseUri: Uri.parse('http://localhost:8080'),
+      accessTokenProvider: () => 'access-token',
+      httpClient: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/v1/auth/logout');
+        expect(request.headers['Accept'], 'application/json');
+        expect(request.headers['Content-Type'], contains('application/json'));
+        expect(request.headers['Authorization'], 'Bearer access-token');
+        expect(request.body, '{"refreshToken":"refresh-token"}');
+
+        return http.Response('{"success":true}', 200);
+      }),
+    );
+
+    final response = await client.postJson(
+      '/api/v1/auth/logout',
+      body: {'refreshToken': 'refresh-token'},
+    );
+
+    expect(response['success'], true);
+  });
+
+  test('can send POST JSON request without bearer token', () async {
+    final client = HttpApiClient(
+      baseUri: Uri.parse('http://localhost:8080'),
+      accessTokenProvider: () => 'access-token',
+      httpClient: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/v1/auth/login');
+        expect(request.headers.containsKey('Authorization'), isFalse);
+
+        return http.Response('{"success":true}', 200);
+      }),
+    );
+
+    final response = await client.postJson(
+      '/api/v1/auth/login',
+      includeAuthorization: false,
+      body: {'email': 'user@example.com', 'password': 'password123'},
+    );
+
+    expect(response['success'], true);
+  });
+
   test('throws ApiException for non-json error body', () {
     final client = HttpApiClient(
       baseUri: Uri.parse('http://localhost:8080'),

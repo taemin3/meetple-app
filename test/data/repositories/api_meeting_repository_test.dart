@@ -122,4 +122,13 @@ class FakeApiClient implements ApiClient {
     this.queryParameters = queryParameters;
     return response;
   }
+
+  @override
+  Future<Map<String, dynamic>> postJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+    bool includeAuthorization = true,
+  }) {
+    throw UnsupportedError('postJson is not used in this test.');
+  }
 }
