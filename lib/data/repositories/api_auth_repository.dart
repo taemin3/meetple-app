@@ -72,6 +72,9 @@ class ApiAuthRepository implements AuthRepository {
     required String email,
     required String password,
   }) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
+
     try {
       final tokens = await _login(email: email, password: password);
       return await _restoreWithTokens(tokens);
@@ -90,6 +93,10 @@ class ApiAuthRepository implements AuthRepository {
     required String email,
     required String password,
   }) async {
+    _ensureNotBlank(nickname, '닉네임을 입력해 주세요.');
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
+
     try {
       final response = await _apiClient.postJson(
         '/api/v1/auth/signup',
@@ -118,10 +125,11 @@ class ApiAuthRepository implements AuthRepository {
 
     try {
       if (tokens != null && tokens.refreshToken.isNotEmpty) {
-        await _apiClient.postJson(
+        final response = await _apiClient.postJson(
           '/api/v1/auth/logout',
           body: {'refreshToken': tokens.refreshToken},
         );
+        _ensureSuccess(response);
       }
     } finally {
       await _clearSession();
@@ -277,5 +285,11 @@ class ApiAuthRepository implements AuthRepository {
     }
 
     return null;
+  }
+
+  void _ensureNotBlank(String value, String message) {
+    if (value.trim().isEmpty) {
+      throw AuthException(message);
+    }
   }
 }

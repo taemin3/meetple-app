@@ -47,6 +47,36 @@ void main() {
     expect((await tokenStore.read())?.accessToken, 'access-token');
   });
 
+  test('rejects blank sign in fields before sending API request', () async {
+    final apiClient = FakeApiClient(responses: []);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await expectLater(
+      repository.signIn(email: ' ', password: 'password123'),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '이메일을 입력해 주세요.',
+        ),
+      ),
+    );
+    await expectLater(
+      repository.signIn(email: 'user@example.com', password: '   '),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '비밀번호를 입력해 주세요.',
+        ),
+      ),
+    );
+    expect(apiClient.requests, isEmpty);
+  });
+
   test('signs up and then signs in to create an app session', () async {
     final apiClient = FakeApiClient(
       responses: [
@@ -96,6 +126,58 @@ void main() {
     });
     expect(session.user.nickname, '새회원');
     expect(session.accessToken, 'new-access-token');
+  });
+
+  test('rejects blank sign up fields before sending API request', () async {
+    final apiClient = FakeApiClient(responses: []);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await expectLater(
+      repository.signUp(
+        nickname: ' ',
+        email: 'new@example.com',
+        password: 'password123',
+      ),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '닉네임을 입력해 주세요.',
+        ),
+      ),
+    );
+    await expectLater(
+      repository.signUp(
+        nickname: '새회원',
+        email: ' ',
+        password: 'password123',
+      ),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '이메일을 입력해 주세요.',
+        ),
+      ),
+    );
+    await expectLater(
+      repository.signUp(
+        nickname: '새회원',
+        email: 'new@example.com',
+        password: ' ',
+      ),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '비밀번호를 입력해 주세요.',
+        ),
+      ),
+    );
+    expect(apiClient.requests, isEmpty);
   });
 
   test('restores session by reissuing tokens after unauthorized profile API',
@@ -157,6 +239,41 @@ void main() {
     expect(apiClient.requests.single.path, '/api/v1/auth/logout');
     expect(apiClient.requests.single.includeAuthorization, isTrue);
     expect(apiClient.requests.single.body, {'refreshToken': 'refresh-token'});
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('checks logout API envelope before completing sign out', () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(
+      responses: [
+        {
+          'status': 400,
+          'success': false,
+          'message': '로그아웃에 실패했습니다.',
+        },
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+
+    await expectLater(
+      repository.signOut(),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'message',
+          '로그아웃에 실패했습니다.',
+        ),
+      ),
+    );
+    expect(apiClient.requests.single.path, '/api/v1/auth/logout');
     expect(await tokenStore.read(), isNull);
   });
 
