@@ -8,6 +8,12 @@ abstract interface class ApiClient {
     String path, {
     Map<String, String?> queryParameters = const {},
   });
+
+  Future<Map<String, dynamic>> postJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+    bool includeAuthorization = true,
+  });
 }
 
 typedef AccessTokenProvider = FutureOr<String?> Function();
@@ -33,6 +39,29 @@ class HttpApiClient implements ApiClient {
     final uri = _buildUri(path, queryParameters);
     final response = await _httpClient.get(uri, headers: await _headers());
 
+    return _handleResponse(response);
+  }
+
+  @override
+  Future<Map<String, dynamic>> postJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+    bool includeAuthorization = true,
+  }) async {
+    final uri = _buildUri(path, const {});
+    final response = await _httpClient.post(
+      uri,
+      headers: await _headers(
+        contentType: 'application/json',
+        includeAuthorization: includeAuthorization,
+      ),
+      body: jsonEncode(body),
+    );
+
+    return _handleResponse(response);
+  }
+
+  Map<String, dynamic> _handleResponse(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final decoded = _tryDecodeBody(response);
       throw ApiException(
@@ -50,9 +79,17 @@ class HttpApiClient implements ApiClient {
     _httpClient.close();
   }
 
-  Future<Map<String, String>> _headers() async {
+  Future<Map<String, String>> _headers({
+    String? contentType,
+    bool includeAuthorization = true,
+  }) async {
     final headers = {'Accept': 'application/json'};
-    final token = await _accessTokenProvider?.call();
+    if (contentType != null) {
+      headers['Content-Type'] = contentType;
+    }
+
+    final token =
+        includeAuthorization ? await _accessTokenProvider?.call() : null;
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';
     }

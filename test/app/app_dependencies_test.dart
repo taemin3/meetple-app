@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/app_dependencies.dart';
+import 'package:meetple/data/repositories/api_auth_repository.dart';
 import 'package:meetple/data/repositories/api_meeting_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
@@ -9,6 +10,15 @@ void main() {
     final repository = createAuthRepository();
 
     expect(repository, isA<MockAuthRepository>());
+  });
+
+  test('creates API auth repository when API mode is enabled', () {
+    final repository = createAuthRepository(
+      useApiRepository: true,
+      apiBaseUrl: 'http://localhost:8080',
+    );
+
+    expect(repository, isA<ApiAuthRepository>());
   });
 
   test('creates mock meeting repository by default', () {
