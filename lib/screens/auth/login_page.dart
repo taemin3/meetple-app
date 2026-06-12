@@ -11,9 +11,11 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
     required this.authRepository,
+    this.onAuthenticated,
   });
 
   final AuthRepository authRepository;
+  final ValueChanged<AuthSession>? onAuthenticated;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -223,6 +225,12 @@ class _LoginPageState extends State<LoginPage> {
 
   void _complete(AuthSession session) {
     if (!mounted) {
+      return;
+    }
+
+    final onAuthenticated = widget.onAuthenticated;
+    if (onAuthenticated != null) {
+      onAuthenticated(session);
       return;
     }
 
