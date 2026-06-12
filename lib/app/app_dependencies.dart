@@ -1,17 +1,24 @@
 import '../core/config/app_config.dart';
-import '../data/repositories/api_meeting_repository.dart';
 import '../data/repositories/api_auth_repository.dart';
+import '../data/repositories/api_meeting_repository.dart';
 import '../data/repositories/auth_repository.dart';
+import '../data/repositories/auth_token_store.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 
+const AuthTokenStore _apiAuthTokenStore = FlutterSecureAuthTokenStore();
+
 AuthRepository createAuthRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
+  AuthTokenStore? tokenStore,
 }) {
   if (useApiRepository) {
-    return ApiAuthRepository.withBaseUrl(baseUrl: apiBaseUrl);
+    return ApiAuthRepository.withBaseUrl(
+      baseUrl: apiBaseUrl,
+      tokenStore: tokenStore ?? _apiAuthTokenStore,
+    );
   }
 
   return MockAuthRepository();
@@ -20,9 +27,18 @@ AuthRepository createAuthRepository({
 MeetingRepository createMeetingRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
+  AuthTokenStore? tokenStore,
 }) {
   if (useApiRepository) {
-    return ApiMeetingRepository.withBaseUrl(baseUrl: apiBaseUrl);
+    final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+
+    return ApiMeetingRepository.withBaseUrl(
+      baseUrl: apiBaseUrl,
+      accessTokenProvider: () async {
+        final tokens = await resolvedTokenStore.read();
+        return tokens?.accessToken;
+      },
+    );
   }
 
   return const MockMeetingRepository();

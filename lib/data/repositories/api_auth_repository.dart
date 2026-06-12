@@ -16,7 +16,8 @@ class ApiAuthRepository implements AuthRepository {
     String baseUrl = AppConfig.apiBaseUrl,
     AuthTokenStore? tokenStore,
   }) {
-    final resolvedTokenStore = tokenStore ?? MemoryAuthTokenStore();
+    final resolvedTokenStore =
+        tokenStore ?? const FlutterSecureAuthTokenStore();
 
     return ApiAuthRepository(
       apiClient: HttpApiClient(
