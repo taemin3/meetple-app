@@ -9,6 +9,7 @@ import '../../models/auth_user.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/surface_panel.dart';
+import '../auth/auth_form_widgets.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
@@ -75,7 +76,11 @@ class _ProfilePageState extends State<ProfilePage> {
           );
         }
 
-        return ProfileContent(user: session.user);
+        return ProfileContent(
+          user: session.user,
+          authRepository: _authRepository,
+          onSignedOut: _showSignedOut,
+        );
       },
     );
   }
@@ -85,21 +90,41 @@ class _ProfilePageState extends State<ProfilePage> {
       _sessionFuture = Future.value(session);
     });
   }
+
+  void _showSignedOut() {
+    setState(() {
+      _sessionFuture = Future.value(null);
+    });
+  }
 }
 
-class ProfileContent extends StatelessWidget {
-  const ProfileContent({super.key, required this.user});
+class ProfileContent extends StatefulWidget {
+  const ProfileContent({
+    super.key,
+    required this.user,
+    required this.authRepository,
+    required this.onSignedOut,
+  });
 
   final AuthUser user;
+  final AuthRepository authRepository;
+  final VoidCallback onSignedOut;
+
+  @override
+  State<ProfileContent> createState() => _ProfileContentState();
+}
+
+class _ProfileContentState extends State<ProfileContent> {
+  bool _isSigningOut = false;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
       children: [
-        ProfileHeader(user: user),
+        ProfileHeader(user: widget.user),
         const SizedBox(height: 24),
-        ProfileStatsCard(user: user),
+        ProfileStatsCard(user: widget.user),
         const SizedBox(height: 18),
         const ProfileMenuGroup(
           items: [
@@ -117,8 +142,55 @@ class ProfileContent extends StatelessWidget {
             (Icons.support_agent, '고객센터'),
           ],
         ),
+        const SizedBox(height: 18),
+        SurfacePanel(
+          child: ProfileMenuItem(
+            key: const Key('profile_sign_out'),
+            icon: Icons.logout_rounded,
+            label: _isSigningOut
+                ? '\uB85C\uADF8\uC544\uC6C3 \uC911...'
+                : '\uB85C\uADF8\uC544\uC6C3',
+            foregroundColor: AppColors.error,
+            showChevron: false,
+            trailing: _isSigningOut
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : null,
+            onTap: _isSigningOut ? null : _signOut,
+          ),
+        ),
       ],
     );
+  }
+
+  Future<void> _signOut() async {
+    if (_isSigningOut) {
+      return;
+    }
+
+    setState(() => _isSigningOut = true);
+
+    Exception? signOutError;
+    try {
+      await widget.authRepository.signOut();
+    } on Exception catch (error) {
+      signOutError = error;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    if (signOutError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(authErrorMessage(signOutError))),
+      );
+    }
+
+    widget.onSignedOut();
   }
 }
 
@@ -328,28 +400,58 @@ class ProfileMenuGroup extends StatelessWidget {
 }
 
 class ProfileMenuItem extends StatelessWidget {
-  const ProfileMenuItem({super.key, required this.icon, required this.label});
+  const ProfileMenuItem({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.foregroundColor,
+    this.showChevron = true,
+    this.trailing,
+  });
 
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
+  final Color? foregroundColor;
+  final bool showChevron;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    final textColor = foregroundColor ?? AppColors.ink;
+    final iconColor = foregroundColor ?? AppColors.primary;
+    final row = Row(
       children: [
-        Icon(icon, color: AppColors.primary, size: 21),
+        Icon(icon, color: iconColor, size: 21),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(
-              color: AppColors.ink,
+            style: TextStyle(
+              color: textColor,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
-        const Icon(Icons.chevron_right, color: AppColors.subtle),
+        if (trailing != null)
+          trailing!
+        else if (showChevron)
+          const Icon(Icons.chevron_right, color: AppColors.subtle),
       ],
+    );
+
+    if (onTap == null) {
+      return row;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: row,
+      ),
     );
   }
 }
