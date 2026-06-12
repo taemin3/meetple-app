@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/meetple_app.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
+import 'package:meetple/widgets/primary_gradient_button.dart';
 
 void main() {
   testWidgets('shows Meetple home', (WidgetTester tester) async {
@@ -80,6 +81,27 @@ void main() {
 
     expect(find.text('김모임'), findsOneWidget);
     expect(find.text('로그인이 필요합니다.'), findsNothing);
+  });
+
+  testWidgets('signs out from profile page', (WidgetTester tester) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final authRepository = MockAuthRepository();
+    await tester.pumpWidget(MeetpleApp(authRepository: authRepository));
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.person_outline));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('profile_sign_out')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('profile_sign_out')));
+    await tester.pumpAndSettle();
+
+    expect(await authRepository.restoreSession(), isNull);
+    expect(find.byKey(const Key('profile_sign_out')), findsNothing);
+    expect(find.byType(PrimaryGradientButton), findsOneWidget);
   });
 
   testWidgets('shows reference login form copy', (WidgetTester tester) async {
