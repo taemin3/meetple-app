@@ -170,16 +170,21 @@ class ApiAuthRepository implements AuthRepository {
   Future<AuthSession> _restoreWithTokens(AuthTokenPair tokens) async {
     await _tokenStore.write(tokens);
 
-    final response = await _apiClient.getJson('/api/v1/users/me');
-    final user = _userFromJson(_readData(response));
-    final session = AuthSession(
-      user: user,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    );
-    _session = session;
+    try {
+      final response = await _apiClient.getJson('/api/v1/users/me');
+      final user = _userFromJson(_readData(response));
+      final session = AuthSession(
+        user: user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      );
+      _session = session;
 
-    return session;
+      return session;
+    } catch (_) {
+      await _clearSession();
+      rethrow;
+    }
   }
 
   Future<void> _clearSession() async {

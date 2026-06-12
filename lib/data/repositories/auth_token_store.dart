@@ -38,6 +38,10 @@ class FlutterSecureAuthTokenStore implements AuthTokenStore {
         accessToken.isEmpty ||
         refreshToken == null ||
         refreshToken.isEmpty) {
+      if (accessToken != null || refreshToken != null) {
+        await clear();
+      }
+
       return null;
     }
 
@@ -49,16 +53,19 @@ class FlutterSecureAuthTokenStore implements AuthTokenStore {
 
   @override
   Future<void> write(AuthTokenPair tokens) async {
-    await Future.wait([
-      _secureStorage.write(
+    try {
+      await _secureStorage.write(
         key: _accessTokenKey,
         value: tokens.accessToken,
-      ),
-      _secureStorage.write(
+      );
+      await _secureStorage.write(
         key: _refreshTokenKey,
         value: tokens.refreshToken,
-      ),
-    ]);
+      );
+    } catch (_) {
+      await clear();
+      rethrow;
+    }
   }
 
   @override

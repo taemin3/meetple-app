@@ -47,6 +47,40 @@ void main() {
     expect((await tokenStore.read())?.accessToken, 'access-token');
   });
 
+  test('clears issued tokens when profile API fails after sign in', () async {
+    final tokenStore = MemoryAuthTokenStore();
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'accessToken': 'access-token',
+            'refreshToken': 'refresh-token',
+          },
+        ),
+        const ApiException(statusCode: 500, message: 'Profile failed'),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+
+    await expectLater(
+      repository.signIn(
+        email: 'user@example.com',
+        password: 'password123',
+      ),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          'Profile failed',
+        ),
+      ),
+    );
+    expect(await tokenStore.read(), isNull);
+  });
+
   test('rejects blank sign in fields before sending API request', () async {
     final apiClient = FakeApiClient(responses: []);
     final repository = ApiAuthRepository(
