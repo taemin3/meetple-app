@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/meetple_app.dart';
+import 'package:meetple/data/mock/mock_auth.dart';
+import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
+import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 
 void main() {
@@ -122,6 +127,33 @@ void main() {
     expect(find.byType(LoginPage), findsOneWidget);
   });
 
+  testWidgets('ignores stale restore result after auth repository changes', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final staleRepository = _DeferredAuthRepository();
+    final currentRepository = MockAuthRepository(session: null);
+
+    await tester.pumpWidget(MeetpleApp(authRepository: staleRepository));
+    await tester.pump();
+
+    await tester.pumpWidget(MeetpleApp(authRepository: currentRepository));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LoginPage), findsOneWidget);
+
+    staleRepository.completeRestore(mockAuthSession);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LoginPage), findsOneWidget);
+    expect(
+      find.text('\uCD94\uCC9C \uBAA8\uC784', skipOffstage: false),
+      findsNothing,
+    );
+  });
+
   testWidgets('moves sign up from account step to profile step', (
     WidgetTester tester,
   ) async {
@@ -151,4 +183,37 @@ void main() {
 
     expect(find.text('\uAC00\uC785 \uC644\uB8CC'), findsOneWidget);
   });
+}
+
+class _DeferredAuthRepository implements AuthRepository {
+  final Completer<AuthSession?> _restoreCompleter = Completer<AuthSession?>();
+
+  void completeRestore(AuthSession? session) {
+    _restoreCompleter.complete(session);
+  }
+
+  @override
+  Future<AuthSession?> restoreSession() {
+    return _restoreCompleter.future;
+  }
+
+  @override
+  Future<AuthSession> signIn({
+    required String email,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthSession> signUp({
+    required String nickname,
+    required String email,
+    required String password,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> signOut() async {}
 }

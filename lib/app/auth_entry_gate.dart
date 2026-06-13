@@ -31,6 +31,7 @@ class AuthEntryGate extends StatefulWidget {
 class _AuthEntryGateState extends State<AuthEntryGate> {
   late AuthRepository _authRepository;
   _AuthEntryState _state = _AuthEntryState.checking;
+  int _restoreGeneration = 0;
 
   @override
   void initState() {
@@ -42,9 +43,8 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   @override
   void didUpdateWidget(covariant AuthEntryGate oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.authRepository != widget.authRepository &&
-        widget.authRepository != null) {
-      _authRepository = widget.authRepository!;
+    if (oldWidget.authRepository != widget.authRepository) {
+      _authRepository = widget.authRepository ?? MockAuthRepository();
       _restoreSession();
     }
   }
@@ -69,16 +69,21 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   }
 
   Future<void> _restoreSession() async {
+    final restoreGeneration = ++_restoreGeneration;
+    final authRepository = _authRepository;
+
     setState(() => _state = _AuthEntryState.checking);
 
     AuthSession? session;
     try {
-      session = await _authRepository.restoreSession();
+      session = await authRepository.restoreSession();
     } on Exception {
       session = null;
     }
 
-    if (!mounted) {
+    if (!mounted ||
+        restoreGeneration != _restoreGeneration ||
+        !identical(authRepository, _authRepository)) {
       return;
     }
 
