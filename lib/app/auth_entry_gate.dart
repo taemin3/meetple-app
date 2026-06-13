@@ -6,7 +6,6 @@ import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../models/auth_session.dart';
 import '../screens/auth/login_page.dart';
-import '../widgets/app_state_view.dart';
 import 'app_shell.dart';
 
 enum _AuthEntryState {
@@ -54,17 +53,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   Widget build(BuildContext context) {
     switch (_state) {
       case _AuthEntryState.checking:
-        return const Scaffold(
-          backgroundColor: AppColors.canvas,
-          body: SafeArea(
-            child: Center(
-              child: AppLoadingView(
-                message:
-                    '\uB85C\uADF8\uC778 \uC0C1\uD0DC\uB97C \uD655\uC778\uD558\uACE0 \uC788\uC2B5\uB2C8\uB2E4.',
-              ),
-            ),
-          ),
-        );
+        return const _AuthSplashView();
       case _AuthEntryState.signedOut:
         return LoginPage(
           authRepository: _authRepository,
@@ -106,5 +95,32 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
 
   void _showSignedOut() {
     setState(() => _state = _AuthEntryState.signedOut);
+  }
+}
+
+class _AuthSplashView extends StatelessWidget {
+  const _AuthSplashView();
+
+  @override
+  Widget build(BuildContext context) {
+    final shortestSide = MediaQuery.sizeOf(context).shortestSide;
+    final brandHeight = shortestSide.clamp(180.0, 240.0).toDouble();
+
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        child: Center(
+          child: Semantics(
+            label: '\uBC0B\uD50C',
+            image: true,
+            child: Image.asset(
+              'assets/splash/splash-brand.png',
+              height: brandHeight,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
