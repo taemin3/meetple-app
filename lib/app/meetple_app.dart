@@ -4,7 +4,7 @@ import '../core/theme/app_theme.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
-import 'app_shell.dart';
+import 'auth_entry_gate.dart';
 
 class MeetpleApp extends StatelessWidget {
   const MeetpleApp({
@@ -22,7 +22,7 @@ class MeetpleApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Meetple',
       theme: AppTheme.light(),
-      home: AppShell(
+      home: AuthEntryGate(
         authRepository: authRepository,
         meetingRepository: meetingRepository,
       ),

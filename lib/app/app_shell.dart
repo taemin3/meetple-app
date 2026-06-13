@@ -17,10 +17,12 @@ class AppShell extends StatefulWidget {
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.onSignedOut,
   });
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final VoidCallback? onSignedOut;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -145,7 +147,10 @@ class _AppShellState extends State<AppShell> {
       case AppTab.chat:
         return const ChatPage();
       case AppTab.profile:
-        return ProfilePage(authRepository: _authRepository);
+        return ProfilePage(
+          authRepository: _authRepository,
+          onSignedOut: widget.onSignedOut,
+        );
     }
   }
 }
