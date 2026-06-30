@@ -143,7 +143,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.discover:
         return DiscoverPage(meetingRepository: widget.meetingRepository);
       case AppTab.createMeeting:
-        return const CreateMeetingPage();
+        return CreateMeetingPage(meetingRepository: widget.meetingRepository);
       case AppTab.chat:
         return const ChatPage();
       case AppTab.profile:

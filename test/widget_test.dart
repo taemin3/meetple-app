@@ -40,6 +40,29 @@ void main() {
     expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
   });
 
+  testWidgets('validates create meeting form before submit', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 2200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MeetpleApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('+'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('create_meeting_submit')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        '\uBAA8\uC784 \uC81C\uBAA9\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.',
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows authenticated profile from auth repository', (
     WidgetTester tester,
   ) async {

@@ -54,6 +54,28 @@ class ApiMeetingRepository implements MeetingRepository {
     ];
   }
 
+  @override
+  Future<Meeting> createMeeting(CreateMeetingInput input) async {
+    final response = await _apiClient.postJson(
+      '/api/v1/meetings',
+      body: {
+        'title': input.title,
+        'category': input.category,
+        'locationName': input.locationName,
+        'address': input.address,
+        'latitude': input.latitude,
+        'longitude': input.longitude,
+        'scheduledAt': _formatApiDateTime(input.scheduledAt),
+        'capacity': input.capacity,
+        'description': input.description,
+      },
+    );
+
+    _ensureSuccess(response);
+
+    return _meetingFromJson(_readMap(response['data'], 'data'));
+  }
+
   void _ensureSuccess(Map<String, dynamic> response) {
     if (response['success'] != true) {
       throw ApiException(
@@ -201,5 +223,15 @@ class ApiMeetingRepository implements MeetingRepository {
 
   String _twoDigits(int value) {
     return value.toString().padLeft(2, '0');
+  }
+
+  String _formatApiDateTime(DateTime dateTime) {
+    final localDateTime = dateTime.toLocal();
+
+    return '${localDateTime.year}-'
+        '${_twoDigits(localDateTime.month)}-'
+        '${_twoDigits(localDateTime.day)}T'
+        '${_twoDigits(localDateTime.hour)}:'
+        '${_twoDigits(localDateTime.minute)}:00';
   }
 }
