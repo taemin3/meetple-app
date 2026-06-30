@@ -5,8 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/meetple_app.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
+import 'package:meetple/data/repositories/category_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/models/auth_session.dart';
+import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 
 void main() {
@@ -61,6 +63,33 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('shows categories from category repository in create form', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MeetpleApp(
+        categoryRepository: _StaticCategoryRepository([
+          MeetingCategory(id: 10, name: '러닝'),
+          MeetingCategory(id: 11, name: '독서'),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('+'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('러닝'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('create_meeting_category')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('독서'), findsWidgets);
   });
 
   testWidgets('shows authenticated profile from auth repository', (
@@ -206,6 +235,17 @@ void main() {
 
     expect(find.text('\uAC00\uC785 \uC644\uB8CC'), findsOneWidget);
   });
+}
+
+class _StaticCategoryRepository implements CategoryRepository {
+  const _StaticCategoryRepository(this.categories);
+
+  final List<MeetingCategory> categories;
+
+  @override
+  Future<List<MeetingCategory>> findAll() async {
+    return categories;
+  }
 }
 
 class _DeferredAuthRepository implements AuthRepository {

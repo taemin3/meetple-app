@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
 import '../data/repositories/auth_repository.dart';
+import '../data/repositories/category_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
+import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../screens/chat/chat_page.dart';
 import '../screens/create_meeting/create_meeting_page.dart';
@@ -17,11 +19,13 @@ class AppShell extends StatefulWidget {
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.categoryRepository = const MockCategoryRepository(),
     this.onSignedOut,
   });
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final CategoryRepository categoryRepository;
   final VoidCallback? onSignedOut;
 
   @override
@@ -143,7 +147,10 @@ class _AppShellState extends State<AppShell> {
       case AppTab.discover:
         return DiscoverPage(meetingRepository: widget.meetingRepository);
       case AppTab.createMeeting:
-        return CreateMeetingPage(meetingRepository: widget.meetingRepository);
+        return CreateMeetingPage(
+          meetingRepository: widget.meetingRepository,
+          categoryRepository: widget.categoryRepository,
+        );
       case AppTab.chat:
         return const ChatPage();
       case AppTab.profile:

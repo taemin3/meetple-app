@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/repositories/auth_repository.dart';
+import '../data/repositories/category_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
+import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../models/auth_session.dart';
 import '../models/meeting.dart';
@@ -44,12 +46,15 @@ abstract final class AppRoutes {
   static Future<T?> openCreateMeeting<T>(
     BuildContext context, {
     MeetingRepository? meetingRepository,
+    CategoryRepository? categoryRepository,
   }) {
     return Navigator.of(context).push<T>(
       MaterialPageRoute<T>(
         settings: const RouteSettings(name: AppRouteNames.createMeeting),
         builder: (_) => CreateMeetingPage(
           meetingRepository: meetingRepository ?? const MockMeetingRepository(),
+          categoryRepository:
+              categoryRepository ?? const MockCategoryRepository(),
         ),
       ),
     );

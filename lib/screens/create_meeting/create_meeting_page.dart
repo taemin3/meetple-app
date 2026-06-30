@@ -3,29 +3,28 @@ import 'package:flutter/material.dart';
 import '../../app/app_navigation.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_category_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
+import '../../models/meeting_category.dart';
 import '../../widgets/primary_gradient_button.dart';
 
 class CreateMeetingPage extends StatefulWidget {
   const CreateMeetingPage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
+    this.categoryRepository = const MockCategoryRepository(),
   });
 
   final MeetingRepository meetingRepository;
+  final CategoryRepository categoryRepository;
 
   @override
   State<CreateMeetingPage> createState() => _CreateMeetingPageState();
 }
 
 class _CreateMeetingPageState extends State<CreateMeetingPage> {
-  static const _categoryOptions = <_MeetingCategoryOption>[
-    _MeetingCategoryOption(label: '운동', value: 'exercise'),
-    _MeetingCategoryOption(label: '스터디', value: 'study'),
-    _MeetingCategoryOption(label: '취미', value: 'hobby'),
-  ];
-
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _scheduleController = TextEditingController();
@@ -36,9 +35,27 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   final _capacityController = TextEditingController(text: '2');
   final _descriptionController = TextEditingController();
 
-  String _category = _categoryOptions.first.value;
+  String? _category;
+  List<MeetingCategory> _categories = const [];
+  Object? _categoryError;
+  bool _isLoadingCategories = true;
+  int _categoryLoadGeneration = 0;
   DateTime? _scheduledAt;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories(showLoading: false);
+  }
+
+  @override
+  void didUpdateWidget(covariant CreateMeetingPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.categoryRepository != widget.categoryRepository) {
+      _loadCategories();
+    }
+  }
 
   @override
   void dispose() {
@@ -75,7 +92,10 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
           ),
           _CategoryField(
             value: _category,
-            options: _categoryOptions,
+            categories: _categories,
+            isLoading: _isLoadingCategories,
+            error: _categoryError,
+            onRetry: _loadCategories,
             onChanged: (value) {
               if (value == null) {
                 return;
@@ -182,6 +202,50 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     );
   }
 
+  Future<void> _loadCategories({bool showLoading = true}) async {
+    final generation = ++_categoryLoadGeneration;
+    if (showLoading) {
+      setState(() {
+        _isLoadingCategories = true;
+        _categoryError = null;
+      });
+    }
+
+    List<MeetingCategory> categories = const [];
+    Object? categoryError;
+    try {
+      categories = await widget.categoryRepository.findAll();
+    } on Object catch (error) {
+      categoryError = error;
+    }
+
+    if (!mounted || generation != _categoryLoadGeneration) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingCategories = false;
+      _categoryError = categoryError;
+
+      if (categoryError != null) {
+        return;
+      }
+
+      _categories = categories;
+      if (categories.isEmpty) {
+        _category = null;
+        return;
+      }
+
+      final hasSelectedCategory = categories.any(
+        (category) => category.name == _category,
+      );
+      if (!hasSelectedCategory) {
+        _category = categories.first.name;
+      }
+    });
+  }
+
   Future<void> _pickSchedule() async {
     final now = DateTime.now();
     final initialDate = _scheduledAt ?? now.add(const Duration(days: 1));
@@ -231,7 +295,10 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
 
     FocusScope.of(context).unfocus();
 
-    if (_formKey.currentState?.validate() != true || _scheduledAt == null) {
+    final category = _category;
+    if (_formKey.currentState?.validate() != true ||
+        _scheduledAt == null ||
+        category == null) {
       return;
     }
 
@@ -242,7 +309,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
       await widget.meetingRepository.createMeeting(
         CreateMeetingInput(
           title: _titleController.text.trim(),
-          category: _category,
+          category: category,
           locationName: _locationNameController.text.trim(),
           address: _addressController.text.trim(),
           latitude: double.parse(_latitudeController.text.trim()),
@@ -430,12 +497,18 @@ class ImageUploadBox extends StatelessWidget {
 class _CategoryField extends StatelessWidget {
   const _CategoryField({
     required this.value,
-    required this.options,
+    required this.categories,
+    required this.isLoading,
+    required this.error,
+    required this.onRetry,
     required this.onChanged,
   });
 
-  final String value;
-  final List<_MeetingCategoryOption> options;
+  final String? value;
+  final List<MeetingCategory> categories;
+  final bool isLoading;
+  final Object? error;
+  final VoidCallback onRetry;
   final ValueChanged<String?> onChanged;
 
   @override
@@ -453,23 +526,116 @@ class _CategoryField extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            key: const Key('create_meeting_category'),
-            value: value,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.category_outlined),
+          if (isLoading)
+            const _CategoryStatusField(
+              message: '카테고리를 불러오는 중입니다.',
+              validatorMessage: '카테고리를 불러오는 중입니다.',
+            )
+          else if (error != null)
+            _CategoryStatusField(
+              message: '카테고리를 불러오지 못했습니다.',
+              validatorMessage: '카테고리를 다시 불러와주세요.',
+              onRetry: onRetry,
+            )
+          else if (categories.isEmpty)
+            const _CategoryStatusField(
+              message: '사용할 수 있는 카테고리가 없습니다.',
+              validatorMessage: '사용할 수 있는 카테고리가 없습니다.',
+            )
+          else
+            DropdownButtonFormField<String>(
+              key: const Key('create_meeting_category'),
+              value: value,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '카테고리를 선택해주세요.';
+                }
+
+                return null;
+              },
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.category_outlined),
+              ),
+              items: [
+                for (final category in categories)
+                  DropdownMenuItem<String>(
+                    value: category.name,
+                    child: Text(category.name),
+                  ),
+              ],
+              onChanged: onChanged,
             ),
-            items: [
-              for (final option in options)
-                DropdownMenuItem<String>(
-                  value: option.value,
-                  child: Text(option.label),
-                ),
-            ],
-            onChanged: onChanged,
-          ),
         ],
       ),
+    );
+  }
+}
+
+class _CategoryStatusField extends StatelessWidget {
+  const _CategoryStatusField({
+    required this.message,
+    required this.validatorMessage,
+    this.onRetry,
+  });
+
+  final String message;
+  final String validatorMessage;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<String>(
+      validator: (_) => validatorMessage,
+      builder: (field) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.category_outlined,
+                    color: AppColors.muted,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      message,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  if (onRetry != null)
+                    TextButton(
+                      onPressed: onRetry,
+                      child: const Text('재시도'),
+                    ),
+                ],
+              ),
+            ),
+            if (field.hasError) ...[
+              const SizedBox(height: 8),
+              Text(
+                field.errorText!,
+                style: const TextStyle(
+                  color: AppColors.error,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
@@ -577,14 +743,4 @@ class CreateTextArea extends StatelessWidget {
       ),
     );
   }
-}
-
-class _MeetingCategoryOption {
-  const _MeetingCategoryOption({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
 }

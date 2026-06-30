@@ -8,6 +8,7 @@ void main() {
     MeetpleApp(
       authRepository: createAuthRepository(),
       meetingRepository: createMeetingRepository(),
+      categoryRepository: createCategoryRepository(),
     ),
   );
 }
