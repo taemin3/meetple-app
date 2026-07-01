@@ -27,9 +27,12 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   bool _hasSearched = false;
   Object? _error;
   int _searchGeneration = 0;
+  int _reverseGeneration = 0;
   LocationSearchResult? _selectedLocation;
   NaverMapController? _mapController;
   NMarker? _selectedMarker;
+  bool _isResolvingLocation = false;
+  Object? _reverseError;
 
   @override
   void dispose() {
@@ -66,9 +69,11 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               _SelectedLocationPreview(
                 location: _selectedLocation!,
                 isMapEnabled: AppConfig.hasNaverMapClientId,
+                isResolvingLocation: _isResolvingLocation,
+                reverseError: _reverseError,
                 onMapReady: _handleMapReady,
                 onMapTapped: _moveSelectedPin,
-                onConfirm: _confirmLocation,
+                onConfirm: _isResolvingLocation ? null : _confirmLocation,
               ),
               const SizedBox(height: 18),
             ],
@@ -161,6 +166,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     setState(() {
       _selectedLocation = location;
       _selectedMarker = null;
+      _isResolvingLocation = false;
+      _reverseError = null;
     });
 
     await _moveCameraTo(location);
@@ -182,14 +189,51 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     }
 
     final movedLocation = selectedLocation.copyWith(
+      id: 'map:selected:${latLng.latitude},${latLng.longitude}',
+      type: 'COORDINATE',
+      name: '지도에서 선택한 위치',
+      category: '',
+      address: '주소를 확인하는 중입니다.',
       latitude: latLng.latitude,
       longitude: latLng.longitude,
     );
     setState(() {
       _selectedLocation = movedLocation;
+      _isResolvingLocation = true;
+      _reverseError = null;
     });
 
     await _updateMarker(movedLocation);
+
+    final generation = ++_reverseGeneration;
+    LocationSearchResult? resolvedLocation;
+    Object? reverseError;
+    try {
+      resolvedLocation = await widget.locationRepository.reverse(
+        latitude: latLng.latitude,
+        longitude: latLng.longitude,
+      );
+    } on Object catch (caughtError) {
+      reverseError = caughtError;
+    }
+
+    if (!mounted || generation != _reverseGeneration) {
+      return;
+    }
+
+    final nextLocation = (resolvedLocation ?? movedLocation).copyWith(
+      latitude: latLng.latitude,
+      longitude: latLng.longitude,
+      address: resolvedLocation?.address ?? '주소를 찾지 못했습니다. 좌표를 확인해주세요.',
+    );
+
+    setState(() {
+      _selectedLocation = nextLocation;
+      _isResolvingLocation = false;
+      _reverseError = reverseError;
+    });
+
+    await _updateMarker(nextLocation);
   }
 
   Future<void> _moveCameraTo(LocationSearchResult location) async {
@@ -298,6 +342,8 @@ class _SelectedLocationPreview extends StatelessWidget {
   const _SelectedLocationPreview({
     required this.location,
     required this.isMapEnabled,
+    required this.isResolvingLocation,
+    required this.reverseError,
     required this.onMapReady,
     required this.onMapTapped,
     required this.onConfirm,
@@ -305,9 +351,11 @@ class _SelectedLocationPreview extends StatelessWidget {
 
   final LocationSearchResult location;
   final bool isMapEnabled;
+  final bool isResolvingLocation;
+  final Object? reverseError;
   final ValueChanged<NaverMapController> onMapReady;
   final ValueChanged<NLatLng> onMapTapped;
-  final VoidCallback onConfirm;
+  final VoidCallback? onConfirm;
 
   @override
   Widget build(BuildContext context) {
@@ -315,7 +363,7 @@ class _SelectedLocationPreview extends StatelessWidget {
 
     return Container(
       key: const Key('location_picker_selected_preview'),
-      padding: const EdgeInsets.all(14),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(22),
@@ -329,92 +377,102 @@ class _SelectedLocationPreview extends StatelessWidget {
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: AspectRatio(
-              aspectRatio: 16 / 10,
-              child: isMapEnabled
-                  ? NaverMap(
-                      key: ValueKey('map_${location.id}'),
-                      forceGesture: true,
-                      options: NaverMapViewOptions(
-                        initialCameraPosition: NCameraPosition(
-                          target: position,
-                          zoom: 16,
-                        ),
-                        indoorLevelPickerEnable: false,
-                        locationButtonEnable: false,
-                        scaleBarEnable: false,
-                        logoAlign: NLogoAlign.leftBottom,
-                        logoMargin: const EdgeInsets.all(8),
-                        contentPadding: const EdgeInsets.only(bottom: 28),
+          AspectRatio(
+            aspectRatio: 4 / 3,
+            child: isMapEnabled
+                ? NaverMap(
+                    key: ValueKey('map_${location.id}'),
+                    forceGesture: true,
+                    options: NaverMapViewOptions(
+                      initialCameraPosition: NCameraPosition(
+                        target: position,
+                        zoom: 16,
                       ),
-                      onMapReady: onMapReady,
-                      onMapTapped: (_, latLng) => onMapTapped(latLng),
-                    )
-                  : const _MapUnavailablePreview(),
-            ),
+                      indoorLevelPickerEnable: false,
+                      locationButtonEnable: false,
+                      scaleBarEnable: false,
+                      logoAlign: NLogoAlign.leftBottom,
+                      logoMargin: const EdgeInsets.all(8),
+                      contentPadding: const EdgeInsets.only(bottom: 28),
+                    ),
+                    onMapReady: onMapReady,
+                    onMapTapped: (_, latLng) => onMapTapped(latLng),
+                  )
+                : const _MapUnavailablePreview(),
           ),
-          const SizedBox(height: 14),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(
-                Icons.place_rounded,
-                color: AppColors.primary,
-                size: 24,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      location.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    const Icon(
+                      Icons.place_rounded,
+                      color: AppColors.primary,
+                      size: 24,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      location.address,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontWeight: FontWeight.w700,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${location.latitude.toStringAsFixed(6)}, '
-                      '${location.longitude.toStringAsFixed(6)}',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            location.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            location.address,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontWeight: FontWeight.w700,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${location.latitude.toStringAsFixed(6)}, '
+                            '${location.longitude.toStringAsFixed(6)}',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: FilledButton(
-              key: const Key('location_picker_confirm'),
-              onPressed: onConfirm,
-              child: const Text('이 위치 선택'),
+                if (isResolvingLocation || reverseError != null) ...[
+                  const SizedBox(height: 12),
+                  _ReverseStatus(
+                    isResolving: isResolvingLocation,
+                    hasError: reverseError != null,
+                  ),
+                ],
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: FilledButton(
+                    key: const Key('location_picker_confirm'),
+                    onPressed: onConfirm,
+                    child: const Text('이 위치 선택'),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -460,6 +518,51 @@ class _MapUnavailablePreview extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReverseStatus extends StatelessWidget {
+  const _ReverseStatus({
+    required this.isResolving,
+    required this.hasError,
+  });
+
+  final bool isResolving;
+  final bool hasError;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = hasError ? AppColors.error : AppColors.primary;
+    final message =
+        hasError ? '주소를 찾지 못했습니다. 좌표로 선택할 수 있어요.' : '핀 위치의 주소를 확인하고 있습니다.';
+
+    return Row(
+      children: [
+        if (isResolving)
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        else
+          Icon(
+            Icons.info_outline,
+            color: color,
+            size: 16,
+          ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

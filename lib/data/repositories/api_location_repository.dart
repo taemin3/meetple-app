@@ -40,6 +40,24 @@ class ApiLocationRepository implements LocationRepository {
     ];
   }
 
+  @override
+  Future<LocationSearchResult> reverse({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final response = await _apiClient.getJson(
+      '/api/v1/locations/reverse',
+      queryParameters: {
+        'latitude': latitude.toString(),
+        'longitude': longitude.toString(),
+      },
+    );
+
+    _ensureSuccess(response);
+
+    return _locationFromJson(_readMap(response['data'], 'data'));
+  }
+
   void _ensureSuccess(Map<String, dynamic> response) {
     if (response['success'] != true) {
       throw ApiException(

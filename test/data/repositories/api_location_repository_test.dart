@@ -43,6 +43,46 @@ void main() {
     expect(locations.single.provider, 'NAVER');
   });
 
+  test('maps reverse location API response to location result', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'code': 2000,
+        'message': 'OK',
+        'data': {
+          'id': 'naver:reverse:1',
+          'type': 'ADDRESS',
+          'name': '서울 영등포구 여의도동',
+          'category': '주소',
+          'address': '서울 영등포구 여의공원로 68',
+          'latitude': 37.527,
+          'longitude': 126.923,
+          'provider': 'NAVER',
+        },
+      },
+    );
+    final repository = ApiLocationRepository(apiClient: apiClient);
+
+    final location = await repository.reverse(
+      latitude: 37.527,
+      longitude: 126.923,
+    );
+
+    expect(apiClient.path, '/api/v1/locations/reverse');
+    expect(apiClient.queryParameters, {
+      'latitude': '37.527',
+      'longitude': '126.923',
+    });
+    expect(location.id, 'naver:reverse:1');
+    expect(location.type, 'ADDRESS');
+    expect(location.name, '서울 영등포구 여의도동');
+    expect(location.address, '서울 영등포구 여의공원로 68');
+    expect(location.latitude, 37.527);
+    expect(location.longitude, 126.923);
+    expect(location.provider, 'NAVER');
+  });
+
   test('throws ApiException when location API envelope is unsuccessful',
       () async {
     final repository = ApiLocationRepository(

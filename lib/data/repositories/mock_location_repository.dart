@@ -58,4 +58,31 @@ class MockLocationRepository implements LocationRepository {
 
     return results.take(display).toList();
   }
+
+  @override
+  Future<LocationSearchResult> reverse({
+    required double latitude,
+    required double longitude,
+  }) async {
+    final nearestLocation = _locations.reduce((current, next) {
+      final currentDistance = _squaredDistance(current, latitude, longitude);
+      final nextDistance = _squaredDistance(next, latitude, longitude);
+      return currentDistance <= nextDistance ? current : next;
+    });
+
+    return nearestLocation.copyWith(
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
+
+  static double _squaredDistance(
+    LocationSearchResult location,
+    double latitude,
+    double longitude,
+  ) {
+    final latitudeDelta = location.latitude - latitude;
+    final longitudeDelta = location.longitude - longitude;
+    return latitudeDelta * latitudeDelta + longitudeDelta * longitudeDelta;
+  }
 }

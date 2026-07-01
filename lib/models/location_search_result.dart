@@ -22,18 +22,24 @@ class LocationSearchResult {
   bool get isPlace => type == 'PLACE';
 
   LocationSearchResult copyWith({
+    String? id,
+    String? type,
+    String? name,
+    String? category,
+    String? address,
     double? latitude,
     double? longitude,
+    String? provider,
   }) {
     return LocationSearchResult(
-      id: id,
-      type: type,
-      name: name,
-      category: category,
-      address: address,
+      id: id ?? this.id,
+      type: type ?? this.type,
+      name: name ?? this.name,
+      category: category ?? this.category,
+      address: address ?? this.address,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
-      provider: provider,
+      provider: provider ?? this.provider,
     );
   }
 }

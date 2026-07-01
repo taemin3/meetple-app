@@ -304,6 +304,17 @@ class _StaticLocationRepository implements LocationRepository {
   }) async {
     return locations.take(display).toList();
   }
+
+  @override
+  Future<LocationSearchResult> reverse({
+    required double latitude,
+    required double longitude,
+  }) async {
+    return locations.first.copyWith(
+      latitude: latitude,
+      longitude: longitude,
+    );
+  }
 }
 
 class _StaticCategoryRepository implements CategoryRepository {
