@@ -20,4 +20,20 @@ class LocationSearchResult {
   final String provider;
 
   bool get isPlace => type == 'PLACE';
+
+  LocationSearchResult copyWith({
+    double? latitude,
+    double? longitude,
+  }) {
+    return LocationSearchResult(
+      id: id,
+      type: type,
+      name: name,
+      category: category,
+      address: address,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      provider: provider,
+    );
+  }
 }

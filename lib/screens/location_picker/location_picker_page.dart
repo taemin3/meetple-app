@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_naver_map/flutter_naver_map.dart';
 
+import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/location_repository.dart';
@@ -25,6 +27,9 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   bool _hasSearched = false;
   Object? _error;
   int _searchGeneration = 0;
+  LocationSearchResult? _selectedLocation;
+  NaverMapController? _mapController;
+  NMarker? _selectedMarker;
 
   @override
   void dispose() {
@@ -57,6 +62,16 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
               onSubmitted: _search,
             ),
             const SizedBox(height: 18),
+            if (_selectedLocation != null) ...[
+              _SelectedLocationPreview(
+                location: _selectedLocation!,
+                isMapEnabled: AppConfig.hasNaverMapClientId,
+                onMapReady: _handleMapReady,
+                onMapTapped: _moveSelectedPin,
+                onConfirm: _confirmLocation,
+              ),
+              const SizedBox(height: 18),
+            ],
             _buildBody(),
           ],
         ),
@@ -102,7 +117,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           _LocationResultCard(
             key: Key('location_picker_result_$index'),
             result: _results[index],
-            onTap: () => Navigator.of(context).pop(_results[index]),
+            onTap: () => _selectLocation(_results[index]),
           ),
           if (index != _results.length - 1) const SizedBox(height: 12),
         ],
@@ -140,6 +155,89 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       _results = results;
       _error = error;
     });
+  }
+
+  Future<void> _selectLocation(LocationSearchResult location) async {
+    setState(() {
+      _selectedLocation = location;
+      _selectedMarker = null;
+    });
+
+    await _moveCameraTo(location);
+    await _updateMarker(location);
+  }
+
+  void _handleMapReady(NaverMapController controller) {
+    _mapController = controller;
+    final selectedLocation = _selectedLocation;
+    if (selectedLocation != null) {
+      _updateMarker(selectedLocation);
+    }
+  }
+
+  Future<void> _moveSelectedPin(NLatLng latLng) async {
+    final selectedLocation = _selectedLocation;
+    if (selectedLocation == null) {
+      return;
+    }
+
+    final movedLocation = selectedLocation.copyWith(
+      latitude: latLng.latitude,
+      longitude: latLng.longitude,
+    );
+    setState(() {
+      _selectedLocation = movedLocation;
+    });
+
+    await _updateMarker(movedLocation);
+  }
+
+  Future<void> _moveCameraTo(LocationSearchResult location) async {
+    final controller = _mapController;
+    if (controller == null) {
+      return;
+    }
+
+    await controller.updateCamera(
+      NCameraUpdate.scrollAndZoomTo(
+        target: NLatLng(location.latitude, location.longitude),
+        zoom: 16,
+      ),
+    );
+  }
+
+  Future<void> _updateMarker(LocationSearchResult location) async {
+    final controller = _mapController;
+    if (controller == null) {
+      return;
+    }
+
+    final position = NLatLng(location.latitude, location.longitude);
+    final caption = NOverlayCaption(text: location.name);
+    final marker = _selectedMarker;
+    if (marker == null) {
+      final newMarker = NMarker(
+        id: 'selected_location_marker',
+        position: position,
+        caption: caption,
+      );
+      _selectedMarker = newMarker;
+      await controller.addOverlay(newMarker);
+      return;
+    }
+
+    marker
+      ..setPosition(position)
+      ..setCaption(caption);
+  }
+
+  void _confirmLocation() {
+    final selectedLocation = _selectedLocation;
+    if (selectedLocation == null) {
+      return;
+    }
+
+    Navigator.of(context).pop(selectedLocation);
   }
 
   String _errorMessage(Object error) {
@@ -192,6 +290,176 @@ class _SearchField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SelectedLocationPreview extends StatelessWidget {
+  const _SelectedLocationPreview({
+    required this.location,
+    required this.isMapEnabled,
+    required this.onMapReady,
+    required this.onMapTapped,
+    required this.onConfirm,
+  });
+
+  final LocationSearchResult location;
+  final bool isMapEnabled;
+  final ValueChanged<NaverMapController> onMapReady;
+  final ValueChanged<NLatLng> onMapTapped;
+  final VoidCallback onConfirm;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = NLatLng(location.latitude, location.longitude);
+
+    return Container(
+      key: const Key('location_picker_selected_preview'),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.line),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: AspectRatio(
+              aspectRatio: 16 / 10,
+              child: isMapEnabled
+                  ? NaverMap(
+                      key: ValueKey('map_${location.id}'),
+                      forceGesture: true,
+                      options: NaverMapViewOptions(
+                        initialCameraPosition: NCameraPosition(
+                          target: position,
+                          zoom: 16,
+                        ),
+                        indoorLevelPickerEnable: false,
+                        locationButtonEnable: false,
+                        scaleBarEnable: false,
+                        logoAlign: NLogoAlign.leftBottom,
+                        logoMargin: const EdgeInsets.all(8),
+                        contentPadding: const EdgeInsets.only(bottom: 28),
+                      ),
+                      onMapReady: onMapReady,
+                      onMapTapped: (_, latLng) => onMapTapped(latLng),
+                    )
+                  : const _MapUnavailablePreview(),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.place_rounded,
+                color: AppColors.primary,
+                size: 24,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      location.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      location.address,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontWeight: FontWeight.w700,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${location.latitude.toStringAsFixed(6)}, '
+                      '${location.longitude.toStringAsFixed(6)}',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: FilledButton(
+              key: const Key('location_picker_confirm'),
+              onPressed: onConfirm,
+              child: const Text('이 위치 선택'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MapUnavailablePreview extends StatelessWidget {
+  const _MapUnavailablePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('location_picker_map_unavailable'),
+      color: AppColors.softSurface,
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.map_outlined,
+              color: AppColors.primary,
+              size: 34,
+            ),
+            SizedBox(height: 10),
+            Text(
+              '지도 미리보기 준비 중',
+              style: TextStyle(
+                color: AppColors.ink,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text(
+              'Client ID를 넣으면 네이버 지도가 표시됩니다.',
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

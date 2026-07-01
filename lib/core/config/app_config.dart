@@ -8,4 +8,10 @@ abstract final class AppConfig {
     'MEETPLE_API_BASE_URL',
     defaultValue: 'http://localhost:8080',
   );
+
+  static const naverMapClientId = String.fromEnvironment(
+    'MEETPLE_NAVER_MAP_CLIENT_ID',
+  );
+
+  static bool get hasNaverMapClientId => naverMapClientId.isNotEmpty;
 }
