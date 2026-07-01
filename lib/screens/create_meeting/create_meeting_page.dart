@@ -4,10 +4,14 @@ import '../../app/app_navigation.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/category_repository.dart';
+import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_category_repository.dart';
+import '../../data/repositories/mock_location_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
+import '../../models/location_search_result.dart';
 import '../../models/meeting_category.dart';
+import '../../screens/location_picker/location_picker_page.dart';
 import '../../widgets/primary_gradient_button.dart';
 
 class CreateMeetingPage extends StatefulWidget {
@@ -15,10 +19,12 @@ class CreateMeetingPage extends StatefulWidget {
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
     this.categoryRepository = const MockCategoryRepository(),
+    this.locationRepository = const MockLocationRepository(),
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
+  final LocationRepository locationRepository;
 
   @override
   State<CreateMeetingPage> createState() => _CreateMeetingPageState();
@@ -29,9 +35,6 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   final _titleController = TextEditingController();
   final _scheduleController = TextEditingController();
   final _locationNameController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _latitudeController = TextEditingController();
-  final _longitudeController = TextEditingController();
   final _capacityController = TextEditingController(text: '2');
   final _descriptionController = TextEditingController();
 
@@ -41,6 +44,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   bool _isLoadingCategories = true;
   int _categoryLoadGeneration = 0;
   DateTime? _scheduledAt;
+  LocationSearchResult? _selectedLocation;
   bool _isSubmitting = false;
 
   @override
@@ -62,9 +66,6 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     _titleController.dispose();
     _scheduleController.dispose();
     _locationNameController.dispose();
-    _addressController.dispose();
-    _latitudeController.dispose();
-    _longitudeController.dispose();
     _capacityController.dispose();
     _descriptionController.dispose();
     super.dispose();
@@ -118,65 +119,17 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
           CreateField(
             key: const Key('create_meeting_location_name'),
             controller: _locationNameController,
-            label: '장소명',
-            hint: 'ex) 여의도공원',
-            textInputAction: TextInputAction.next,
-            suffix: Icons.place_outlined,
-            validator: (value) => _required(value, '장소명을 입력해주세요.'),
+            label: '장소',
+            hint: '장소를 검색해서 선택해주세요',
+            readOnly: true,
+            suffix: Icons.search,
+            onTap: _openLocationPicker,
+            validator: (_) => _selectedLocation == null ? '장소를 선택해주세요.' : null,
           ),
-          CreateField(
-            key: const Key('create_meeting_address'),
-            controller: _addressController,
-            label: '주소',
-            hint: 'ex) 서울 영등포구 여의공원로 68',
-            textInputAction: TextInputAction.next,
-            validator: (value) => _required(value, '주소를 입력해주세요.'),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: CreateField(
-                  key: const Key('create_meeting_latitude'),
-                  controller: _latitudeController,
-                  label: '위도',
-                  hint: '37.5219',
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                  textInputAction: TextInputAction.next,
-                  validator: (value) => _numberInRange(
-                    value,
-                    min: -90,
-                    max: 90,
-                    emptyMessage: '위도를 입력해주세요.',
-                    rangeMessage: '위도는 -90부터 90까지 입력해주세요.',
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: CreateField(
-                  key: const Key('create_meeting_longitude'),
-                  controller: _longitudeController,
-                  label: '경도',
-                  hint: '126.9245',
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                  textInputAction: TextInputAction.next,
-                  validator: (value) => _numberInRange(
-                    value,
-                    min: -180,
-                    max: 180,
-                    emptyMessage: '경도를 입력해주세요.',
-                    rangeMessage: '경도는 -180부터 180까지 입력해주세요.',
-                  ),
-                ),
-              ),
-            ],
-          ),
+          if (_selectedLocation != null) ...[
+            _SelectedLocationPanel(location: _selectedLocation!),
+            const SizedBox(height: 18),
+          ],
           CreateField(
             key: const Key('create_meeting_capacity'),
             controller: _capacityController,
@@ -288,6 +241,28 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     });
   }
 
+  Future<void> _openLocationPicker() async {
+    FocusScope.of(context).unfocus();
+
+    final selected = await Navigator.of(context).push<LocationSearchResult>(
+      MaterialPageRoute<LocationSearchResult>(
+        builder: (_) => LocationPickerPage(
+          locationRepository: widget.locationRepository,
+        ),
+        fullscreenDialog: true,
+      ),
+    );
+
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedLocation = selected;
+      _locationNameController.text = selected.name;
+    });
+  }
+
   Future<void> _submit() async {
     if (_isSubmitting) {
       return;
@@ -296,9 +271,11 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     FocusScope.of(context).unfocus();
 
     final category = _category;
+    final selectedLocation = _selectedLocation;
     if (_formKey.currentState?.validate() != true ||
         _scheduledAt == null ||
-        category == null) {
+        category == null ||
+        selectedLocation == null) {
       return;
     }
 
@@ -310,10 +287,10 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
         CreateMeetingInput(
           title: _titleController.text.trim(),
           category: category,
-          locationName: _locationNameController.text.trim(),
-          address: _addressController.text.trim(),
-          latitude: double.parse(_latitudeController.text.trim()),
-          longitude: double.parse(_longitudeController.text.trim()),
+          locationName: selectedLocation.name,
+          address: selectedLocation.address,
+          latitude: selectedLocation.latitude,
+          longitude: selectedLocation.longitude,
           scheduledAt: _scheduledAt!,
           capacity: int.parse(_capacityController.text.trim()),
           description: _descriptionController.text.trim(),
@@ -348,26 +325,6 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   String? _required(String? value, String message) {
     if (value == null || value.trim().isEmpty) {
       return message;
-    }
-
-    return null;
-  }
-
-  String? _numberInRange(
-    String? value, {
-    required double min,
-    required double max,
-    required String emptyMessage,
-    required String rangeMessage,
-  }) {
-    final requiredMessage = _required(value, emptyMessage);
-    if (requiredMessage != null) {
-      return requiredMessage;
-    }
-
-    final number = double.tryParse(value!.trim());
-    if (number == null || number < min || number > max) {
-      return rangeMessage;
     }
 
     return null;
@@ -412,6 +369,88 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+}
+
+class _SelectedLocationPanel extends StatelessWidget {
+  const _SelectedLocationPanel({required this.location});
+
+  final LocationSearchResult location;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.primary.withOpacity(0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.softSurface,
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.location_on_outlined,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  location.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  location.address,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${location.latitude.toStringAsFixed(5)}, '
+                  '${location.longitude.toStringAsFixed(5)}',
+                  style: const TextStyle(
+                    color: AppColors.secondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

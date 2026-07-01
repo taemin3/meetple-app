@@ -6,8 +6,10 @@ import 'package:meetple/app/meetple_app.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/category_repository.dart';
+import 'package:meetple/data/repositories/location_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/models/auth_session.dart';
+import 'package:meetple/models/location_search_result.dart';
 import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 
@@ -90,6 +92,50 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('독서'), findsWidgets);
+  });
+
+  testWidgets('selects location from location picker in create form', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MeetpleApp(
+        locationRepository: _StaticLocationRepository([
+          LocationSearchResult(
+            id: 'test-location',
+            type: 'PLACE',
+            name: '여의도공원',
+            category: '공원',
+            address: '서울 영등포구 여의공원로 68',
+            latitude: 37.5268,
+            longitude: 126.9228,
+            provider: 'NAVER',
+          ),
+        ]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('+'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('create_meeting_location_name')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('location_picker_query')),
+      '여의도공원',
+    );
+    await tester.tap(find.byKey(const Key('location_picker_search')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('location_picker_result_0')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('여의도공원'), findsWidgets);
+    expect(find.text('서울 영등포구 여의공원로 68'), findsOneWidget);
   });
 
   testWidgets('shows authenticated profile from auth repository', (
@@ -235,6 +281,20 @@ void main() {
 
     expect(find.text('\uAC00\uC785 \uC644\uB8CC'), findsOneWidget);
   });
+}
+
+class _StaticLocationRepository implements LocationRepository {
+  const _StaticLocationRepository(this.locations);
+
+  final List<LocationSearchResult> locations;
+
+  @override
+  Future<List<LocationSearchResult>> search(
+    String query, {
+    int display = 5,
+  }) async {
+    return locations.take(display).toList();
+  }
 }
 
 class _StaticCategoryRepository implements CategoryRepository {
