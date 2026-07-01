@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/core/network/api_client.dart';
 import 'package:meetple/data/repositories/api_meeting_repository.dart';
+import 'package:meetple/data/repositories/meeting_repository.dart';
 
 void main() {
   test('maps paged meeting API response to meetings', () async {
@@ -92,6 +93,72 @@ void main() {
       ),
     );
   });
+
+  test('creates meeting with backend request body and maps response', () async {
+    final scheduledAt = DateTime(2026, 7, 1, 19, 30);
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 201,
+        'success': true,
+        'code': 2001,
+        'message': 'Created',
+        'data': {
+          'id': 20,
+          'hostId': 1,
+          'hostNickname': 'host',
+          'categoryId': 2,
+          'categoryName': 'exercise',
+          'title': 'Morning run',
+          'description': 'Run together',
+          'locationName': 'Yeouido Park',
+          'address': 'Seoul Yeongdeungpo-gu',
+          'latitude': 37.5219,
+          'longitude': 126.9245,
+          'scheduledAt': '2026-07-01T19:30:00',
+          'capacity': 12,
+          'currentPeople': 1,
+          'status': 'RECRUITING',
+          'thumbnailImageUrl': null,
+          'createdAt': '2026-06-30T12:00:00',
+          'updatedAt': '2026-06-30T12:00:00',
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final meeting = await repository.createMeeting(
+      CreateMeetingInput(
+        title: 'Morning run',
+        category: 'exercise',
+        locationName: 'Yeouido Park',
+        address: 'Seoul Yeongdeungpo-gu',
+        latitude: 37.5219,
+        longitude: 126.9245,
+        scheduledAt: scheduledAt,
+        capacity: 12,
+        description: 'Run together',
+      ),
+    );
+
+    expect(apiClient.method, 'POST');
+    expect(apiClient.path, '/api/v1/meetings');
+    expect(apiClient.includeAuthorization, isTrue);
+    expect(apiClient.body, {
+      'title': 'Morning run',
+      'category': 'exercise',
+      'locationName': 'Yeouido Park',
+      'address': 'Seoul Yeongdeungpo-gu',
+      'latitude': 37.5219,
+      'longitude': 126.9245,
+      'scheduledAt': '2026-07-01T19:30:00',
+      'capacity': 12,
+      'description': 'Run together',
+    });
+    expect(meeting.id, 20);
+    expect(meeting.title, 'Morning run');
+    expect(meeting.category, 'exercise');
+    expect(meeting.joined, 1);
+  });
 }
 
 String _dateLabel(DateTime dateTime) {
@@ -110,14 +177,18 @@ class FakeApiClient implements ApiClient {
   FakeApiClient({required this.response});
 
   final Map<String, dynamic> response;
+  String? method;
   String? path;
   Map<String, String?>? queryParameters;
+  Map<String, dynamic>? body;
+  bool? includeAuthorization;
 
   @override
   Future<Map<String, dynamic>> getJson(
     String path, {
     Map<String, String?> queryParameters = const {},
   }) async {
+    method = 'GET';
     this.path = path;
     this.queryParameters = queryParameters;
     return response;
@@ -128,7 +199,11 @@ class FakeApiClient implements ApiClient {
     String path, {
     Map<String, dynamic> body = const {},
     bool includeAuthorization = true,
-  }) {
-    throw UnsupportedError('postJson is not used in this test.');
+  }) async {
+    method = 'POST';
+    this.path = path;
+    this.body = body;
+    this.includeAuthorization = includeAuthorization;
+    return response;
   }
 }
