@@ -143,7 +143,10 @@ class _AppShellState extends State<AppShell> {
   Widget _buildPage(AppTab tab) {
     switch (tab) {
       case AppTab.home:
-        return HomePage(meetingRepository: widget.meetingRepository);
+        return HomePage(
+          meetingRepository: widget.meetingRepository,
+          categoryRepository: widget.categoryRepository,
+        );
       case AppTab.discover:
         return DiscoverPage(meetingRepository: widget.meetingRepository);
       case AppTab.createMeeting:
