@@ -9,6 +9,7 @@ void main() {
       authRepository: createAuthRepository(),
       meetingRepository: createMeetingRepository(),
       categoryRepository: createCategoryRepository(),
+      locationRepository: createLocationRepository(),
     ),
   );
 }
