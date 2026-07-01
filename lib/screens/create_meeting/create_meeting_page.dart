@@ -201,12 +201,18 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
 
   Future<void> _pickSchedule() async {
     final now = DateTime.now();
-    final initialDate = _scheduledAt ?? now.add(const Duration(days: 1));
+    final firstDate = DateTime(now.year, now.month, now.day);
+    final lastDate = firstDate.add(const Duration(days: 365));
+    final initialDate = _clampDate(
+      _scheduledAt ?? firstDate.add(const Duration(days: 1)),
+      firstDate,
+      lastDate,
+    );
     final date = await showDatePicker(
       context: context,
       initialDate: initialDate,
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: now.add(const Duration(days: 365)),
+      firstDate: firstDate,
+      lastDate: lastDate,
     );
 
     if (date == null || !mounted) {
@@ -215,7 +221,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
 
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_scheduledAt ?? initialDate),
+      initialTime: TimeOfDay.fromDateTime(initialDate),
     );
 
     if (time == null || !mounted) {
@@ -349,12 +355,19 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
       return error.message;
     }
 
-    final message = error.toString();
-    if (message.isEmpty) {
-      return '모임을 만들지 못했습니다.';
+    return '모임을 만들지 못했습니다.';
+  }
+
+  DateTime _clampDate(DateTime value, DateTime firstDate, DateTime lastDate) {
+    if (value.isBefore(firstDate)) {
+      return firstDate;
     }
 
-    return message;
+    if (value.isAfter(lastDate)) {
+      return lastDate;
+    }
+
+    return value;
   }
 
   String _formatSchedule(DateTime dateTime) {

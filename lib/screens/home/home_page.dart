@@ -4,7 +4,11 @@ import '../../app/app_navigation.dart';
 import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/meeting_style.dart';
+import '../../data/repositories/category_repository.dart';
+import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_category_repository.dart';
+import '../../data/repositories/mock_location_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
@@ -17,9 +21,13 @@ class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
+    this.categoryRepository = const MockCategoryRepository(),
+    this.locationRepository = const MockLocationRepository(),
   });
 
   final MeetingRepository meetingRepository;
+  final CategoryRepository categoryRepository;
+  final LocationRepository locationRepository;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -91,7 +99,11 @@ class _HomePageState extends State<HomePage> {
           },
         ),
         const SizedBox(height: 18),
-        const CreateMeetingBanner(),
+        CreateMeetingBanner(
+          meetingRepository: widget.meetingRepository,
+          categoryRepository: widget.categoryRepository,
+          locationRepository: widget.locationRepository,
+        ),
       ],
     );
   }
@@ -301,7 +313,16 @@ class HomeMeetingTile extends StatelessWidget {
 }
 
 class CreateMeetingBanner extends StatelessWidget {
-  const CreateMeetingBanner({super.key});
+  const CreateMeetingBanner({
+    super.key,
+    required this.meetingRepository,
+    required this.categoryRepository,
+    required this.locationRepository,
+  });
+
+  final MeetingRepository meetingRepository;
+  final CategoryRepository categoryRepository;
+  final LocationRepository locationRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -365,6 +386,11 @@ class CreateMeetingBanner extends StatelessWidget {
       return;
     }
 
-    AppRoutes.openCreateMeeting(context);
+    AppRoutes.openCreateMeeting(
+      context,
+      meetingRepository: meetingRepository,
+      categoryRepository: categoryRepository,
+      locationRepository: locationRepository,
+    );
   }
 }
