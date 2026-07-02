@@ -561,33 +561,12 @@ class _FixedCenterPin extends StatelessWidget {
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x33000000),
-                      blurRadius: 14,
-                      offset: Offset(0, 7),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.location_on_rounded,
-                  color: AppColors.primary,
-                  size: 50,
-                ),
-              ),
-              Positioned(
-                top: 9,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: const BoxDecoration(
-                    color: AppColors.surface,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
+              const Icon(
+  Icons.location_on_rounded,
+  color: AppColors.primary,
+  size: 50,
+),
+              
               if (isResolving)
                 Positioned(
                   right: -6,
