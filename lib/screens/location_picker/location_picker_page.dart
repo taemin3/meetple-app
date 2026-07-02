@@ -30,7 +30,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   int _reverseGeneration = 0;
   LocationSearchResult? _selectedLocation;
   NaverMapController? _mapController;
-  NMarker? _selectedMarker;
+  bool _ignoreNextCameraIdle = false;
   bool _isResolvingLocation = false;
   Object? _reverseError;
 
@@ -73,6 +73,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
                 reverseError: _reverseError,
                 onMapReady: _handleMapReady,
                 onMapTapped: _moveSelectedPin,
+                onMapCameraIdle: _handleMapCameraIdle,
                 onConfirm: _isResolvingLocation ? null : _confirmLocation,
               ),
               const SizedBox(height: 18),
@@ -165,24 +166,43 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   Future<void> _selectLocation(LocationSearchResult location) async {
     setState(() {
       _selectedLocation = location;
-      _selectedMarker = null;
       _isResolvingLocation = false;
       _reverseError = null;
     });
 
     await _moveCameraTo(location);
-    await _updateMarker(location);
   }
 
   void _handleMapReady(NaverMapController controller) {
     _mapController = controller;
-    final selectedLocation = _selectedLocation;
-    if (selectedLocation != null) {
-      _updateMarker(selectedLocation);
+  }
+
+  Future<void> _handleMapCameraIdle() async {
+    if (_ignoreNextCameraIdle) {
+      _ignoreNextCameraIdle = false;
+      return;
     }
+
+    final controller = _mapController;
+    final selectedLocation = _selectedLocation;
+    if (controller == null || selectedLocation == null) {
+      return;
+    }
+
+    final target = controller.nowCameraPosition.target;
+    if (_isSameCoordinate(target, selectedLocation)) {
+      return;
+    }
+
+    await _resolveSelectedPosition(target);
   }
 
   Future<void> _moveSelectedPin(NLatLng latLng) async {
+    await _moveCameraToLatLng(latLng, ignoreNextIdle: true);
+    await _resolveSelectedPosition(latLng);
+  }
+
+  Future<void> _resolveSelectedPosition(NLatLng latLng) async {
     final selectedLocation = _selectedLocation;
     if (selectedLocation == null) {
       return;
@@ -202,8 +222,6 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       _isResolvingLocation = true;
       _reverseError = null;
     });
-
-    await _updateMarker(movedLocation);
 
     final generation = ++_reverseGeneration;
     LocationSearchResult? resolvedLocation;
@@ -232,47 +250,43 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       _isResolvingLocation = false;
       _reverseError = reverseError;
     });
-
-    await _updateMarker(nextLocation);
   }
 
   Future<void> _moveCameraTo(LocationSearchResult location) async {
-    final controller = _mapController;
-    if (controller == null) {
-      return;
-    }
-
-    await controller.updateCamera(
-      NCameraUpdate.scrollAndZoomTo(
-        target: NLatLng(location.latitude, location.longitude),
-        zoom: 16,
-      ),
+    await _moveCameraToLatLng(
+      NLatLng(location.latitude, location.longitude),
+      ignoreNextIdle: true,
     );
   }
 
-  Future<void> _updateMarker(LocationSearchResult location) async {
+  Future<void> _moveCameraToLatLng(
+    NLatLng latLng, {
+    required bool ignoreNextIdle,
+  }) async {
     final controller = _mapController;
     if (controller == null) {
       return;
     }
 
-    final position = NLatLng(location.latitude, location.longitude);
-    final caption = NOverlayCaption(text: location.name);
-    final marker = _selectedMarker;
-    if (marker == null) {
-      final newMarker = NMarker(
-        id: 'selected_location_marker',
-        position: position,
-        caption: caption,
-      );
-      _selectedMarker = newMarker;
-      await controller.addOverlay(newMarker);
-      return;
+    if (ignoreNextIdle) {
+      _ignoreNextCameraIdle = true;
     }
 
-    marker
-      ..setPosition(position)
-      ..setCaption(caption);
+    final isCanceled = await controller.updateCamera(
+      NCameraUpdate.scrollAndZoomTo(
+        target: latLng,
+        zoom: 16,
+      ),
+    );
+    if (isCanceled && ignoreNextIdle) {
+      _ignoreNextCameraIdle = false;
+    }
+  }
+
+  bool _isSameCoordinate(NLatLng latLng, LocationSearchResult location) {
+    const tolerance = 0.000001;
+    return (latLng.latitude - location.latitude).abs() < tolerance &&
+        (latLng.longitude - location.longitude).abs() < tolerance;
   }
 
   void _confirmLocation() {
@@ -346,6 +360,7 @@ class _SelectedLocationPreview extends StatelessWidget {
     required this.reverseError,
     required this.onMapReady,
     required this.onMapTapped,
+    required this.onMapCameraIdle,
     required this.onConfirm,
   });
 
@@ -355,6 +370,7 @@ class _SelectedLocationPreview extends StatelessWidget {
   final Object? reverseError;
   final ValueChanged<NaverMapController> onMapReady;
   final ValueChanged<NLatLng> onMapTapped;
+  final VoidCallback onMapCameraIdle;
   final VoidCallback? onConfirm;
 
   @override
@@ -381,23 +397,31 @@ class _SelectedLocationPreview extends StatelessWidget {
           AspectRatio(
             aspectRatio: 4 / 3,
             child: isMapEnabled
-                ? NaverMap(
-                    key: ValueKey('map_${location.id}'),
-                    forceGesture: true,
-                    options: NaverMapViewOptions(
-                      initialCameraPosition: NCameraPosition(
-                        target: position,
-                        zoom: 16,
+                ? Stack(
+                    children: [
+                      Positioned.fill(
+                        child: NaverMap(
+                          key: const Key('location_picker_map'),
+                          forceGesture: true,
+                          options: NaverMapViewOptions(
+                            initialCameraPosition: NCameraPosition(
+                              target: position,
+                              zoom: 16,
+                            ),
+                            indoorLevelPickerEnable: false,
+                            locationButtonEnable: false,
+                            scaleBarEnable: false,
+                            logoAlign: NLogoAlign.leftBottom,
+                            logoMargin: const EdgeInsets.all(8),
+                            contentPadding: const EdgeInsets.only(bottom: 28),
+                          ),
+                          onMapReady: onMapReady,
+                          onMapTapped: (_, latLng) => onMapTapped(latLng),
+                          onCameraIdle: onMapCameraIdle,
+                        ),
                       ),
-                      indoorLevelPickerEnable: false,
-                      locationButtonEnable: false,
-                      scaleBarEnable: false,
-                      logoAlign: NLogoAlign.leftBottom,
-                      logoMargin: const EdgeInsets.all(8),
-                      contentPadding: const EdgeInsets.only(bottom: 28),
-                    ),
-                    onMapReady: onMapReady,
-                    onMapTapped: (_, latLng) => onMapTapped(latLng),
+                      _FixedCenterPin(isResolving: isResolvingLocation),
+                    ],
                   )
                 : const _MapUnavailablePreview(),
           ),
@@ -516,6 +540,71 @@ class _MapUnavailablePreview extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FixedCenterPin extends StatelessWidget {
+  const _FixedCenterPin({required this.isResolving});
+
+  final bool isResolving;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Center(
+        child: Transform.translate(
+          offset: const Offset(0, -18),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x33000000),
+                      blurRadius: 14,
+                      offset: Offset(0, 7),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.location_on_rounded,
+                  color: AppColors.primary,
+                  size: 50,
+                ),
+              ),
+              Positioned(
+                top: 9,
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              if (isResolving)
+                Positioned(
+                  right: -6,
+                  top: -6,
+                  child: Container(
+                    width: 22,
+                    height: 22,
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
