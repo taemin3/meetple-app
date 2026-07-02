@@ -134,6 +134,15 @@ void main() {
     await tester.tap(find.byKey(const Key('location_picker_result_0')));
     await tester.pumpAndSettle();
 
+    expect(
+      find.byKey(const Key('location_picker_map_unavailable')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('location_picker_confirm')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('location_picker_confirm')));
+    await tester.pumpAndSettle();
+
     expect(find.text('여의도공원'), findsWidgets);
     expect(find.text('서울 영등포구 여의공원로 68'), findsOneWidget);
   });
@@ -294,6 +303,17 @@ class _StaticLocationRepository implements LocationRepository {
     int display = 5,
   }) async {
     return locations.take(display).toList();
+  }
+
+  @override
+  Future<LocationSearchResult> reverse({
+    required double latitude,
+    required double longitude,
+  }) async {
+    return locations.first.copyWith(
+      latitude: latitude,
+      longitude: longitude,
+    );
   }
 }
 
