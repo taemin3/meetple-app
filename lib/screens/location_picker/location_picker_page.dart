@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_naver_map/flutter_naver_map.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../models/location_search_result.dart';
+import '../../widgets/map/naver_location_map.dart';
 
 class LocationPickerPage extends StatefulWidget {
   const LocationPickerPage({
@@ -29,7 +29,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   int _searchGeneration = 0;
   int _reverseGeneration = 0;
   LocationSearchResult? _selectedLocation;
-  NaverMapController? _mapController;
+  LocationMapController? _mapController;
   bool _ignoreNextCameraIdle = false;
   bool _isResolvingLocation = false;
   Object? _reverseError;
@@ -68,7 +68,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
             if (_selectedLocation != null) ...[
               _SelectedLocationPreview(
                 location: _selectedLocation!,
-                isMapEnabled: AppConfig.hasNaverMapClientId,
+                isMapEnabled: AppConfig.hasNaverMapClientId &&
+                    isNaverLocationMapSupported,
                 isResolvingLocation: _isResolvingLocation,
                 reverseError: _reverseError,
                 onMapReady: _handleMapReady,
@@ -164,6 +165,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   }
 
   Future<void> _selectLocation(LocationSearchResult location) async {
+    _reverseGeneration++;
+    _ignoreNextCameraIdle = false;
     setState(() {
       _selectedLocation = location;
       _isResolvingLocation = false;
@@ -173,7 +176,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     await _moveCameraTo(location);
   }
 
-  void _handleMapReady(NaverMapController controller) {
+  void _handleMapReady(LocationMapController controller) {
     _mapController = controller;
   }
 
@@ -189,7 +192,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       return;
     }
 
-    final target = controller.nowCameraPosition.target;
+    final target = controller.cameraTarget;
     if (_isSameCoordinate(target, selectedLocation)) {
       return;
     }
@@ -197,25 +200,26 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     await _resolveSelectedPosition(target);
   }
 
-  Future<void> _moveSelectedPin(NLatLng latLng) async {
-    await _moveCameraToLatLng(latLng, ignoreNextIdle: true);
-    await _resolveSelectedPosition(latLng);
+  Future<void> _moveSelectedPin(LocationMapCoordinate coordinate) async {
+    await _moveCameraToCoordinate(coordinate, ignoreNextIdle: true);
+    await _resolveSelectedPosition(coordinate);
   }
 
-  Future<void> _resolveSelectedPosition(NLatLng latLng) async {
+  Future<void> _resolveSelectedPosition(
+      LocationMapCoordinate coordinate) async {
     final selectedLocation = _selectedLocation;
     if (selectedLocation == null) {
       return;
     }
 
     final movedLocation = selectedLocation.copyWith(
-      id: 'map:selected:${latLng.latitude},${latLng.longitude}',
+      id: 'map:selected:${coordinate.latitude},${coordinate.longitude}',
       type: 'COORDINATE',
       name: '지도에서 선택한 위치',
       category: '',
       address: '주소를 확인하는 중입니다.',
-      latitude: latLng.latitude,
-      longitude: latLng.longitude,
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude,
     );
     setState(() {
       _selectedLocation = movedLocation;
@@ -228,8 +232,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     Object? reverseError;
     try {
       resolvedLocation = await widget.locationRepository.reverse(
-        latitude: latLng.latitude,
-        longitude: latLng.longitude,
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
       );
     } on Object catch (caughtError) {
       reverseError = caughtError;
@@ -240,8 +244,8 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
     }
 
     final nextLocation = (resolvedLocation ?? movedLocation).copyWith(
-      latitude: latLng.latitude,
-      longitude: latLng.longitude,
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude,
       address: resolvedLocation?.address ?? '주소를 찾지 못했습니다. 좌표를 확인해주세요.',
     );
 
@@ -253,14 +257,17 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   }
 
   Future<void> _moveCameraTo(LocationSearchResult location) async {
-    await _moveCameraToLatLng(
-      NLatLng(location.latitude, location.longitude),
+    await _moveCameraToCoordinate(
+      LocationMapCoordinate(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      ),
       ignoreNextIdle: true,
     );
   }
 
-  Future<void> _moveCameraToLatLng(
-    NLatLng latLng, {
+  Future<void> _moveCameraToCoordinate(
+    LocationMapCoordinate coordinate, {
     required bool ignoreNextIdle,
   }) async {
     final controller = _mapController;
@@ -272,21 +279,19 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
       _ignoreNextCameraIdle = true;
     }
 
-    final isCanceled = await controller.updateCamera(
-      NCameraUpdate.scrollAndZoomTo(
-        target: latLng,
-        zoom: 16,
-      ),
-    );
+    final isCanceled = await controller.moveTo(coordinate);
     if (isCanceled && ignoreNextIdle) {
       _ignoreNextCameraIdle = false;
     }
   }
 
-  bool _isSameCoordinate(NLatLng latLng, LocationSearchResult location) {
+  bool _isSameCoordinate(
+    LocationMapCoordinate coordinate,
+    LocationSearchResult location,
+  ) {
     const tolerance = 0.000001;
-    return (latLng.latitude - location.latitude).abs() < tolerance &&
-        (latLng.longitude - location.longitude).abs() < tolerance;
+    return (coordinate.latitude - location.latitude).abs() < tolerance &&
+        (coordinate.longitude - location.longitude).abs() < tolerance;
   }
 
   void _confirmLocation() {
@@ -368,14 +373,17 @@ class _SelectedLocationPreview extends StatelessWidget {
   final bool isMapEnabled;
   final bool isResolvingLocation;
   final Object? reverseError;
-  final ValueChanged<NaverMapController> onMapReady;
-  final ValueChanged<NLatLng> onMapTapped;
+  final ValueChanged<LocationMapController> onMapReady;
+  final ValueChanged<LocationMapCoordinate> onMapTapped;
   final VoidCallback onMapCameraIdle;
   final VoidCallback? onConfirm;
 
   @override
   Widget build(BuildContext context) {
-    final position = NLatLng(location.latitude, location.longitude);
+    final position = LocationMapCoordinate(
+      latitude: location.latitude,
+      longitude: location.longitude,
+    );
 
     return Container(
       key: const Key('location_picker_selected_preview'),
@@ -400,23 +408,10 @@ class _SelectedLocationPreview extends StatelessWidget {
                 ? Stack(
                     children: [
                       Positioned.fill(
-                        child: NaverMap(
-                          key: const Key('location_picker_map'),
-                          forceGesture: true,
-                          options: NaverMapViewOptions(
-                            initialCameraPosition: NCameraPosition(
-                              target: position,
-                              zoom: 16,
-                            ),
-                            indoorLevelPickerEnable: false,
-                            locationButtonEnable: false,
-                            scaleBarEnable: false,
-                            logoAlign: NLogoAlign.leftBottom,
-                            logoMargin: const EdgeInsets.all(8),
-                            contentPadding: const EdgeInsets.only(bottom: 28),
-                          ),
+                        child: NaverLocationMap(
+                          initialCoordinate: position,
                           onMapReady: onMapReady,
-                          onMapTapped: (_, latLng) => onMapTapped(latLng),
+                          onMapTapped: onMapTapped,
                           onCameraIdle: onMapCameraIdle,
                         ),
                       ),
@@ -562,11 +557,10 @@ class _FixedCenterPin extends StatelessWidget {
             alignment: Alignment.center,
             children: [
               const Icon(
-  Icons.location_on_rounded,
-  color: AppColors.primary,
-  size: 50,
-),
-              
+                Icons.location_on_rounded,
+                color: AppColors.primary,
+                size: 50,
+              ),
               if (isResolving)
                 Positioned(
                   right: -6,
