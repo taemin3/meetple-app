@@ -17,6 +17,7 @@ class CreateMeetingInput {
     required this.scheduledAt,
     required this.capacity,
     required this.description,
+    this.imageUrls = const [],
   });
 
   final String title;
@@ -28,4 +29,5 @@ class CreateMeetingInput {
   final DateTime scheduledAt;
   final int capacity;
   final String description;
+  final List<String> imageUrls;
 }

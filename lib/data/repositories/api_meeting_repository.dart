@@ -68,6 +68,7 @@ class ApiMeetingRepository implements MeetingRepository {
         'scheduledAt': _formatApiDateTime(input.scheduledAt),
         'capacity': input.capacity,
         'description': input.description,
+        if (input.imageUrls.isNotEmpty) 'imageUrls': input.imageUrls,
       },
     );
 

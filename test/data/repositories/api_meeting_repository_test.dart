@@ -159,6 +159,53 @@ void main() {
     expect(meeting.category, 'exercise');
     expect(meeting.joined, 1);
   });
+
+  test('creates meeting with uploaded image URLs', () async {
+    final scheduledAt = DateTime(2026, 7, 1, 19, 30);
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 201,
+        'success': true,
+        'data': {
+          'id': 20,
+          'hostId': 1,
+          'hostNickname': 'host',
+          'categoryId': 2,
+          'categoryName': 'exercise',
+          'title': 'Morning run',
+          'description': 'Run together',
+          'locationName': 'Yeouido Park',
+          'address': 'Seoul Yeongdeungpo-gu',
+          'latitude': 37.5219,
+          'longitude': 126.9245,
+          'scheduledAt': '2026-07-01T19:30:00',
+          'capacity': 12,
+          'currentPeople': 1,
+          'status': 'RECRUITING',
+          'thumbnailImageUrl': 'https://cdn.example.com/first.png',
+          'imageUrls': ['https://cdn.example.com/first.png'],
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    await repository.createMeeting(
+      CreateMeetingInput(
+        title: 'Morning run',
+        category: 'exercise',
+        locationName: 'Yeouido Park',
+        address: 'Seoul Yeongdeungpo-gu',
+        latitude: 37.5219,
+        longitude: 126.9245,
+        scheduledAt: scheduledAt,
+        capacity: 12,
+        description: 'Run together',
+        imageUrls: const ['https://cdn.example.com/first.png'],
+      ),
+    );
+
+    expect(apiClient.body?['imageUrls'], ['https://cdn.example.com/first.png']);
+  });
 }
 
 String _dateLabel(DateTime dateTime) {
