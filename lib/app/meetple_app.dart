@@ -28,7 +28,7 @@ class MeetpleApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Meetple',
+      title: '밋플',
       theme: AppTheme.light(),
       home: AuthEntryGate(
         authRepository: authRepository,
