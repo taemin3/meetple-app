@@ -94,7 +94,6 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
           const SizedBox(height: 24),
           _ImageUploadBox(
             images: _selectedImages,
-            defaultImageUrl: _selectedCategory?.defaultImageUrl,
             isBusy: _isSubmitting || _isPickingImages,
             onPick: _pickImages,
             onRemove: _removeImage,
@@ -214,16 +213,6 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
         _category = categories.first.name;
       }
     });
-  }
-
-  MeetingCategory? get _selectedCategory {
-    for (final category in _categories) {
-      if (category.name == _category) {
-        return category;
-      }
-    }
-
-    return null;
   }
 
   Future<void> _pickSchedule() async {
@@ -670,14 +659,12 @@ class _SelectedMeetingImage {
 class _ImageUploadBox extends StatelessWidget {
   const _ImageUploadBox({
     required this.images,
-    required this.defaultImageUrl,
     required this.isBusy,
     required this.onPick,
     required this.onRemove,
   });
 
   final List<_SelectedMeetingImage> images;
-  final String? defaultImageUrl;
   final bool isBusy;
   final VoidCallback onPick;
   final ValueChanged<int> onRemove;
@@ -685,7 +672,6 @@ class _ImageUploadBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (images.isEmpty) {
-      final fallbackImageUrl = defaultImageUrl;
       return Material(
         color: Colors.transparent,
         child: InkWell(
@@ -693,26 +679,10 @@ class _ImageUploadBox extends StatelessWidget {
           onTap: isBusy ? null : onPick,
           borderRadius: BorderRadius.circular(22),
           child: Container(
-            key: fallbackImageUrl == null
-                ? null
-                : const Key('create_meeting_default_image_preview'),
             height: 170,
-            foregroundDecoration: fallbackImageUrl == null
-                ? null
-                : BoxDecoration(
-                    borderRadius: BorderRadius.circular(22),
-                    color: Colors.white.withOpacity(0.18),
-                  ),
             decoration: BoxDecoration(
               color: AppColors.softSurface,
               borderRadius: BorderRadius.circular(22),
-              image: fallbackImageUrl == null
-                  ? null
-                  : DecorationImage(
-                      image: NetworkImage(fallbackImageUrl),
-                      fit: BoxFit.cover,
-                      onError: (_, __) {},
-                    ),
               border: Border.all(
                 color: AppColors.primary.withOpacity(0.35),
                 width: 1.2,

@@ -94,34 +94,6 @@ void main() {
     expect(find.text('독서'), findsWidgets);
   });
 
-  testWidgets('shows selected category default image preview in create form', (
-    WidgetTester tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(540, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(
-      const MeetpleApp(
-        categoryRepository: _StaticCategoryRepository([
-          MeetingCategory(
-            id: 10,
-            name: 'exercise',
-            defaultImageUrl: 'https://cdn.meetple.com/categories/exercise.png',
-          ),
-        ]),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.text('+'));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const Key('create_meeting_default_image_preview')),
-      findsOneWidget,
-    );
-  });
-
   testWidgets('selects location from location picker in create form', (
     WidgetTester tester,
   ) async {
