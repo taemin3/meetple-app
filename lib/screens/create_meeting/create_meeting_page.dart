@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -62,6 +63,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   void initState() {
     super.initState();
     _loadCategories(showLoading: false);
+    unawaited(_restoreLostImages());
   }
 
   @override
@@ -286,7 +288,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting) {
+    if (_isSubmitting || _isPickingImages) {
       return;
     }
 
@@ -421,6 +423,77 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     }
 
     if (pickedFiles.length > remaining) {
+      _showSnackBar('이미지는 최대 10장까지 선택할 수 있습니다.');
+      return;
+    }
+
+    if (hasUnsupportedImage) {
+      _showSnackBar('jpg, png, webp 이미지만 업로드할 수 있습니다.');
+    }
+  }
+
+  Future<void> _restoreLostImages() async {
+    LostDataResponse response;
+    try {
+      response = await (widget.imagePicker ?? ImagePicker()).retrieveLostData();
+    } on Object {
+      return;
+    }
+
+    if (!mounted || response.isEmpty) {
+      return;
+    }
+
+    final files = response.files;
+    final lostFiles = files == null || files.isEmpty
+        ? [if (response.file != null) response.file!]
+        : files;
+    if (lostFiles.isEmpty || _selectedImages.length >= 10) {
+      return;
+    }
+
+    setState(() => _isPickingImages = true);
+
+    Object? restoreError;
+    var hasUnsupportedImage = false;
+    final remaining = 10 - _selectedImages.length;
+    final nextImages = <_SelectedMeetingImage>[];
+    try {
+      for (final file in lostFiles.take(remaining)) {
+        final bytes = await file.readAsBytes();
+        final contentType = _resolveImageContentType(file.mimeType, file.name);
+        if (contentType == null) {
+          hasUnsupportedImage = true;
+          continue;
+        }
+
+        nextImages.add(
+          _SelectedMeetingImage(
+            name: file.name,
+            contentType: contentType,
+            bytes: bytes,
+          ),
+        );
+      }
+    } on Object catch (error) {
+      restoreError = error;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isPickingImages = false;
+      _selectedImages.addAll(nextImages);
+    });
+
+    if (restoreError != null) {
+      _showSnackBar('이미지를 불러오지 못했습니다.');
+      return;
+    }
+
+    if (lostFiles.length > remaining) {
       _showSnackBar('이미지는 최대 10장까지 선택할 수 있습니다.');
       return;
     }

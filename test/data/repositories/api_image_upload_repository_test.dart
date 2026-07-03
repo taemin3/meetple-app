@@ -23,6 +23,7 @@ void main() {
             'headers': {
               'Content-Type': 'image/png',
               'Content-Length': '3',
+              'Host': 'upload.example.com',
             },
             'expiresInSeconds': 300,
           },
@@ -63,6 +64,8 @@ void main() {
     expect(
         putRequests.single.url.toString(), 'https://upload.example.com/first');
     expect(putRequests.single.headers['Content-Type'], 'image/png');
+    expect(putRequests.single.headers, isNot(contains('Content-Length')));
+    expect(putRequests.single.headers, isNot(contains('Host')));
   });
 
   test('returns empty list without API call when no images are selected',

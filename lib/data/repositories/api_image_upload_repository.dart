@@ -26,6 +26,13 @@ class ApiImageUploadRepository implements ImageUploadRepository {
   final ApiClient _apiClient;
   final http.Client _httpClient;
 
+  static const Set<String> _clientManagedHeaderNames = {
+    'connection',
+    'content-length',
+    'host',
+    'transfer-encoding',
+  };
+
   @override
   Future<List<String>> uploadMeetingImages(List<ImageUploadFile> images) async {
     if (images.isEmpty) {
@@ -72,13 +79,27 @@ class ApiImageUploadRepository implements ImageUploadRepository {
   ) async {
     final response = await _httpClient.put(
       Uri.parse(upload.uploadUrl),
-      headers: upload.headers,
+      headers: _uploadHeaders(upload.headers),
       body: image.bytes,
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw const ImageUploadException('이미지 업로드에 실패했습니다.');
     }
+  }
+
+  static Map<String, String> _uploadHeaders(Map<String, String> headers) {
+    return {
+      for (final entry in headers.entries)
+        if (!_isClientManagedHeader(entry.key)) entry.key: entry.value,
+    };
+  }
+
+  static bool _isClientManagedHeader(String name) {
+    final normalizedName = name.toLowerCase();
+    return _clientManagedHeaderNames.contains(normalizedName) ||
+        normalizedName.startsWith('proxy-') ||
+        normalizedName.startsWith('sec-');
   }
 
   void _ensureSuccess(Map<String, dynamic> response) {
