@@ -45,6 +45,7 @@ class ApiCategoryRepository implements CategoryRepository {
   MeetingCategory _categoryFromJson(Map<String, dynamic> json) {
     return MeetingCategory(
       id: _readInt(json['id']),
+      defaultImageUrl: _readNullableString(json['defaultImageUrl']),
       name: _readString(json['name'], fallback: '카테고리'),
     );
   }
@@ -91,5 +92,13 @@ class ApiCategoryRepository implements CategoryRepository {
     }
 
     return fallback;
+  }
+
+  String? _readNullableString(Object? value) {
+    if (value is String && value.trim().isNotEmpty) {
+      return value.trim();
+    }
+
+    return null;
   }
 }
