@@ -23,6 +23,7 @@ Future<void> main() async {
       meetingRepository: createMeetingRepository(),
       categoryRepository: createCategoryRepository(),
       locationRepository: createLocationRepository(),
+      imageUploadRepository: createImageUploadRepository(),
     ),
   );
 }

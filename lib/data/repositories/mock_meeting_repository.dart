@@ -26,6 +26,7 @@ class MockMeetingRepository implements MeetingRepository {
       fee: '무료',
       rating: 0,
       reviewCount: 0,
+      thumbnailImageUrl: input.imageUrls.isEmpty ? null : input.imageUrls.first,
     );
   }
 

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/category_repository.dart';
+import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
+import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../models/auth_session.dart';
@@ -50,6 +52,7 @@ abstract final class AppRoutes {
     MeetingRepository? meetingRepository,
     CategoryRepository? categoryRepository,
     LocationRepository? locationRepository,
+    ImageUploadRepository? imageUploadRepository,
   }) {
     return Navigator.of(context).push<T>(
       MaterialPageRoute<T>(
@@ -60,6 +63,8 @@ abstract final class AppRoutes {
               categoryRepository ?? const MockCategoryRepository(),
           locationRepository:
               locationRepository ?? const MockLocationRepository(),
+          imageUploadRepository:
+              imageUploadRepository ?? const MockImageUploadRepository(),
         ),
       ),
     );

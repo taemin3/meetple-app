@@ -28,6 +28,32 @@ void main() {
     expect(categories.last.name, '스터디');
   });
 
+  test('maps category default image URL when present', () async {
+    final repository = ApiCategoryRepository(
+      apiClient: FakeApiClient(
+        response: {
+          'status': 200,
+          'success': true,
+          'data': [
+            {
+              'id': 1,
+              'name': 'exercise',
+              'defaultImageUrl':
+                  'https://cdn.meetple.com/categories/exercise.png',
+            },
+          ],
+        },
+      ),
+    );
+
+    final categories = await repository.findAll();
+
+    expect(
+      categories.single.defaultImageUrl,
+      'https://cdn.meetple.com/categories/exercise.png',
+    );
+  });
+
   test('throws ApiException when category API envelope is unsuccessful',
       () async {
     final repository = ApiCategoryRepository(

@@ -1,12 +1,18 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../app/app_navigation.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/category_repository.dart';
+import '../../data/repositories/image_upload_repository.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_category_repository.dart';
+import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../data/repositories/mock_location_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/location_search_result.dart';
@@ -20,11 +26,15 @@ class CreateMeetingPage extends StatefulWidget {
     this.meetingRepository = const MockMeetingRepository(),
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
+    this.imageUploadRepository = const MockImageUploadRepository(),
+    this.imagePicker,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
+  final ImageUploadRepository imageUploadRepository;
+  final ImagePicker? imagePicker;
 
   @override
   State<CreateMeetingPage> createState() => _CreateMeetingPageState();
@@ -46,11 +56,14 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   DateTime? _scheduledAt;
   LocationSearchResult? _selectedLocation;
   bool _isSubmitting = false;
+  bool _isPickingImages = false;
+  final List<_SelectedMeetingImage> _selectedImages = [];
 
   @override
   void initState() {
     super.initState();
     _loadCategories(showLoading: false);
+    unawaited(_restoreLostImages());
   }
 
   @override
@@ -81,7 +94,12 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
         children: [
           const CreateHeader(),
           const SizedBox(height: 24),
-          const ImageUploadBox(),
+          _ImageUploadBox(
+            images: _selectedImages,
+            isBusy: _isSubmitting || _isPickingImages,
+            onPick: _pickImages,
+            onRemove: _removeImage,
+          ),
           const SizedBox(height: 26),
           CreateField(
             key: const Key('create_meeting_title'),
@@ -270,7 +288,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting) {
+    if (_isSubmitting || _isPickingImages) {
       return;
     }
 
@@ -289,6 +307,17 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
 
     Object? submitError;
     try {
+      final imageUrls = await widget.imageUploadRepository.uploadMeetingImages(
+        [
+          for (final image in _selectedImages)
+            ImageUploadFile(
+              name: image.name,
+              contentType: image.contentType,
+              bytes: image.bytes,
+            ),
+        ],
+      );
+
       await widget.meetingRepository.createMeeting(
         CreateMeetingInput(
           title: _titleController.text.trim(),
@@ -300,6 +329,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
           scheduledAt: _scheduledAt!,
           capacity: int.parse(_capacityController.text.trim()),
           description: _descriptionController.text.trim(),
+          imageUrls: imageUrls,
         ),
       );
     } on Object catch (error) {
@@ -328,6 +358,159 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     Navigator.of(context).maybePop();
   }
 
+  Future<void> _pickImages() async {
+    if (_isSubmitting || _isPickingImages) {
+      return;
+    }
+
+    if (_selectedImages.length >= 10) {
+      _showSnackBar('이미지는 최대 10장까지 선택할 수 있습니다.');
+      return;
+    }
+
+    setState(() => _isPickingImages = true);
+
+    List<XFile> pickedFiles = const [];
+    Object? pickError;
+    try {
+      pickedFiles = await (widget.imagePicker ?? ImagePicker()).pickMultiImage(
+        imageQuality: 85,
+      );
+    } on Object catch (error) {
+      pickError = error;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final remaining = 10 - _selectedImages.length;
+    final nextImages = <_SelectedMeetingImage>[];
+    var hasUnsupportedImage = false;
+    try {
+      for (final file in pickedFiles.take(remaining)) {
+        final bytes = await file.readAsBytes();
+        final contentType = _resolveImageContentType(file.mimeType, file.name);
+        if (contentType == null) {
+          hasUnsupportedImage = true;
+          continue;
+        }
+
+        nextImages.add(
+          _SelectedMeetingImage(
+            name: file.name,
+            contentType: contentType,
+            bytes: bytes,
+          ),
+        );
+      }
+    } on Object catch (error) {
+      pickError = error;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isPickingImages = false;
+      _selectedImages.addAll(nextImages);
+    });
+
+    if (pickError != null) {
+      _showSnackBar('이미지를 불러오지 못했습니다.');
+      return;
+    }
+
+    if (pickedFiles.length > remaining) {
+      _showSnackBar('이미지는 최대 10장까지 선택할 수 있습니다.');
+      return;
+    }
+
+    if (hasUnsupportedImage) {
+      _showSnackBar('jpg, png, webp 이미지만 업로드할 수 있습니다.');
+    }
+  }
+
+  Future<void> _restoreLostImages() async {
+    LostDataResponse response;
+    try {
+      response = await (widget.imagePicker ?? ImagePicker()).retrieveLostData();
+    } on Object {
+      return;
+    }
+
+    if (!mounted || response.isEmpty) {
+      return;
+    }
+
+    final files = response.files;
+    final lostFiles = files == null || files.isEmpty
+        ? [if (response.file != null) response.file!]
+        : files;
+    if (lostFiles.isEmpty || _selectedImages.length >= 10) {
+      return;
+    }
+
+    setState(() => _isPickingImages = true);
+
+    Object? restoreError;
+    var hasUnsupportedImage = false;
+    final remaining = 10 - _selectedImages.length;
+    final nextImages = <_SelectedMeetingImage>[];
+    try {
+      for (final file in lostFiles.take(remaining)) {
+        final bytes = await file.readAsBytes();
+        final contentType = _resolveImageContentType(file.mimeType, file.name);
+        if (contentType == null) {
+          hasUnsupportedImage = true;
+          continue;
+        }
+
+        nextImages.add(
+          _SelectedMeetingImage(
+            name: file.name,
+            contentType: contentType,
+            bytes: bytes,
+          ),
+        );
+      }
+    } on Object catch (error) {
+      restoreError = error;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isPickingImages = false;
+      _selectedImages.addAll(nextImages);
+    });
+
+    if (restoreError != null) {
+      _showSnackBar('이미지를 불러오지 못했습니다.');
+      return;
+    }
+
+    if (lostFiles.length > remaining) {
+      _showSnackBar('이미지는 최대 10장까지 선택할 수 있습니다.');
+      return;
+    }
+
+    if (hasUnsupportedImage) {
+      _showSnackBar('jpg, png, webp 이미지만 업로드할 수 있습니다.');
+    }
+  }
+
+  void _removeImage(int index) {
+    if (_isSubmitting || index < 0 || index >= _selectedImages.length) {
+      return;
+    }
+
+    setState(() => _selectedImages.removeAt(index));
+  }
+
   String? _required(String? value, String message) {
     if (value == null || value.trim().isEmpty) {
       return message;
@@ -351,11 +534,36 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   }
 
   String _submitErrorMessage(Object error) {
+    if (error is ImageUploadException) {
+      return error.message;
+    }
+
     if (error is ApiException) {
       return error.message;
     }
 
     return '모임을 만들지 못했습니다.';
+  }
+
+  String? _resolveImageContentType(String? mimeType, String fileName) {
+    final normalizedMimeType = mimeType?.toLowerCase();
+    if (_isSupportedImageContentType(normalizedMimeType)) {
+      return normalizedMimeType;
+    }
+
+    final extension = fileName.split('.').last.toLowerCase();
+    return switch (extension) {
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => null,
+    };
+  }
+
+  bool _isSupportedImageContentType(String? contentType) {
+    return contentType == 'image/jpeg' ||
+        contentType == 'image/png' ||
+        contentType == 'image/webp';
   }
 
   DateTime _clampDate(DateTime value, DateTime firstDate, DateTime lastDate) {
@@ -509,38 +717,217 @@ class CreateHeader extends StatelessWidget {
   }
 }
 
-class ImageUploadBox extends StatelessWidget {
-  const ImageUploadBox({super.key});
+class _SelectedMeetingImage {
+  const _SelectedMeetingImage({
+    required this.name,
+    required this.contentType,
+    required this.bytes,
+  });
+
+  final String name;
+  final String contentType;
+  final Uint8List bytes;
+}
+
+class _ImageUploadBox extends StatelessWidget {
+  const _ImageUploadBox({
+    required this.images,
+    required this.isBusy,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final List<_SelectedMeetingImage> images;
+  final bool isBusy;
+  final VoidCallback onPick;
+  final ValueChanged<int> onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 170,
-      decoration: BoxDecoration(
-        color: AppColors.softSurface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: AppColors.primary.withOpacity(0.35),
-          width: 1.2,
-        ),
-      ),
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_photo_alternate_outlined,
-            color: AppColors.primary,
-            size: 36,
+    if (images.isEmpty) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: const Key('create_meeting_pick_images'),
+          onTap: isBusy ? null : onPick,
+          borderRadius: BorderRadius.circular(22),
+          child: Container(
+            height: 170,
+            decoration: BoxDecoration(
+              color: AppColors.softSurface,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: AppColors.primary.withOpacity(0.35),
+                width: 1.2,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.add_photo_alternate_outlined,
+                  color: AppColors.primary,
+                  size: 36,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  isBusy ? '이미지를 불러오는 중입니다.' : '모임 이미지를 추가해주세요',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
-          SizedBox(height: 12),
-          Text(
-            '모임 이미지를 추가해주세요',
-            style: TextStyle(
-              color: AppColors.muted,
-              fontWeight: FontWeight.w700,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '모임 이미지',
+          style: TextStyle(
+            color: AppColors.ink,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 132,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemBuilder: (context, index) {
+              if (index == images.length) {
+                return _AddImageTile(
+                  isBusy: isBusy,
+                  onTap: onPick,
+                );
+              }
+
+              return _SelectedImageTile(
+                image: images[index],
+                isRepresentative: index == 0,
+                onRemove: () => onRemove(index),
+              );
+            },
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemCount: images.length < 10 ? images.length + 1 : images.length,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectedImageTile extends StatelessWidget {
+  const _SelectedImageTile({
+    required this.image,
+    required this.isRepresentative,
+    required this.onRemove,
+  });
+
+  final _SelectedMeetingImage image;
+  final bool isRepresentative;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 132,
+      height: 132,
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Image.memory(
+              image.bytes,
+              width: 132,
+              height: 132,
+              fit: BoxFit.cover,
+            ),
+          ),
+          if (isRepresentative)
+            Positioned(
+              left: 8,
+              top: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  '대표',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          Positioned(
+            right: 6,
+            top: 6,
+            child: IconButton.filled(
+              onPressed: onRemove,
+              constraints: const BoxConstraints.tightFor(
+                width: 32,
+                height: 32,
+              ),
+              padding: EdgeInsets.zero,
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.black.withOpacity(0.48),
+              ),
+              icon: const Icon(
+                Icons.close,
+                color: Colors.white,
+                size: 18,
+              ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AddImageTile extends StatelessWidget {
+  const _AddImageTile({
+    required this.isBusy,
+    required this.onTap,
+  });
+
+  final bool isBusy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: isBusy ? null : onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: 132,
+        height: 132,
+        decoration: BoxDecoration(
+          color: AppColors.softSurface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.35),
+            width: 1.2,
+          ),
+        ),
+        child: const Icon(
+          Icons.add_photo_alternate_outlined,
+          color: AppColors.primary,
+          size: 32,
+        ),
       ),
     );
   }
