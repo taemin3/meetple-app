@@ -1082,58 +1082,83 @@ class MapMeetingCard extends StatelessWidget {
     final color = meetingAccent(meeting);
 
     return SizedBox(
-      width: 174,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () => AppRoutes.openMeetingDetail(context, meeting),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MeetingPhoto(
-                meeting: meeting,
-                height: 76,
-                borderRadius: 16,
+      key: const Key('nearby-meeting-card'),
+      width: 164,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          height: 168,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(1, 2, 1, 7),
+            child: Material(
+              color: Colors.white,
+              elevation: 2,
+              shadowColor: const Color(0x3017151F),
+              surfaceTintColor: Colors.white,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: const BorderSide(color: Color(0xFFF0EDF7)),
               ),
-              const SizedBox(height: 7),
-              Text(
-                meeting.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.ink,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Row(
-                children: [
-                  CategoryPill(label: meeting.category, color: color),
-                  const Spacer(),
-                  Text(
-                    '${meeting.joined}/${meeting.capacity}명',
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
+              child: InkWell(
+                onTap: () => AppRoutes.openMeetingDetail(context, meeting),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MeetingPhoto(
+                      meeting: meeting,
+                      height: 76,
+                      borderRadius: 0,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              Text(
-                '${meeting.date} · ${meeting.area} · ${meeting.distance}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
+                    const SizedBox(height: 7),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        meeting.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          CategoryPill(label: meeting.category, color: color),
+                          const Spacer(),
+                          Text(
+                            '${meeting.joined}/${meeting.capacity}명',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        '${meeting.date} · ${meeting.area} · ${meeting.distance}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
       ),
