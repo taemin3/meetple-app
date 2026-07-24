@@ -19,45 +19,89 @@ class MeetingPhoto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = meetingPhotoColors(meeting);
+    final imageUrl = meeting.primaryImageUrl;
+    final fallback = _MeetingPhotoFallback(
+      meeting: meeting,
+      height: height,
+      showIcon: showIcon,
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
-      child: Container(
+      child: SizedBox(
+        width: double.infinity,
         height: height,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: colors,
-          ),
+        child: imageUrl == null
+            ? fallback
+            : Image.network(
+                imageUrl,
+                key: const Key('meeting-photo-network'),
+                width: double.infinity,
+                height: height,
+                fit: BoxFit.cover,
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  if (wasSynchronouslyLoaded || frame != null) {
+                    return child;
+                  }
+                  return fallback;
+                },
+                errorBuilder: (_, __, ___) => fallback,
+              ),
+      ),
+    );
+  }
+}
+
+class _MeetingPhotoFallback extends StatelessWidget {
+  const _MeetingPhotoFallback({
+    required this.meeting,
+    required this.height,
+    required this.showIcon,
+  });
+
+  final Meeting meeting;
+  final double height;
+  final bool showIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = meetingPhotoColors(meeting);
+
+    return Container(
+      key: const Key('meeting-photo-fallback'),
+      height: height,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: colors,
         ),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CustomPaint(painter: MeetingPhotoPainter(meeting: meeting)),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withOpacity(0.2),
-                  ],
-                ),
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CustomPaint(painter: MeetingPhotoPainter(meeting: meeting)),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black.withOpacity(0.2),
+                ],
               ),
             ),
-            if (showIcon)
-              Center(
-                child: Icon(
-                  meetingIcon(meeting),
-                  color: Colors.white.withOpacity(0.84),
-                  size: height * 0.32,
-                ),
+          ),
+          if (showIcon)
+            Center(
+              child: Icon(
+                meetingIcon(meeting),
+                color: Colors.white.withOpacity(0.84),
+                size: height * 0.32,
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

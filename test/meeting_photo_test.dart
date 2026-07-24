@@ -1,0 +1,61 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/data/mock/mock_meetings.dart';
+import 'package:meetple/widgets/meeting_photo.dart';
+
+void main() {
+  testWidgets('uses the backend thumbnail URL for a meeting photo',
+      (tester) async {
+    const thumbnailUrl = 'https://cdn.meetple.com/meetings/1/thumbnail.png';
+    final meeting = mockMeetings.first.copyWith(
+      thumbnailImageUrl: thumbnailUrl,
+      imageUrls: const [
+        'https://cdn.meetple.com/meetings/1/secondary.png',
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingPhoto(meeting: meeting),
+        ),
+      ),
+    );
+
+    final image = tester.widget<Image>(
+      find.byKey(const Key('meeting-photo-network')),
+    );
+    expect(image.image, isA<NetworkImage>());
+    expect((image.image as NetworkImage).url, thumbnailUrl);
+  });
+
+  test('uses the first image URL when a thumbnail is unavailable', () {
+    final meeting = mockMeetings.first.copyWith(
+      thumbnailImageUrl: ' ',
+      imageUrls: const [
+        '',
+        'https://cdn.meetple.com/meetings/1/first.png',
+        'https://cdn.meetple.com/meetings/1/second.png',
+      ],
+    );
+
+    expect(
+      meeting.primaryImageUrl,
+      'https://cdn.meetple.com/meetings/1/first.png',
+    );
+  });
+
+  testWidgets('keeps the illustrated fallback without an image URL',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingPhoto(meeting: mockMeetings.first),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('meeting-photo-network')), findsNothing);
+    expect(find.byKey(const Key('meeting-photo-fallback')), findsOneWidget);
+  });
+}

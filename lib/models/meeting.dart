@@ -47,6 +47,21 @@ class Meeting {
 
   bool get hasCoordinate => latitude != null && longitude != null;
 
+  String? get primaryImageUrl {
+    final thumbnail = thumbnailImageUrl?.trim();
+    if (thumbnail != null && thumbnail.isNotEmpty) {
+      return thumbnail;
+    }
+
+    for (final imageUrl in imageUrls) {
+      final normalizedUrl = imageUrl.trim();
+      if (normalizedUrl.isNotEmpty) {
+        return normalizedUrl;
+      }
+    }
+    return null;
+  }
+
   Meeting copyWith({
     int? id,
     int? hostId,
