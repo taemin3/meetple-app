@@ -73,6 +73,66 @@ void main() {
         meetings.single.thumbnailImageUrl, 'https://example.com/meeting.png');
   });
 
+  test('requests nearby meetings with map center and radius', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'content': [
+            {
+              'id': 11,
+              'hostId': 2,
+              'hostNickname': '서연',
+              'categoryName': '취미',
+              'title': '퇴근 후 영화 모임',
+              'description': '함께 영화를 봐요.',
+              'locationName': '여의도역',
+              'address': '서울 영등포구',
+              'latitude': 37.5219,
+              'longitude': 126.9245,
+              'scheduledAt': '2026-07-25T19:30:00',
+              'capacity': 10,
+              'currentPeople': 6,
+              'thumbnailImageUrl': 'https://example.com/movie.png',
+              'imageUrls': [
+                'https://example.com/movie.png',
+                'https://example.com/movie-2.png',
+              ],
+            },
+          ],
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final meetings = await repository.findNearby(
+      const NearbyMeetingQuery(
+        latitude: 37.5219,
+        longitude: 126.9245,
+        radiusMeters: 5000,
+        category: '취미',
+      ),
+    );
+
+    expect(apiClient.path, '/api/v1/meetings/nearby');
+    expect(apiClient.queryParameters, {
+      'latitude': '37.5219',
+      'longitude': '126.9245',
+      'radiusMeters': '5000',
+      'category': '취미',
+      'page': '0',
+      'size': '20',
+    });
+    expect(meetings, hasLength(1));
+    expect(meetings.single.hostId, 2);
+    expect(meetings.single.address, '서울 영등포구');
+    expect(meetings.single.latitude, 37.5219);
+    expect(meetings.single.longitude, 126.9245);
+    expect(meetings.single.distance, '0m');
+    expect(meetings.single.imageUrls, hasLength(2));
+  });
+
   test('throws ApiException when API envelope is unsuccessful', () async {
     final repository = ApiMeetingRepository(
       apiClient: FakeApiClient(

@@ -157,7 +157,10 @@ class _AppShellState extends State<AppShell> {
           locationRepository: widget.locationRepository,
         );
       case AppTab.discover:
-        return DiscoverPage(meetingRepository: widget.meetingRepository);
+        return DiscoverPage(
+          meetingRepository: widget.meetingRepository,
+          categoryRepository: widget.categoryRepository,
+        );
       case AppTab.createMeeting:
         return CreateMeetingPage(
           meetingRepository: widget.meetingRepository,

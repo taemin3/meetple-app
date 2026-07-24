@@ -5,7 +5,6 @@ import '../../models/meeting.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/surface_panel.dart';
-import '../../widgets/tag_chip.dart';
 
 class MeetingDetailPage extends StatelessWidget {
   const MeetingDetailPage({super.key, required this.meeting});
@@ -24,39 +23,29 @@ class MeetingDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final tag in meeting.tags) TagChip(label: tag),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  meeting.title,
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0,
-                  ),
-                ),
-                const SizedBox(height: 12),
                 Row(
                   children: [
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      color: AppColors.muted,
+                      size: 17,
+                    ),
+                    const SizedBox(width: 6),
                     Text(
-                      '${meeting.joined} / ${meeting.capacity}명',
+                      '${meeting.date} · ${meeting.time}',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const Spacer(),
                     const Icon(Icons.star_rounded,
                         color: AppColors.orange, size: 18),
                     const SizedBox(width: 4),
                     Text(
-                      '${meeting.rating} (${meeting.reviewCount})',
+                      meeting.reviewCount == 0
+                          ? '후기 없음'
+                          : '${meeting.rating} (${meeting.reviewCount})',
                       style: const TextStyle(
                         color: AppColors.muted,
                         fontWeight: FontWeight.w800,
@@ -133,12 +122,16 @@ class DetailHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 330,
+      height: 286,
       child: Stack(
         fit: StackFit.expand,
         children: [
           MeetingPhoto(
-              meeting: meeting, height: 330, borderRadius: 0, showIcon: false),
+            meeting: meeting,
+            height: 286,
+            borderRadius: 0,
+            showIcon: false,
+          ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -147,7 +140,7 @@ class DetailHero extends StatelessWidget {
                 colors: [
                   Colors.black.withOpacity(0.2),
                   Colors.black.withOpacity(0.05),
-                  Colors.black.withOpacity(0.46),
+                  Colors.black.withOpacity(0.68),
                 ],
               ),
             ),
@@ -172,7 +165,98 @@ class DetailHero extends StatelessWidget {
               ),
             ),
           ),
+          Positioned(
+            left: 18,
+            right: 18,
+            bottom: 20,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (final tag in meeting.tags.take(2))
+                            HeroTagPill(label: tag),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        meeting.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          height: 1.18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                FilledButton.icon(
+                  onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('참여 신청이 전송되었습니다.')),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 13,
+                      vertical: 11,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 17),
+                  label: const Text(
+                    '참여하기',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class HeroTagPill extends StatelessWidget {
+  const HeroTagPill({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.92),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        child: Text(
+          '#$label',
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
       ),
     );
   }
@@ -212,7 +296,7 @@ class DetailInfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       ('일시', '${meeting.date}\n${meeting.time}'),
-      ('장소', '${meeting.area}\n서울 영등포구'),
+      ('장소', '${meeting.area}\n${meeting.address ?? '상세 주소 미정'}'),
       ('참가비', meeting.fee),
     ];
 
