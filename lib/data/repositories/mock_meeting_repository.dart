@@ -1,8 +1,9 @@
 import '../../models/meeting.dart';
+import '../../models/meeting_engagement.dart';
 import '../mock/mock_meetings.dart';
 import 'meeting_repository.dart';
 
-class MockMeetingRepository implements MeetingRepository {
+class MockMeetingRepository extends MeetingRepository {
   const MockMeetingRepository();
 
   @override
@@ -61,6 +62,94 @@ class MockMeetingRepository implements MeetingRepository {
       reviewCount: 0,
       thumbnailImageUrl: input.imageUrls.isEmpty ? null : input.imageUrls.first,
       imageUrls: input.imageUrls,
+    );
+  }
+
+  @override
+  Future<MeetingEngagement> getEngagement(int meetingId) async {
+    return const MeetingEngagement(
+      isHost: false,
+      isBookmarked: false,
+      members: [
+        MeetingMember(memberId: 1, nickname: '모임장', isHost: true),
+      ],
+    );
+  }
+
+  @override
+  Future<MeetingParticipation> applyParticipation(
+    int meetingId, {
+    String? message,
+  }) async {
+    return MeetingParticipation(
+      id: 1,
+      memberId: 2,
+      memberNickname: '나',
+      status: ParticipationStatus.pending,
+      message: message,
+    );
+  }
+
+  @override
+  Future<MeetingParticipation> cancelParticipation(
+    int meetingId,
+    int participationId,
+  ) async {
+    return const MeetingParticipation(
+      id: 1,
+      memberId: 2,
+      memberNickname: '나',
+      status: ParticipationStatus.canceled,
+    );
+  }
+
+  @override
+  Future<void> setBookmarked(int meetingId, bool bookmarked) async {}
+
+  @override
+  Future<List<MeetingParticipation>> getParticipations(
+    int meetingId, {
+    String status = 'PENDING',
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<MeetingParticipation> reviewParticipation(
+    int meetingId,
+    int participationId, {
+    required bool approve,
+  }) async {
+    return MeetingParticipation(
+      id: participationId,
+      memberId: 2,
+      memberNickname: '참여자',
+      status:
+          approve ? ParticipationStatus.approved : ParticipationStatus.rejected,
+    );
+  }
+
+  @override
+  Future<void> completeMeeting(int meetingId) async {}
+
+  @override
+  Future<void> cancelMeeting(int meetingId, String reason) async {}
+
+  @override
+  Future<void> deleteMeeting(int meetingId) async {}
+
+  @override
+  Future<Meeting> updateMeetingDetails(
+    int meetingId, {
+    required String title,
+    required String description,
+    required int capacity,
+  }) async {
+    final meeting = mockMeetings.first;
+    return meeting.copyWith(
+      title: title,
+      description: description,
+      capacity: capacity,
     );
   }
 

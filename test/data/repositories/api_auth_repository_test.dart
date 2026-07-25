@@ -382,7 +382,7 @@ class RecordedApiRequest {
   final bool includeAuthorization;
 }
 
-class FakeApiClient implements ApiClient {
+class FakeApiClient extends ApiClient {
   FakeApiClient({required List<Object> responses}) : _responses = responses;
 
   final List<Object> _responses;

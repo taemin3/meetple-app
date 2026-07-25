@@ -1,11 +1,72 @@
 import '../../models/meeting.dart';
+import '../../models/meeting_engagement.dart';
 
-abstract interface class MeetingRepository {
+abstract class MeetingRepository {
+  const MeetingRepository();
+
   Future<List<Meeting>> findAll();
 
   Future<List<Meeting>> findNearby(NearbyMeetingQuery query);
 
   Future<Meeting> createMeeting(CreateMeetingInput input);
+
+  Future<MeetingEngagement> getEngagement(int meetingId) {
+    throw UnimplementedError();
+  }
+
+  Future<MeetingParticipation> applyParticipation(
+    int meetingId, {
+    String? message,
+  }) {
+    throw UnimplementedError();
+  }
+
+  Future<MeetingParticipation> cancelParticipation(
+    int meetingId,
+    int participationId,
+  ) {
+    throw UnimplementedError();
+  }
+
+  Future<void> setBookmarked(int meetingId, bool bookmarked) {
+    throw UnimplementedError();
+  }
+
+  Future<List<MeetingParticipation>> getParticipations(
+    int meetingId, {
+    String status = 'PENDING',
+  }) {
+    throw UnimplementedError();
+  }
+
+  Future<MeetingParticipation> reviewParticipation(
+    int meetingId,
+    int participationId, {
+    required bool approve,
+  }) {
+    throw UnimplementedError();
+  }
+
+  Future<void> completeMeeting(int meetingId) {
+    throw UnimplementedError();
+  }
+
+  Future<void> cancelMeeting(int meetingId, String reason) {
+    throw UnimplementedError();
+  }
+
+  Future<void> deleteMeeting(int meetingId) {
+    throw UnimplementedError();
+  }
+
+  Future<Meeting> updateMeetingDetails(
+    int meetingId, {
+    required String title,
+    required String description,
+    required int capacity,
+  }) {
+    throw UnimplementedError();
+  }
 }
 
 class NearbyMeetingQuery {

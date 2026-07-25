@@ -21,6 +21,10 @@ class Meeting {
     required this.reviewCount,
     this.thumbnailImageUrl,
     this.imageUrls = const [],
+    this.status = 'RECRUITING',
+    this.scheduledAt,
+    this.endsAt,
+    this.cancelReason,
   });
 
   final int? id;
@@ -44,6 +48,10 @@ class Meeting {
   final int reviewCount;
   final String? thumbnailImageUrl;
   final List<String> imageUrls;
+  final String status;
+  final DateTime? scheduledAt;
+  final DateTime? endsAt;
+  final String? cancelReason;
 
   bool get hasCoordinate => latitude != null && longitude != null;
 
@@ -84,6 +92,10 @@ class Meeting {
     int? reviewCount,
     String? thumbnailImageUrl,
     List<String>? imageUrls,
+    String? status,
+    DateTime? scheduledAt,
+    DateTime? endsAt,
+    String? cancelReason,
   }) {
     return Meeting(
       id: id ?? this.id,
@@ -107,6 +119,10 @@ class Meeting {
       reviewCount: reviewCount ?? this.reviewCount,
       thumbnailImageUrl: thumbnailImageUrl ?? this.thumbnailImageUrl,
       imageUrls: imageUrls ?? this.imageUrls,
+      status: status ?? this.status,
+      scheduledAt: scheduledAt ?? this.scheduledAt,
+      endsAt: endsAt ?? this.endsAt,
+      cancelReason: cancelReason ?? this.cancelReason,
     );
   }
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_naver_map/flutter_naver_map.dart';
 
-import '../../core/theme/app_colors.dart';
 import 'meeting_location_map_fallback.dart';
 
 const isMeetingLocationMapSupported = true;
@@ -47,14 +46,7 @@ class MeetingLocationMap extends StatelessWidget {
         logoAlign: NLogoAlign.leftBottom,
         logoMargin: const EdgeInsets.all(6),
       ),
-      onMapReady: (controller) async {
-        final marker = NMarker(
-          id: 'meeting-location',
-          position: coordinate,
-        );
-        marker.setIconTintColor(AppColors.primary);
-        await controller.addOverlay(marker);
-      },
+      onMapReady: (_) {},
     );
   }
 }

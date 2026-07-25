@@ -3,9 +3,10 @@ import 'dart:math' as math;
 import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../models/meeting.dart';
+import '../../models/meeting_engagement.dart';
 import 'meeting_repository.dart';
 
-class ApiMeetingRepository implements MeetingRepository {
+class ApiMeetingRepository extends MeetingRepository {
   ApiMeetingRepository({
     required ApiClient apiClient,
     this.status,
@@ -108,6 +109,135 @@ class ApiMeetingRepository implements MeetingRepository {
     return _meetingFromJson(_readMap(response['data'], 'data'));
   }
 
+  @override
+  Future<MeetingEngagement> getEngagement(int meetingId) async {
+    final response =
+        await _apiClient.getJson('/api/v1/meetings/$meetingId/engagement');
+    _ensureSuccess(response);
+    final data = _readMap(response['data'], 'data');
+    return MeetingEngagement(
+      isHost: data['host'] == true,
+      isBookmarked: data['bookmarked'] == true,
+      participation: data['participation'] == null
+          ? null
+          : _participationFromJson(
+              _readMap(data['participation'], 'data.participation'),
+            ),
+      members: [
+        for (final item in _readList(data['members'], 'data.members'))
+          _memberFromJson(_readMap(item, 'data.members[]')),
+      ],
+    );
+  }
+
+  @override
+  Future<MeetingParticipation> applyParticipation(
+    int meetingId, {
+    String? message,
+  }) async {
+    final response = await _apiClient.postJson(
+      '/api/v1/meetings/$meetingId/participations',
+      body: {
+        if (message != null && message.trim().isNotEmpty)
+          'message': message.trim(),
+      },
+    );
+    _ensureSuccess(response);
+    return _participationFromJson(_readMap(response['data'], 'data'));
+  }
+
+  @override
+  Future<MeetingParticipation> cancelParticipation(
+    int meetingId,
+    int participationId,
+  ) async {
+    final response = await _apiClient.patchJson(
+      '/api/v1/meetings/$meetingId/participations/$participationId/cancel',
+    );
+    _ensureSuccess(response);
+    return _participationFromJson(_readMap(response['data'], 'data'));
+  }
+
+  @override
+  Future<void> setBookmarked(int meetingId, bool bookmarked) async {
+    final response = bookmarked
+        ? await _apiClient.postJson('/api/v1/meetings/$meetingId/bookmark')
+        : await _apiClient.deleteJson('/api/v1/meetings/$meetingId/bookmark');
+    _ensureSuccess(response);
+  }
+
+  @override
+  Future<List<MeetingParticipation>> getParticipations(
+    int meetingId, {
+    String status = 'PENDING',
+  }) async {
+    final response = await _apiClient.getJson(
+      '/api/v1/meetings/$meetingId/participations',
+      queryParameters: {'status': status, 'size': '100'},
+    );
+    _ensureSuccess(response);
+    final data = _readMap(response['data'], 'data');
+    return [
+      for (final item in _readList(data['content'], 'data.content'))
+        _participationFromJson(_readMap(item, 'data.content[]')),
+    ];
+  }
+
+  @override
+  Future<MeetingParticipation> reviewParticipation(
+    int meetingId,
+    int participationId, {
+    required bool approve,
+  }) async {
+    final action = approve ? 'approve' : 'reject';
+    final response = await _apiClient.patchJson(
+      '/api/v1/meetings/$meetingId/participations/$participationId/$action',
+    );
+    _ensureSuccess(response);
+    return _participationFromJson(_readMap(response['data'], 'data'));
+  }
+
+  @override
+  Future<void> completeMeeting(int meetingId) async {
+    _ensureSuccess(
+      await _apiClient.patchJson('/api/v1/meetings/$meetingId/complete'),
+    );
+  }
+
+  @override
+  Future<void> cancelMeeting(int meetingId, String reason) async {
+    _ensureSuccess(
+      await _apiClient.patchJson(
+        '/api/v1/meetings/$meetingId/cancel',
+        body: {'reason': reason.trim()},
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteMeeting(int meetingId) async {
+    _ensureSuccess(await _apiClient.deleteJson('/api/v1/meetings/$meetingId'));
+  }
+
+  @override
+  Future<Meeting> updateMeetingDetails(
+    int meetingId, {
+    required String title,
+    required String description,
+    required int capacity,
+  }) async {
+    final response = await _apiClient.patchJson(
+      '/api/v1/meetings/$meetingId',
+      body: {
+        'title': title.trim(),
+        'description': description.trim(),
+        'capacity': capacity,
+      },
+    );
+    _ensureSuccess(response);
+    return _meetingFromJson(_readMap(response['data'], 'data'));
+  }
+
   void _ensureSuccess(Map<String, dynamic> response) {
     if (response['success'] != true) {
       throw ApiException(
@@ -168,7 +298,45 @@ class ApiMeetingRepository implements MeetingRepository {
       reviewCount: 0,
       thumbnailImageUrl: _readNullableString(json['thumbnailImageUrl']),
       imageUrls: _readStringList(json['imageUrls']),
+      status: _readString(json['status'], fallback: 'RECRUITING'),
+      scheduledAt: scheduledAt,
+      endsAt: _readDateTime(json['endsAt']),
+      cancelReason: _readNullableString(json['cancelReason']),
     );
+  }
+
+  MeetingParticipation _participationFromJson(Map<String, dynamic> json) {
+    return MeetingParticipation(
+      id: _readInt(json['id']),
+      memberId: _readInt(json['memberId']),
+      memberNickname:
+          _readString(json['memberNickname'], fallback: '알 수 없는 사용자'),
+      memberProfileImageUrl: _readNullableString(json['memberProfileImageUrl']),
+      status: _participationStatus(json['status']),
+      message: _readNullableString(json['message']),
+    );
+  }
+
+  MeetingMember _memberFromJson(Map<String, dynamic> json) {
+    return MeetingMember(
+      memberId: _readInt(json['memberId']),
+      nickname: _readString(json['nickname'], fallback: '알 수 없는 사용자'),
+      profileImageUrl: _readNullableString(json['profileImageUrl']),
+      isHost: json['host'] == true,
+    );
+  }
+
+  ParticipationStatus _participationStatus(Object? value) {
+    switch (value?.toString().toUpperCase()) {
+      case 'APPROVED':
+        return ParticipationStatus.approved;
+      case 'REJECTED':
+        return ParticipationStatus.rejected;
+      case 'CANCELED':
+        return ParticipationStatus.canceled;
+      default:
+        return ParticipationStatus.pending;
+    }
   }
 
   Map<String, dynamic> _readMap(Object? value, String fieldName) {

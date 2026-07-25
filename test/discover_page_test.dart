@@ -53,6 +53,38 @@ void main() {
       find.byKey(const Key('meeting-detail-hero-favorite-button')),
       findsOneWidget,
     );
+
+    await tester.drag(
+      find.byType(ListView),
+      const Offset(0, -700),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('meeting-detail-back-button')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const Key('meeting-detail-hero-favorite-button')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('meeting-location-preview')),
+        matching: find.byIcon(Icons.location_on_rounded),
+      ),
+      findsOneWidget,
+    );
+
+    final fullMapButton = find.byKey(
+      const Key('meeting-location-full-map-button'),
+    );
+    await tester.ensureVisible(fullMapButton);
+    await tester.pumpAndSettle();
+    await tester.tap(fullMapButton);
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('collapses and expands the nearby meeting sheet', (tester) async {
@@ -162,7 +194,7 @@ class _DiscoverCategoryRepository implements CategoryRepository {
   }
 }
 
-class _OverlappingMeetingRepository implements MeetingRepository {
+class _OverlappingMeetingRepository extends MeetingRepository {
   const _OverlappingMeetingRepository();
 
   static const _delegate = MockMeetingRepository();
@@ -187,7 +219,7 @@ class _OverlappingMeetingRepository implements MeetingRepository {
   }
 }
 
-class _FailsFilteredNearbyRepository implements MeetingRepository {
+class _FailsFilteredNearbyRepository extends MeetingRepository {
   const _FailsFilteredNearbyRepository();
 
   static const _delegate = MockMeetingRepository();

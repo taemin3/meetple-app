@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-abstract interface class ApiClient {
+abstract class ApiClient {
   Future<Map<String, dynamic>> getJson(
     String path, {
     Map<String, String?> queryParameters = const {},
@@ -14,11 +14,22 @@ abstract interface class ApiClient {
     Map<String, dynamic> body = const {},
     bool includeAuthorization = true,
   });
+
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) {
+    throw UnimplementedError('PATCH is not implemented by this API client.');
+  }
+
+  Future<Map<String, dynamic>> deleteJson(String path) {
+    throw UnimplementedError('DELETE is not implemented by this API client.');
+  }
 }
 
 typedef AccessTokenProvider = FutureOr<String?> Function();
 
-class HttpApiClient implements ApiClient {
+class HttpApiClient extends ApiClient {
   HttpApiClient({
     required Uri baseUri,
     http.Client? httpClient,
@@ -58,6 +69,28 @@ class HttpApiClient implements ApiClient {
       body: jsonEncode(body),
     );
 
+    return _handleResponse(response);
+  }
+
+  @override
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) async {
+    final response = await _httpClient.patch(
+      _buildUri(path, const {}),
+      headers: await _headers(contentType: 'application/json'),
+      body: jsonEncode(body),
+    );
+    return _handleResponse(response);
+  }
+
+  @override
+  Future<Map<String, dynamic>> deleteJson(String path) async {
+    final response = await _httpClient.delete(
+      _buildUri(path, const {}),
+      headers: await _headers(),
+    );
     return _handleResponse(response);
   }
 

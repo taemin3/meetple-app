@@ -280,7 +280,7 @@ String _twoDigits(int value) {
   return value.toString().padLeft(2, '0');
 }
 
-class FakeApiClient implements ApiClient {
+class FakeApiClient extends ApiClient {
   FakeApiClient({required this.response});
 
   final Map<String, dynamic> response;
