@@ -44,7 +44,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('모임 소개'), findsOneWidget);
-    expect(find.text('참여하기'), findsWidgets);
+    expect(find.text('모임장'), findsWidgets);
+    expect(find.text('모임 위치'), findsOneWidget);
+    expect(find.text('참여 신청하기'), findsOneWidget);
+    expect(find.text('참여하기'), findsNothing);
+    expect(find.byIcon(Icons.ios_share_rounded), findsNothing);
+    expect(
+      find.byKey(const Key('meeting-detail-hero-favorite-button')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('collapses and expands the nearby meeting sheet', (tester) async {
