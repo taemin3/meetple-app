@@ -1,13 +1,20 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_routes.dart';
+import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/meeting_style.dart';
+import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_category_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/category_pill.dart';
+import '../../widgets/map/nearby_meeting_map.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
 
@@ -15,183 +22,761 @@ class DiscoverPage extends StatefulWidget {
   const DiscoverPage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
+    this.categoryRepository = const MockCategoryRepository(),
   });
 
   final MeetingRepository meetingRepository;
+  final CategoryRepository categoryRepository;
 
   @override
   State<DiscoverPage> createState() => _DiscoverPageState();
 }
 
 class _DiscoverPageState extends State<DiscoverPage> {
-  late Future<List<Meeting>> _meetingsFuture;
+  static const _initialCoordinate = NearbyMapCoordinate(
+    latitude: 37.5283,
+    longitude: 126.9326,
+  );
+  static const _defaultSearchZoom = 14.0;
+  static const _defaultSearchRadiusMeters = 5000;
+
+  final _searchController = TextEditingController();
+
+  NearbyMeetingMapController? _mapController;
+  NearbyMapCoordinate _searchCenter = _initialCoordinate;
+  NearbyMapCoordinate _pendingCenter = _initialCoordinate;
+  double _searchZoom = _defaultSearchZoom;
+  double _pendingZoom = _defaultSearchZoom;
+  int _searchRadiusMeters = _defaultSearchRadiusMeters;
+  List<String> _categories = const ['전체'];
+  List<Meeting> _meetings = const [];
+  Meeting? _selectedMeeting;
+  Object? _loadError;
+  String _selectedCategory = '전체';
+  String _searchText = '';
+  String? _locationNotice;
+  bool _isLoading = true;
+  bool _isLocating = false;
+  bool _isSheetCollapsed = false;
+  bool _showSearchAreaButton = false;
+  bool _requestedInitialLocation = false;
+  int _requestGeneration = 0;
+  int _categoryRequestGeneration = 0;
+
+  bool get _isLiveMapEnabled =>
+      AppConfig.hasNaverMapClientId && isNearbyMeetingMapSupported;
+
+  List<Meeting> get _visibleMeetings {
+    final query = _searchText.trim().toLowerCase();
+    if (query.isEmpty) {
+      return _meetings;
+    }
+
+    return _meetings.where((meeting) {
+      return meeting.title.toLowerCase().contains(query) ||
+          meeting.area.toLowerCase().contains(query) ||
+          meeting.category.toLowerCase().contains(query);
+    }).toList(growable: false);
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadMeetings();
+    unawaited(_loadCategories());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(
+          _loadMeetingsAt(
+            _searchCenter,
+            zoom: _defaultSearchZoom,
+          ),
+        );
+      }
+    });
   }
 
   @override
   void didUpdateWidget(covariant DiscoverPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.meetingRepository != widget.meetingRepository) {
-      _loadMeetings();
+      unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+    }
+    if (oldWidget.categoryRepository != widget.categoryRepository) {
+      unawaited(_loadCategories());
     }
   }
 
-  void _loadMeetings() {
-    _meetingsFuture = widget.meetingRepository.findAll();
-  }
-
-  void _reloadMeetings() {
-    setState(_loadMeetings);
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const Positioned.fill(child: MapCanvas()),
-        SafeArea(
-          bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 26),
-            children: [
-              const MapTopBar(),
-              const SizedBox(height: 18),
-              const MapSearchRow(),
-              const SizedBox(height: 16),
-              const CategoryFilterRow(),
-              const SizedBox(height: 270),
-              FutureBuilder<List<Meeting>>(
-                future: _meetingsFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState != ConnectionState.done) {
-                    return const NearbyMeetingStateSheet(
-                      child: AppLoadingView(
-                        message: '모임을 불러오는 중입니다.',
-                      ),
-                    );
-                  }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final expandedSheetHeight =
+            (constraints.maxHeight * 0.39).clamp(270.0, 310.0);
+        const collapsedSheetHeight = 78.0;
+        final sheetHeight =
+            _isSheetCollapsed ? collapsedSheetHeight : expandedSheetHeight;
+        final sheetBottom = _isSheetCollapsed
+            ? collapsedSheetHeight - expandedSheetHeight
+            : 0.0;
+        final visibleMeetings = _visibleMeetings;
 
-                  if (snapshot.hasError) {
-                    return NearbyMeetingStateSheet(
-                      child: AppErrorView(
-                        message: '모임을 불러오지 못했습니다.',
-                        onRetry: _reloadMeetings,
-                      ),
-                    );
-                  }
-
-                  final meetings = snapshot.data ?? const <Meeting>[];
-                  if (meetings.isEmpty) {
-                    return const NearbyMeetingStateSheet(
-                      child: AppEmptyView(
-                        message: '주변 모임이 없습니다.',
-                      ),
-                    );
-                  }
-
-                  return NearbyMeetingSheet(meetings: meetings);
-                },
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: NearbyMeetingMap(
+                enabled: _isLiveMapEnabled,
+                initialCoordinate: _initialCoordinate,
+                meetings: visibleMeetings,
+                selectedMeeting: _selectedMeeting,
+                onMapReady: _handleMapReady,
+                onMapTapped: _clearSelectedMeeting,
+                onMeetingTapped: _selectMeeting,
+                onMeetingGroupTapped: _selectMeetingGroup,
+                onCameraIdle: _handleCameraIdle,
+                onLocationPermissionDenied: _handleLocationPermissionDenied,
               ),
-            ],
-          ),
-        ),
-        const Positioned(left: 54, top: 246, child: CountPin(label: '5')),
-        const Positioned(right: 76, top: 300, child: CountPin(label: '3')),
-        const Positioned(left: 166, top: 374, child: CountPin(label: '2')),
-        const Positioned(right: 96, top: 470, child: CountPin(label: '4')),
-        Positioned(
-          right: 28,
-          top: 548,
-          child: FloatingActionButton.small(
-            heroTag: 'target-location',
-            backgroundColor: Colors.white,
-            foregroundColor: AppColors.ink,
-            elevation: 2,
-            onPressed: () {},
-            child: const Icon(Icons.my_location),
-          ),
-        ),
-      ],
+            ),
+            SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MapSearchRow(
+                      controller: _searchController,
+                      onChanged: (value) {
+                        setState(() {
+                          _searchText = value;
+                          _selectedMeeting = null;
+                        });
+                      },
+                      onFilterPressed: _openFilterSummary,
+                    ),
+                    const SizedBox(height: 12),
+                    CategoryFilterRow(
+                      categories: _categories,
+                      selectedCategory: _selectedCategory,
+                      onSelected: _selectCategory,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_showSearchAreaButton)
+              Positioned(
+                top: 130,
+                left: 24,
+                right: 24,
+                child: Center(
+                  child: FilledButton.icon(
+                    onPressed: () => _loadMeetingsAt(
+                      _pendingCenter,
+                      zoom: _pendingZoom,
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                      elevation: 4,
+                      shadowColor: const Color(0x3517151F),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text(
+                      '이 지역에서 다시 검색',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ),
+              )
+            else if (_locationNotice != null)
+              Positioned(
+                top: 130,
+                left: 20,
+                right: 20,
+                child: Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.94),
+                      borderRadius: BorderRadius.circular(999),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x2417151F),
+                          blurRadius: 16,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
+                      child: Text(
+                        _locationNotice!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              right: 16,
+              bottom: sheetHeight + 18,
+              child: Column(
+                children: [
+                  MapRoundButton(
+                    tooltip: '현재 위치',
+                    icon: _isLocating ? null : Icons.my_location_rounded,
+                    loading: _isLocating,
+                    onPressed: _isLocating ? null : _moveToCurrentLocation,
+                  ),
+                  const SizedBox(height: 10),
+                  MapRoundButton(
+                    tooltip: '목록으로 보기',
+                    icon: Icons.format_list_bulleted_rounded,
+                    onPressed: visibleMeetings.isEmpty
+                        ? null
+                        : () => _openMeetingList(visibleMeetings),
+                  ),
+                ],
+              ),
+            ),
+            if (_selectedMeeting != null)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                left: 16,
+                right: 76,
+                bottom: sheetHeight + 18,
+                child: MeetingMapPreviewCard(
+                  meeting: _selectedMeeting!,
+                  onTap: () => AppRoutes.openMeetingDetail(
+                    context,
+                    _selectedMeeting!,
+                  ),
+                ),
+              ),
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              left: 0,
+              right: 0,
+              bottom: sheetBottom,
+              height: expandedSheetHeight,
+              child: NearbyMeetingSheet(
+                meetings: visibleMeetings,
+                isLoading: _isLoading,
+                error: _loadError,
+                collapsed: _isSheetCollapsed,
+                onCollapsedChanged: _setSheetCollapsed,
+                onRetry: () =>
+                    _loadMeetingsAt(_searchCenter, zoom: _searchZoom),
+                onViewAll: visibleMeetings.isEmpty
+                    ? null
+                    : () => _openMeetingList(visibleMeetings),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
-}
 
-class MapTopBar extends StatelessWidget {
-  const MapTopBar({super.key});
+  void _handleMapReady(NearbyMeetingMapController controller) {
+    _mapController = controller;
+    if (!_requestedInitialLocation && _isLiveMapEnabled) {
+      _requestedInitialLocation = true;
+      unawaited(_moveToCurrentLocation(showFailureMessage: false));
+    }
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.menu_rounded),
+  void _handleCameraIdle(NearbyMapCoordinate coordinate, double zoom) {
+    final movedMeters = _distanceMeters(_searchCenter, coordinate);
+    final zoomChanged = (_searchZoom - zoom).abs() >= 0.15;
+    setState(() {
+      _pendingCenter = coordinate;
+      _pendingZoom = zoom;
+      _showSearchAreaButton = movedMeters > 350 || zoomChanged;
+    });
+  }
+
+  void _handleLocationPermissionDenied(bool isForeverDenied) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _locationNotice = isForeverDenied
+          ? '위치 권한이 꺼져 있어 기본 지역을 보여드려요.'
+          : '위치 권한을 허용하면 내 주변 모임을 볼 수 있어요.';
+    });
+  }
+
+  Future<void> _moveToCurrentLocation({
+    bool showFailureMessage = true,
+  }) async {
+    final controller = _mapController;
+    if (controller == null || !_isLiveMapEnabled) {
+      if (showFailureMessage) {
+        _showMessage('지도 설정 후 현재 위치를 사용할 수 있어요.');
+      }
+      return;
+    }
+
+    setState(() => _isLocating = true);
+    final coordinate = await controller.requestCurrentLocation();
+    if (!mounted) {
+      return;
+    }
+
+    if (coordinate == null) {
+      setState(() {
+        _isLocating = false;
+        _locationNotice ??= '현재 위치를 확인할 수 없어 기본 지역을 보여드려요.';
+      });
+      if (showFailureMessage) {
+        _showMessage('위치 서비스와 위치 권한을 확인해주세요.');
+      }
+      return;
+    }
+
+    setState(() {
+      _isLocating = false;
+      _locationNotice = null;
+      _searchCenter = coordinate;
+      _pendingCenter = coordinate;
+      _showSearchAreaButton = false;
+    });
+    await controller.moveTo(coordinate, zoom: _defaultSearchZoom);
+    await _loadMeetingsAt(coordinate, zoom: _defaultSearchZoom);
+  }
+
+  Future<void> _loadMeetingsAt(
+    NearbyMapCoordinate coordinate, {
+    double? zoom,
+  }) async {
+    final generation = ++_requestGeneration;
+    final effectiveZoom = zoom ?? _searchZoom;
+    final radiusMeters = _searchRadiusForZoom(effectiveZoom);
+    setState(() {
+      _isLoading = true;
+      _loadError = null;
+      _searchCenter = coordinate;
+      _pendingCenter = coordinate;
+      _searchZoom = effectiveZoom;
+      _pendingZoom = effectiveZoom;
+      _searchRadiusMeters = radiusMeters;
+      _showSearchAreaButton = false;
+      _selectedMeeting = null;
+    });
+
+    try {
+      final meetings = await widget.meetingRepository.findNearby(
+        NearbyMeetingQuery(
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+          radiusMeters: radiusMeters,
+          category: _selectedCategory == '전체' ? null : _selectedCategory,
         ),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Text(
-            '지도',
-            style: TextStyle(
-              color: AppColors.ink,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
+      );
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+
+      setState(() {
+        _meetings = meetings;
+        _isLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || generation != _requestGeneration) {
+        return;
+      }
+
+      setState(() {
+        _meetings = const [];
+        _loadError = error;
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _selectCategory(String category) {
+    if (_selectedCategory == category) {
+      return;
+    }
+
+    setState(() => _selectedCategory = category);
+    unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+  }
+
+  Future<void> _loadCategories() async {
+    final generation = ++_categoryRequestGeneration;
+    try {
+      final categories = await widget.categoryRepository.findAll();
+      if (!mounted || generation != _categoryRequestGeneration) {
+        return;
+      }
+
+      final names = categories
+          .map((category) => category.name.trim())
+          .where((name) => name.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+      setState(() {
+        _categories = ['전체', ...names];
+        if (!_categories.contains(_selectedCategory)) {
+          _selectedCategory = '전체';
+        }
+      });
+    } catch (_) {
+      if (!mounted || generation != _categoryRequestGeneration) {
+        return;
+      }
+      setState(() {
+        _categories = const ['전체'];
+        _selectedCategory = '전체';
+      });
+    }
+  }
+
+  void _selectMeeting(Meeting meeting) {
+    setState(() => _selectedMeeting = meeting);
+  }
+
+  void _selectMeetingGroup(List<Meeting> meetings) {
+    if (meetings.isEmpty) {
+      return;
+    }
+    if (meetings.length == 1) {
+      _selectMeeting(meetings.single);
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (bottomSheetContext) {
+        return SafeArea(
+          top: false,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 460),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${meetings.length}개의 모임이 있어요',
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        '확인할 모임을 선택해 주세요.',
+                        style: TextStyle(
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    itemCount: meetings.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final meeting = meetings[index];
+                      return MeetingListTile(
+                        meeting: meeting,
+                        onTap: () {
+                          Navigator.of(bottomSheetContext).pop();
+                          _selectMeeting(meeting);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.notifications_none_rounded),
-        ),
-      ],
+        );
+      },
+    );
+  }
+
+  void _setSheetCollapsed(bool collapsed) {
+    if (_isSheetCollapsed == collapsed) {
+      return;
+    }
+    setState(() => _isSheetCollapsed = collapsed);
+  }
+
+  void _clearSelectedMeeting() {
+    if (_selectedMeeting != null) {
+      setState(() => _selectedMeeting = null);
+    }
+  }
+
+  void _openFilterSummary() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '탐색 범위',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '현재 지도 크기에 맞춰 약 ${_formatSearchRadius(_searchRadiusMeters)} '
+                  '안의 모임을 찾습니다. 지도를 넓게 보면 검색 범위도 최대 50km까지 늘어납니다.',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    height: 1.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('확인'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openMeetingList(List<Meeting> meetings) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (bottomSheetContext) {
+        return FractionallySizedBox(
+          heightFactor: 0.72,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: AppColors.line,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 18, 20, 10),
+                  child: Row(
+                    children: [
+                      Text(
+                        '내 주변 모임',
+                        style: TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                    itemCount: meetings.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final meeting = meetings[index];
+                      return MeetingListTile(
+                        meeting: meeting,
+                        onTap: () {
+                          Navigator.of(bottomSheetContext).pop();
+                          AppRoutes.openMeetingDetail(
+                            this.context,
+                            meeting,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  double _distanceMeters(
+    NearbyMapCoordinate from,
+    NearbyMapCoordinate to,
+  ) {
+    const earthRadiusMeters = 6371000.0;
+    final latitudeDelta = _toRadians(to.latitude - from.latitude);
+    final longitudeDelta = _toRadians(to.longitude - from.longitude);
+    final fromLatitude = _toRadians(from.latitude);
+    final toLatitude = _toRadians(to.latitude);
+    final haversine =
+        math.sin(latitudeDelta / 2) * math.sin(latitudeDelta / 2) +
+            math.cos(fromLatitude) *
+                math.cos(toLatitude) *
+                math.sin(longitudeDelta / 2) *
+                math.sin(longitudeDelta / 2);
+
+    return earthRadiusMeters *
+        2 *
+        math.atan2(math.sqrt(haversine), math.sqrt(1 - haversine));
+  }
+
+  int _searchRadiusForZoom(double zoom) {
+    final radius =
+        _defaultSearchRadiusMeters * math.pow(2, _defaultSearchZoom - zoom);
+    return radius.round().clamp(1000, 50000);
+  }
+
+  String _formatSearchRadius(int radiusMeters) {
+    if (radiusMeters < 1000) {
+      return '${radiusMeters}m';
+    }
+    final kilometers = radiusMeters / 1000;
+    return kilometers == kilometers.roundToDouble()
+        ? '${kilometers.toInt()}km'
+        : '${kilometers.toStringAsFixed(1)}km';
+  }
+
+  double _toRadians(double degrees) => degrees * math.pi / 180;
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
 
 class MapSearchRow extends StatelessWidget {
-  const MapSearchRow({super.key});
+  const MapSearchRow({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+    required this.onFilterPressed,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onFilterPressed;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
-          child: TextField(
-            readOnly: true,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.search),
-              hintText: '모임, 장소, 키워드 검색',
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide.none,
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide.none,
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x1A17151F),
+                  blurRadius: 22,
+                  offset: Offset(0, 10),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: controller.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          controller.clear();
+                          onChanged('');
+                        },
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                hintText: '모임, 장소, 카테고리 검색',
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
         ),
-        const SizedBox(width: 12),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0F17151F),
-                blurRadius: 20,
-                offset: Offset(0, 10),
-              ),
-            ],
-          ),
+        const SizedBox(width: 10),
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          elevation: 3,
+          shadowColor: const Color(0x2617151F),
           child: IconButton(
-            onPressed: () {},
+            onPressed: onFilterPressed,
+            tooltip: '필터',
             icon: const Icon(Icons.tune_rounded),
           ),
         ),
@@ -201,19 +786,32 @@ class MapSearchRow extends StatelessWidget {
 }
 
 class CategoryFilterRow extends StatelessWidget {
-  const CategoryFilterRow({super.key});
+  const CategoryFilterRow({
+    super.key,
+    required this.categories,
+    required this.selectedCategory,
+    required this.onSelected,
+  });
+
+  final List<String> categories;
+  final String selectedCategory;
+  final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final items = ['전체', '운동', '스터디', '취미', '여행', '봉사'];
-
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          for (var i = 0; i < items.length; i++) ...[
-            TagChip(label: items[i], selected: i == 0),
-            const SizedBox(width: 10),
+          for (final category in categories) ...[
+            GestureDetector(
+              onTap: () => onSelected(category),
+              child: TagChip(
+                label: category,
+                selected: selectedCategory == category,
+              ),
+            ),
+            const SizedBox(width: 8),
           ],
         ],
       ),
@@ -221,200 +819,262 @@ class CategoryFilterRow extends StatelessWidget {
   }
 }
 
-class MapCanvas extends StatelessWidget {
-  const MapCanvas({super.key});
+class MapRoundButton extends StatelessWidget {
+  const MapRoundButton({
+    super.key,
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  final String tooltip;
+  final IconData? icon;
+  final VoidCallback? onPressed;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFFBFAFF), Color(0xFFF3F6FF)],
-        ),
-      ),
-      child: CustomPaint(painter: MapBackgroundPainter()),
-    );
-  }
-}
-
-class MapBackgroundPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final road = Paint()
-      ..color = Colors.white.withOpacity(0.9)
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-    final minorRoad = Paint()
-      ..color = const Color(0xFFE1E7F2)
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round;
-    final park = Paint()..color = const Color(0xFFDDF3E6);
-    final water = Paint()..color = const Color(0xFFDDEBFF);
-
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(size.width * 0.08, 185, size.width * 0.34, 130),
-        const Radius.circular(30),
-      ),
-      park,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(size.width * 0.54, 430, size.width * 0.38, 96),
-        const Radius.circular(24),
-      ),
-      water,
-    );
-
-    canvas.drawLine(const Offset(10, 330), Offset(size.width - 20, 260), road);
-    canvas.drawLine(const Offset(40, 520), Offset(size.width - 30, 460), road);
-    canvas.drawLine(
-        Offset(size.width * .38, 180), Offset(size.width * .58, 580), road);
-    canvas.drawLine(
-        const Offset(20, 410), Offset(size.width - 20, 390), minorRoad);
-    canvas.drawLine(
-        const Offset(60, 610), Offset(size.width - 30, 720), minorRoad);
-    canvas.drawLine(
-        Offset(size.width * .72, 170), Offset(size.width * .6, 760), minorRoad);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class CountPin extends StatelessWidget {
-  const CountPin({super.key, required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const LinearGradient(
-          colors: [AppColors.violet, AppColors.primary],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(0.28),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        width: 42,
-        height: 42,
-        child: Center(
-          child: Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
+    return Material(
+      color: Colors.white,
+      shape: const CircleBorder(),
+      elevation: 4,
+      shadowColor: const Color(0x2E17151F),
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: loading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Icon(icon, color: AppColors.ink),
       ),
     );
   }
 }
 
-class NearbyMeetingStateSheet extends StatelessWidget {
-  const NearbyMeetingStateSheet({super.key, required this.child});
+class MeetingMapPreviewCard extends StatelessWidget {
+  const MeetingMapPreviewCard({
+    super.key,
+    required this.meeting,
+    required this.onTap,
+  });
 
-  final Widget child;
+  final Meeting meeting;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 176,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1717151F),
-            blurRadius: 34,
-            offset: Offset(0, 18),
+    final accent = meetingAccent(meeting);
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      elevation: 6,
+      shadowColor: const Color(0x3017151F),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 62,
+                child: MeetingPhoto(
+                  meeting: meeting,
+                  height: 62,
+                  borderRadius: 14,
+                  showIcon: false,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      meeting.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${meeting.date} · ${meeting.time}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Row(
+                      children: [
+                        CategoryPill(
+                          label: meeting.category,
+                          color: accent,
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${meeting.joined} / ${meeting.capacity}명',
+                          style: const TextStyle(
+                            color: AppColors.muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-      child: child,
     );
   }
 }
 
 class NearbyMeetingSheet extends StatelessWidget {
-  const NearbyMeetingSheet({super.key, required this.meetings});
+  const NearbyMeetingSheet({
+    super.key,
+    required this.meetings,
+    required this.isLoading,
+    required this.error,
+    required this.collapsed,
+    required this.onCollapsedChanged,
+    required this.onRetry,
+    required this.onViewAll,
+  });
 
   final List<Meeting> meetings;
+  final bool isLoading;
+  final Object? error;
+  final bool collapsed;
+  final ValueChanged<bool> onCollapsedChanged;
+  final VoidCallback onRetry;
+  final VoidCallback? onViewAll;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 22),
-      decoration: BoxDecoration(
+      clipBehavior: Clip.hardEdge,
+      decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: const [
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1717151F),
-            blurRadius: 34,
-            offset: Offset(0, 18),
+            color: Color(0x2617151F),
+            blurRadius: 28,
+            offset: Offset(0, -8),
           ),
         ],
       ),
       child: Column(
         children: [
-          Container(
-            width: 54,
-            height: 5,
-            decoration: BoxDecoration(
-              color: AppColors.line,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          const SizedBox(height: 22),
-          const Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '이 지역 인기 모임 🔥',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => onCollapsedChanged(!collapsed),
+            onVerticalDragEnd: (details) {
+              final velocity = details.primaryVelocity ?? 0;
+              if (velocity > 80) {
+                onCollapsedChanged(true);
+              } else if (velocity < -80) {
+                onCollapsedChanged(false);
+              }
+            },
+            child: Column(
+              children: [
+                const SizedBox(height: 9),
+                Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.line,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-              ),
-              Text(
-                '전체보기 >',
-                style: TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 9, 12, 7),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          '내 주변 모임 🔥',
+                          style: TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        collapsed
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.muted,
+                      ),
+                      if (!collapsed)
+                        TextButton(
+                          onPressed: onViewAll,
+                          child: const Text('전체보기'),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 230,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: meetings.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 14),
-              itemBuilder: (context, index) {
-                return MapMeetingCard(meeting: meetings[index]);
-              },
+              ],
             ),
           ),
+          if (!collapsed) ...[
+            if (isLoading && meetings.isNotEmpty)
+              const LinearProgressIndicator(minHeight: 2),
+            Expanded(child: _buildContent()),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading && meetings.isEmpty) {
+      return const AppLoadingView(message: '내 주변 모임을 찾고 있어요.');
+    }
+
+    if (error != null && meetings.isEmpty) {
+      return AppErrorView(
+        message: '주변 모임을 불러오지 못했습니다.',
+        onRetry: onRetry,
+      );
+    }
+
+    if (meetings.isEmpty) {
+      return const AppEmptyView(message: '조건에 맞는 주변 모임이 없습니다.');
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      scrollDirection: Axis.horizontal,
+      itemCount: meetings.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (context, index) {
+        final meeting = meetings[index];
+        return MapMeetingCard(
+          key: ValueKey(
+            'nearby-meeting-card-${meeting.id ?? 'index-$index'}',
+          ),
+          meeting: meeting,
+        );
+      },
     );
   }
 }
@@ -429,58 +1089,168 @@ class MapMeetingCard extends StatelessWidget {
     final color = meetingAccent(meeting);
 
     return SizedBox(
-      width: 172,
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () => AppRoutes.openMeetingDetail(context, meeting),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              MeetingPhoto(meeting: meeting, height: 104, borderRadius: 18),
-              const SizedBox(height: 10),
-              Text(
-                meeting.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.ink,
-                  fontWeight: FontWeight.w900,
-                ),
+      width: 164,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          height: 168,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(1, 2, 1, 7),
+            child: Material(
+              color: Colors.white,
+              elevation: 2,
+              shadowColor: const Color(0x3017151F),
+              surfaceTintColor: Colors.white,
+              clipBehavior: Clip.antiAlias,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: const BorderSide(color: Color(0xFFF0EDF7)),
               ),
-              const SizedBox(height: 8),
-              CategoryPill(label: meeting.category, color: color),
-              const SizedBox(height: 8),
-              Text(
-                '${meeting.date} · ${meeting.area}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.place_outlined,
-                      size: 14, color: AppColors.primary),
-                  const SizedBox(width: 4),
-                  Text(
-                    meeting.distance,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+              child: InkWell(
+                onTap: () => AppRoutes.openMeetingDetail(context, meeting),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    MeetingPhoto(
+                      meeting: meeting,
+                      height: 76,
+                      borderRadius: 0,
                     ),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.bookmark_border,
-                      size: 18, color: AppColors.subtle),
-                ],
+                    const SizedBox(height: 7),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        meeting.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        children: [
+                          CategoryPill(label: meeting.category, color: color),
+                          const Spacer(),
+                          Text(
+                            '${meeting.joined}/${meeting.capacity}명',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        '${meeting.date} · ${meeting.area} · ${meeting.distance}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MeetingListTile extends StatelessWidget {
+  const MeetingListTile({
+    super.key,
+    required this.meeting,
+    required this.onTap,
+  });
+
+  final Meeting meeting;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.canvas,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 88,
+                child: MeetingPhoto(
+                  meeting: meeting,
+                  height: 82,
+                  borderRadius: 14,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      meeting.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${meeting.date} · ${meeting.time}',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${meeting.area} · ${meeting.distance}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      '${meeting.joined} / ${meeting.capacity}명 참여',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.subtle,
               ),
             ],
           ),

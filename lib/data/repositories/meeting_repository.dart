@@ -3,7 +3,27 @@ import '../../models/meeting.dart';
 abstract interface class MeetingRepository {
   Future<List<Meeting>> findAll();
 
+  Future<List<Meeting>> findNearby(NearbyMeetingQuery query);
+
   Future<Meeting> createMeeting(CreateMeetingInput input);
+}
+
+class NearbyMeetingQuery {
+  const NearbyMeetingQuery({
+    required this.latitude,
+    required this.longitude,
+    this.radiusMeters = 5000,
+    this.category,
+    this.page = 0,
+    this.size = 20,
+  });
+
+  final double latitude;
+  final double longitude;
+  final int radiusMeters;
+  final String? category;
+  final int page;
+  final int size;
 }
 
 class CreateMeetingInput {
