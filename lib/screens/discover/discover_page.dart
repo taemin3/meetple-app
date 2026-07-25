@@ -412,6 +412,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       }
 
       setState(() {
+        _meetings = const [];
         _loadError = error;
         _isLoading = false;
       });
@@ -1066,7 +1067,13 @@ class NearbyMeetingSheet extends StatelessWidget {
       itemCount: meetings.length,
       separatorBuilder: (_, __) => const SizedBox(width: 12),
       itemBuilder: (context, index) {
-        return MapMeetingCard(meeting: meetings[index]);
+        final meeting = meetings[index];
+        return MapMeetingCard(
+          key: ValueKey(
+            'nearby-meeting-card-${meeting.id ?? 'index-$index'}',
+          ),
+          meeting: meeting,
+        );
       },
     );
   }
@@ -1082,7 +1089,6 @@ class MapMeetingCard extends StatelessWidget {
     final color = meetingAccent(meeting);
 
     return SizedBox(
-      key: const Key('nearby-meeting-card'),
       width: 164,
       child: Align(
         alignment: Alignment.topCenter,

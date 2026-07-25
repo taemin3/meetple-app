@@ -6,6 +6,7 @@ import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/discover/discover_page.dart';
+import 'package:meetple/widgets/app_state_view.dart';
 
 void main() {
   testWidgets('shows nearby discovery without a title app bar', (tester) async {
@@ -110,6 +111,35 @@ void main() {
     expect(find.text('독서'), findsOneWidget);
     expect(find.text('여행'), findsNothing);
   });
+
+  testWidgets('hides stale meetings when a refreshed search fails',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DiscoverPage(
+            meetingRepository: _FailsFilteredNearbyRepository(),
+            categoryRepository: _DiscoverCategoryRepository(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('nearby-meeting-card-1')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('러닝'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AppErrorView), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('nearby-meeting-card-1')),
+      findsNothing,
+    );
+  });
 }
 
 class _DiscoverCategoryRepository implements CategoryRepository {
@@ -141,6 +171,28 @@ class _OverlappingMeetingRepository implements MeetingRepository {
         longitude: query.longitude,
       );
     }).toList(growable: false);
+  }
+
+  @override
+  Future<Meeting> createMeeting(CreateMeetingInput input) {
+    return _delegate.createMeeting(input);
+  }
+}
+
+class _FailsFilteredNearbyRepository implements MeetingRepository {
+  const _FailsFilteredNearbyRepository();
+
+  static const _delegate = MockMeetingRepository();
+
+  @override
+  Future<List<Meeting>> findAll() => _delegate.findAll();
+
+  @override
+  Future<List<Meeting>> findNearby(NearbyMeetingQuery query) {
+    if (query.category != null) {
+      throw StateError('nearby search failed');
+    }
+    return _delegate.findNearby(query);
   }
 
   @override
