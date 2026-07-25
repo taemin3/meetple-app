@@ -1,5 +1,6 @@
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
+import '../../models/app_notification.dart';
 import '../mock/mock_meetings.dart';
 import 'meeting_repository.dart';
 
@@ -152,6 +153,25 @@ class MockMeetingRepository extends MeetingRepository {
       capacity: capacity,
     );
   }
+
+  @override
+  Future<List<Meeting>> getBookmarkedMeetings() async =>
+      mockMeetings.take(2).toList();
+
+  @override
+  Future<List<AppNotification>> getNotifications() async {
+    return const [
+      AppNotification(
+        id: 1,
+        type: 'PARTICIPATION_APPROVED',
+        title: '참여 승인',
+        message: '모임 참여가 승인되었습니다.',
+      ),
+    ];
+  }
+
+  @override
+  Future<void> markNotificationRead(int notificationId) async {}
 
   String _twoDigits(int value) {
     return value.toString().padLeft(2, '0');

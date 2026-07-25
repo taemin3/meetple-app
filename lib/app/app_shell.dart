@@ -177,6 +177,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.profile:
         return ProfilePage(
           authRepository: _authRepository,
+          meetingRepository: widget.meetingRepository,
           onSignedOut: widget.onSignedOut,
         );
     }

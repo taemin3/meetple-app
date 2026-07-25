@@ -4,21 +4,27 @@ import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/mock_auth_repository.dart';
+import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/surface_panel.dart';
 import '../auth/auth_form_widgets.dart';
+import '../notifications/notifications_page.dart';
+import 'bookmarked_meetings_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     this.authRepository,
+    this.meetingRepository = const MockMeetingRepository(),
     this.onSignedOut,
   });
 
   final AuthRepository? authRepository;
+  final MeetingRepository meetingRepository;
   final VoidCallback? onSignedOut;
 
   @override
@@ -81,6 +87,7 @@ class _ProfilePageState extends State<ProfilePage> {
         return ProfileContent(
           user: session.user,
           authRepository: _authRepository,
+          meetingRepository: widget.meetingRepository,
           onSignedOut: _showSignedOut,
         );
       },
@@ -106,11 +113,13 @@ class ProfileContent extends StatefulWidget {
     super.key,
     required this.user,
     required this.authRepository,
+    required this.meetingRepository,
     required this.onSignedOut,
   });
 
   final AuthUser user;
   final AuthRepository authRepository;
+  final MeetingRepository meetingRepository;
   final VoidCallback onSignedOut;
 
   @override
@@ -129,20 +138,40 @@ class _ProfileContentState extends State<ProfileContent> {
         const SizedBox(height: 24),
         ProfileStatsCard(user: widget.user),
         const SizedBox(height: 18),
-        const ProfileMenuGroup(
+        ProfileMenuGroup(
           items: [
-            (Icons.event_available_outlined, '내가 만든 모임'),
-            (Icons.group_outlined, '참여 중인 모임'),
-            (Icons.favorite_border, '찜한 모임'),
-            (Icons.history, '최근 본 모임'),
+            (Icons.event_available_outlined, '내가 만든 모임', null),
+            (Icons.group_outlined, '참여 중인 모임', null),
+            (
+              Icons.favorite_border,
+              '찜한 모임',
+              () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => BookmarkedMeetingsPage(
+                        meetingRepository: widget.meetingRepository,
+                      ),
+                    ),
+                  ),
+            ),
+            (Icons.history, '최근 본 모임', null),
           ],
         ),
         const SizedBox(height: 18),
-        const ProfileMenuGroup(
+        ProfileMenuGroup(
           items: [
-            (Icons.notifications_none_rounded, '알림'),
-            (Icons.settings_outlined, '설정'),
-            (Icons.support_agent, '고객센터'),
+            (
+              Icons.notifications_none_rounded,
+              '알림',
+              () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => NotificationsPage(
+                        meetingRepository: widget.meetingRepository,
+                      ),
+                    ),
+                  ),
+            ),
+            (Icons.settings_outlined, '설정', null),
+            (Icons.support_agent, '고객센터', null),
           ],
         ),
         const SizedBox(height: 18),
@@ -384,7 +413,7 @@ class SignedOutProfile extends StatelessWidget {
 class ProfileMenuGroup extends StatelessWidget {
   const ProfileMenuGroup({super.key, required this.items});
 
-  final List<(IconData, String)> items;
+  final List<(IconData, String, VoidCallback?)> items;
 
   @override
   Widget build(BuildContext context) {
@@ -392,7 +421,11 @@ class ProfileMenuGroup extends StatelessWidget {
       child: Column(
         children: [
           for (var i = 0; i < items.length; i++) ...[
-            ProfileMenuItem(icon: items[i].$1, label: items[i].$2),
+            ProfileMenuItem(
+              icon: items[i].$1,
+              label: items[i].$2,
+              onTap: items[i].$3,
+            ),
             if (i != items.length - 1)
               const Divider(height: 22, color: AppColors.line),
           ],

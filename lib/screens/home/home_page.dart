@@ -16,6 +16,7 @@ import '../../widgets/category_pill.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/section_title.dart';
+import '../notifications/notifications_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -63,7 +64,7 @@ class _HomePageState extends State<HomePage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
       children: [
-        const HomeGreeting(),
+        HomeGreeting(meetingRepository: widget.meetingRepository),
         const SizedBox(height: 24),
         const HomeSearchField(),
         const SizedBox(height: 24),
@@ -110,7 +111,12 @@ class _HomePageState extends State<HomePage> {
 }
 
 class HomeGreeting extends StatelessWidget {
-  const HomeGreeting({super.key});
+  const HomeGreeting({
+    super.key,
+    required this.meetingRepository,
+  });
+
+  final MeetingRepository meetingRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +150,13 @@ class HomeGreeting extends StatelessWidget {
           ),
         ),
         IconButton(
-          onPressed: () {},
+          onPressed: () => Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) => NotificationsPage(
+                meetingRepository: meetingRepository,
+              ),
+            ),
+          ),
           icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],

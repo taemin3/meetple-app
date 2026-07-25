@@ -4,6 +4,7 @@ import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
+import '../../models/app_notification.dart';
 import 'meeting_repository.dart';
 
 class ApiMeetingRepository extends MeetingRepository {
@@ -238,6 +239,43 @@ class ApiMeetingRepository extends MeetingRepository {
     return _meetingFromJson(_readMap(response['data'], 'data'));
   }
 
+  @override
+  Future<List<Meeting>> getBookmarkedMeetings() async {
+    final response = await _apiClient.getJson(
+      '/api/v1/users/me/meetings/bookmarked',
+      queryParameters: const {'size': '100'},
+    );
+    _ensureSuccess(response);
+    final data = _readMap(response['data'], 'data');
+    return [
+      for (final item in _readList(data['content'], 'data.content'))
+        _meetingFromJson(_readMap(item, 'data.content[]')),
+    ];
+  }
+
+  @override
+  Future<List<AppNotification>> getNotifications() async {
+    final response = await _apiClient.getJson(
+      '/api/v1/notifications',
+      queryParameters: const {'size': '100'},
+    );
+    _ensureSuccess(response);
+    final data = _readMap(response['data'], 'data');
+    return [
+      for (final item in _readList(data['content'], 'data.content'))
+        _notificationFromJson(_readMap(item, 'data.content[]')),
+    ];
+  }
+
+  @override
+  Future<void> markNotificationRead(int notificationId) async {
+    _ensureSuccess(
+      await _apiClient.patchJson(
+        '/api/v1/notifications/$notificationId/read',
+      ),
+    );
+  }
+
   void _ensureSuccess(Map<String, dynamic> response) {
     if (response['success'] != true) {
       throw ApiException(
@@ -323,6 +361,18 @@ class ApiMeetingRepository extends MeetingRepository {
       nickname: _readString(json['nickname'], fallback: '알 수 없는 사용자'),
       profileImageUrl: _readNullableString(json['profileImageUrl']),
       isHost: json['host'] == true,
+    );
+  }
+
+  AppNotification _notificationFromJson(Map<String, dynamic> json) {
+    return AppNotification(
+      id: _readInt(json['id']),
+      type: _readString(json['type']),
+      title: _readString(json['title'], fallback: '알림'),
+      message: _readString(json['message']),
+      meetingId: _readNullableInt(json['meetingId']),
+      readAt: _readDateTime(json['readAt']),
+      createdAt: _readDateTime(json['createdAt']),
     );
   }
 
