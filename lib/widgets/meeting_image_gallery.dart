@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/meeting.dart';
@@ -20,6 +22,7 @@ class MeetingImageGallery extends StatefulWidget {
 class _MeetingImageGalleryState extends State<MeetingImageGallery> {
   late final PageController _pageController;
   int _currentIndex = 0;
+  String? _precacheSignature;
 
   List<String> get _imageUrls => meetingImageUrls(widget.meeting);
 
@@ -30,6 +33,12 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _precacheImages();
+  }
+
+  @override
   void didUpdateWidget(covariant MeetingImageGallery oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_imageSignature(oldWidget.meeting) != _imageSignature(widget.meeting)) {
@@ -37,6 +46,7 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
       if (_pageController.hasClients) {
         _pageController.jumpToPage(0);
       }
+      _precacheImages();
     }
   }
 
@@ -77,12 +87,6 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
                 onTap: () => _openViewer(context, imageUrls, index),
                 child: _GalleryNetworkImage(
                   imageUrl: imageUrls[index],
-                  fallback: MeetingPhoto(
-                    meeting: widget.meeting,
-                    height: widget.height,
-                    borderRadius: 0,
-                    showIcon: false,
-                  ),
                 ),
               );
             },
@@ -119,6 +123,25 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
 
   String _imageSignature(Meeting meeting) {
     return meetingImageUrls(meeting).join('\n');
+  }
+
+  void _precacheImages() {
+    final imageUrls = _imageUrls;
+    final signature = imageUrls.join('\n');
+    if (imageUrls.isEmpty || signature == _precacheSignature) {
+      return;
+    }
+
+    _precacheSignature = signature;
+    for (final imageUrl in imageUrls) {
+      unawaited(
+        precacheImage(
+          NetworkImage(imageUrl),
+          context,
+          onError: (_, __) {},
+        ),
+      );
+    }
   }
 }
 
@@ -320,11 +343,9 @@ class _ZoomableNetworkImageState extends State<_ZoomableNetworkImage> {
 class _GalleryNetworkImage extends StatelessWidget {
   const _GalleryNetworkImage({
     required this.imageUrl,
-    required this.fallback,
   });
 
   final String imageUrl;
-  final Widget fallback;
 
   @override
   Widget build(BuildContext context) {
@@ -334,9 +355,28 @@ class _GalleryNetworkImage extends StatelessWidget {
       fit: BoxFit.cover,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
         if (wasSynchronouslyLoaded || frame != null) return child;
-        return fallback;
+        return const _GalleryImagePlaceholder();
       },
-      errorBuilder: (_, __, ___) => fallback,
+      errorBuilder: (_, __, ___) => const _GalleryImagePlaceholder(),
+    );
+  }
+}
+
+class _GalleryImagePlaceholder extends StatelessWidget {
+  const _GalleryImagePlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(
+      key: Key('meeting-gallery-image-placeholder'),
+      color: Color(0xFF242329),
+      child: Center(
+        child: Icon(
+          Icons.image_outlined,
+          size: 28,
+          color: Colors.white38,
+        ),
+      ),
     );
   }
 }

@@ -34,6 +34,10 @@ void main() {
     _clearExpectedImageErrors(tester);
 
     expect(
+      find.byKey(const Key('meeting-gallery-image-placeholder')),
+      findsWidgets,
+    );
+    expect(
       find.byKey(const Key('meeting-detail-image-counter')),
       findsOneWidget,
     );
