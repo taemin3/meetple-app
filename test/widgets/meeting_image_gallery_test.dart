@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/models/meeting.dart';
+import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
 import 'package:meetple/widgets/meeting_image_gallery.dart';
 
 void main() {
@@ -92,6 +93,39 @@ void main() {
       interactiveViewer.transformationController!.value.getMaxScaleOnAxis(),
       closeTo(1, 0.01),
     );
+  });
+
+  testWidgets('detail hero overlay passes swipe and tap gestures to gallery',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DetailHero(meeting: _meeting),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    _clearExpectedImageErrors(tester);
+
+    await tester.drag(
+      find.byKey(const Key('meeting-detail-image-gallery')),
+      const Offset(-320, 0),
+    );
+    await tester.pumpAndSettle();
+    _clearExpectedImageErrors(tester);
+    expect(find.text('2 / 2'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('meeting-detail-image-1')),
+    );
+    await tester.pumpAndSettle();
+    _clearExpectedImageErrors(tester);
+
+    expect(find.byKey(const Key('meeting-image-viewer')), findsOneWidget);
+    expect(find.text('2 / 2'), findsOneWidget);
   });
 }
 

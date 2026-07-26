@@ -523,17 +523,19 @@ class DetailHero extends StatelessWidget {
             meeting: meeting,
             height: 300,
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.36),
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.72),
-                ],
-                stops: const [0, 0.48, 1],
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.36),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.72),
+                  ],
+                  stops: const [0, 0.48, 1],
+                ),
               ),
             ),
           ),
@@ -541,37 +543,39 @@ class DetailHero extends StatelessWidget {
             left: 20,
             right: 20,
             bottom: 22,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final tag in meeting.tags.take(2))
-                      HeroTagPill(label: tag),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  meeting.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    height: 1.18,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(
-                        color: Color(0x66000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
+            child: IgnorePointer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final tag in meeting.tags.take(2))
+                        HeroTagPill(label: tag),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Text(
+                    meeting.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      height: 1.18,
+                      fontWeight: FontWeight.w900,
+                      shadows: [
+                        Shadow(
+                          color: Color(0x66000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
