@@ -13,6 +13,9 @@ class MeetingParticipation {
     this.memberProfileImageUrl,
     required this.status,
     this.message,
+    this.reviewedAt,
+    this.canceledAt,
+    this.createdAt,
   });
 
   final int id;
@@ -21,6 +24,9 @@ class MeetingParticipation {
   final String? memberProfileImageUrl;
   final ParticipationStatus status;
   final String? message;
+  final DateTime? reviewedAt;
+  final DateTime? canceledAt;
+  final DateTime? createdAt;
 }
 
 class MeetingMember {

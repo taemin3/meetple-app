@@ -133,6 +133,44 @@ void main() {
     expect(meetings.single.imageUrls, hasLength(2));
   });
 
+  test('maps participation applicant details and timestamps', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'content': [
+            {
+              'id': 100,
+              'memberId': 2,
+              'memberNickname': '러너',
+              'memberProfileImageUrl': 'https://example.com/profile.png',
+              'status': 'PENDING',
+              'message': '함께 달리고 싶어요.',
+              'reviewedAt': null,
+              'canceledAt': null,
+              'createdAt': '2026-07-27T18:35:00',
+            },
+          ],
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final participations = await repository.getParticipations(
+      10,
+      status: 'PENDING',
+    );
+
+    expect(apiClient.path, '/api/v1/meetings/10/participations');
+    expect(apiClient.queryParameters, {
+      'status': 'PENDING',
+      'size': '100',
+    });
+    expect(participations.single.memberNickname, '러너');
+    expect(participations.single.createdAt, DateTime(2026, 7, 27, 18, 35));
+  });
+
   test('throws ApiException when API envelope is unsuccessful', () async {
     final repository = ApiMeetingRepository(
       apiClient: FakeApiClient(

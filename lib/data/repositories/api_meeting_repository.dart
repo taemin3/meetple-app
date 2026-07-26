@@ -366,6 +366,9 @@ class ApiMeetingRepository extends MeetingRepository {
       memberProfileImageUrl: _readNullableString(json['memberProfileImageUrl']),
       status: _participationStatus(json['status']),
       message: _readNullableString(json['message']),
+      reviewedAt: _readDateTime(json['reviewedAt']),
+      canceledAt: _readDateTime(json['canceledAt']),
+      createdAt: _readDateTime(json['createdAt']),
     );
   }
 
