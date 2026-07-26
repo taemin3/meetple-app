@@ -162,6 +162,7 @@ class _FullScreenMeetingImageViewerState
       key: const Key('meeting-image-viewer'),
       backgroundColor: Colors.black,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           Positioned.fill(
             child: PageView.builder(

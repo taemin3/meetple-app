@@ -63,6 +63,10 @@ void main() {
 
     expect(find.byKey(const Key('meeting-image-viewer')), findsOneWidget);
     expect(find.text('1 / 2'), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const Key('meeting-image-viewer-pages'))),
+      tester.getSize(find.byKey(const Key('meeting-image-viewer'))),
+    );
 
     await tester.drag(
       find.byKey(const Key('meeting-image-viewer-pages')),
