@@ -17,6 +17,7 @@ import '../screens/auth/signup_page.dart';
 import '../screens/create_meeting/create_meeting_page.dart';
 import '../screens/meeting_detail/meeting_detail_page.dart';
 import 'app_route_names.dart';
+import 'meeting_repository_scope.dart';
 
 abstract final class AppRoutes {
   static Future<AuthSession?> openLogin(
@@ -72,12 +73,18 @@ abstract final class AppRoutes {
 
   static Future<T?> openMeetingDetail<T>(
     BuildContext context,
-    Meeting meeting,
-  ) {
+    Meeting meeting, {
+    MeetingRepository? meetingRepository,
+  }) {
     return Navigator.of(context).push<T>(
       MaterialPageRoute<T>(
         settings: const RouteSettings(name: AppRouteNames.meetingDetail),
-        builder: (_) => MeetingDetailPage(meeting: meeting),
+        builder: (_) => MeetingDetailPage(
+          meeting: meeting,
+          meetingRepository: meetingRepository ??
+              MeetingRepositoryScope.maybeOf(context) ??
+              const MockMeetingRepository(),
+        ),
       ),
     );
   }

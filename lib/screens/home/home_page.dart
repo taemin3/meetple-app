@@ -16,6 +16,7 @@ import '../../widgets/category_pill.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/section_title.dart';
+import '../notifications/notifications_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({
@@ -58,12 +59,23 @@ class _HomePageState extends State<HomePage> {
     setState(_loadMeetings);
   }
 
+  Future<void> _openMeetingDetail(Meeting meeting) async {
+    final result = await AppRoutes.openMeetingDetail<Object>(
+      context,
+      meeting,
+      meetingRepository: widget.meetingRepository,
+    );
+    if (result != null && mounted) {
+      _reloadMeetings();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
       children: [
-        const HomeGreeting(),
+        HomeGreeting(meetingRepository: widget.meetingRepository),
         const SizedBox(height: 24),
         const HomeSearchField(),
         const SizedBox(height: 24),
@@ -93,7 +105,10 @@ class _HomePageState extends State<HomePage> {
             return Column(
               children: [
                 for (final meeting in meetings.take(3))
-                  HomeMeetingTile(meeting: meeting),
+                  HomeMeetingTile(
+                    meeting: meeting,
+                    onTap: () => _openMeetingDetail(meeting),
+                  ),
               ],
             );
           },
@@ -110,7 +125,12 @@ class _HomePageState extends State<HomePage> {
 }
 
 class HomeGreeting extends StatelessWidget {
-  const HomeGreeting({super.key});
+  const HomeGreeting({
+    super.key,
+    required this.meetingRepository,
+  });
+
+  final MeetingRepository meetingRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +164,13 @@ class HomeGreeting extends StatelessWidget {
           ),
         ),
         IconButton(
-          onPressed: () {},
+          onPressed: () => Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) => NotificationsPage(
+                meetingRepository: meetingRepository,
+              ),
+            ),
+          ),
           icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
@@ -227,9 +253,14 @@ class CategoryShortcutRow extends StatelessWidget {
 }
 
 class HomeMeetingTile extends StatelessWidget {
-  const HomeMeetingTile({super.key, required this.meeting});
+  const HomeMeetingTile({
+    super.key,
+    required this.meeting,
+    required this.onTap,
+  });
 
   final Meeting meeting;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +273,7 @@ class HomeMeetingTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () => AppRoutes.openMeetingDetail(context, meeting),
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Row(

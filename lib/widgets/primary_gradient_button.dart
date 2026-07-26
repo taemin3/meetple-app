@@ -11,15 +11,17 @@ class PrimaryGradientButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.secondary],
+        gradient: LinearGradient(
+          colors: onPressed == null
+              ? const [Color(0xFFB8B5BF), Color(0xFFAAA7B0)]
+              : const [AppColors.primary, AppColors.secondary],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [

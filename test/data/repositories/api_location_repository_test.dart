@@ -106,7 +106,7 @@ void main() {
   });
 }
 
-class FakeApiClient implements ApiClient {
+class FakeApiClient extends ApiClient {
   FakeApiClient({required this.response});
 
   final Map<String, dynamic> response;
