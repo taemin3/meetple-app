@@ -12,7 +12,7 @@ import '../../models/meeting_engagement.dart';
 import '../requests/meeting_participation_management_page.dart';
 import 'meeting_edit_page.dart';
 import '../../widgets/map/meeting_location_map.dart';
-import '../../widgets/meeting_photo.dart';
+import '../../widgets/meeting_image_gallery.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/secondary_button.dart';
 
@@ -519,11 +519,9 @@ class DetailHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          MeetingPhoto(
+          MeetingImageGallery(
             meeting: meeting,
             height: 300,
-            borderRadius: 0,
-            showIcon: false,
           ),
           DecoratedBox(
             decoration: BoxDecoration(
