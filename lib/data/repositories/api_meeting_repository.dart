@@ -222,17 +222,22 @@ class ApiMeetingRepository extends MeetingRepository {
 
   @override
   Future<Meeting> updateMeetingDetails(
-    int meetingId, {
-    required String title,
-    required String description,
-    required int capacity,
-  }) async {
+    int meetingId,
+    UpdateMeetingInput input,
+  ) async {
     final response = await _apiClient.patchJson(
       '/api/v1/meetings/$meetingId',
       body: {
-        'title': title.trim(),
-        'description': description.trim(),
-        'capacity': capacity,
+        'title': input.title.trim(),
+        'category': input.category.trim(),
+        'locationName': input.locationName.trim(),
+        'address': input.address.trim(),
+        'latitude': input.latitude,
+        'longitude': input.longitude,
+        'scheduledAt': _formatApiDateTime(input.scheduledAt),
+        'capacity': input.capacity,
+        'description': input.description.trim(),
+        'imageUrls': input.imageUrls,
       },
     );
     _ensureSuccess(response);

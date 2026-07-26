@@ -61,11 +61,9 @@ abstract class MeetingRepository {
   }
 
   Future<Meeting> updateMeetingDetails(
-    int meetingId, {
-    required String title,
-    required String description,
-    required int capacity,
-  }) {
+    int meetingId,
+    UpdateMeetingInput input,
+  ) {
     throw UnimplementedError();
   }
 
@@ -112,6 +110,32 @@ class CreateMeetingInput {
     required this.capacity,
     required this.description,
     this.imageUrls = const [],
+  });
+
+  final String title;
+  final String category;
+  final String locationName;
+  final String address;
+  final double latitude;
+  final double longitude;
+  final DateTime scheduledAt;
+  final int capacity;
+  final String description;
+  final List<String> imageUrls;
+}
+
+class UpdateMeetingInput {
+  const UpdateMeetingInput({
+    required this.title,
+    required this.category,
+    required this.locationName,
+    required this.address,
+    required this.latitude,
+    required this.longitude,
+    required this.scheduledAt,
+    required this.capacity,
+    required this.description,
+    required this.imageUrls,
   });
 
   final String title;

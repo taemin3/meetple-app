@@ -1,127 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../core/network/api_client.dart';
+import '../../app/app_dependencies.dart';
+import '../../core/theme/app_colors.dart';
+import '../../data/repositories/category_repository.dart';
+import '../../data/repositories/image_upload_repository.dart';
+import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../models/meeting.dart';
+import '../create_meeting/create_meeting_page.dart';
 
 class MeetingEditPage extends StatefulWidget {
   const MeetingEditPage({
     super.key,
     required this.meeting,
     required this.meetingRepository,
+    this.categoryRepository,
+    this.locationRepository,
+    this.imageUploadRepository,
+    this.imagePicker,
   });
 
   final Meeting meeting;
   final MeetingRepository meetingRepository;
+  final CategoryRepository? categoryRepository;
+  final LocationRepository? locationRepository;
+  final ImageUploadRepository? imageUploadRepository;
+  final ImagePicker? imagePicker;
 
   @override
   State<MeetingEditPage> createState() => _MeetingEditPageState();
 }
 
 class _MeetingEditPageState extends State<MeetingEditPage> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _titleController;
-  late final TextEditingController _descriptionController;
-  late final TextEditingController _capacityController;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(text: widget.meeting.title);
-    _descriptionController =
-        TextEditingController(text: widget.meeting.description);
-    _capacityController =
-        TextEditingController(text: widget.meeting.capacity.toString());
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    _capacityController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (!_formKey.currentState!.validate() || _saving) return;
-    setState(() => _saving = true);
-    try {
-      final updated = await widget.meetingRepository.updateMeetingDetails(
-        widget.meeting.id!,
-        title: _titleController.text,
-        description: _descriptionController.text,
-        capacity: int.parse(_capacityController.text),
-      );
-      if (mounted) Navigator.of(context).pop(updated);
-    } on Exception catch (error) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      final message = error is ApiException ? error.message : '모임을 수정하지 못했습니다.';
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
+  late final CategoryRepository _categoryRepository =
+      widget.categoryRepository ?? createCategoryRepository();
+  late final LocationRepository _locationRepository =
+      widget.locationRepository ?? createLocationRepository();
+  late final ImageUploadRepository _imageUploadRepository =
+      widget.imageUploadRepository ?? createImageUploadRepository();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('모임 수정')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            TextFormField(
-              controller: _titleController,
-              maxLength: 50,
-              decoration: const InputDecoration(
-                labelText: '모임 제목',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) =>
-                  value == null || value.trim().isEmpty ? '제목을 입력해 주세요.' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              maxLength: 1000,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: '모임 소개',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) => value == null || value.trim().isEmpty
-                  ? '모임 소개를 입력해 주세요.'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _capacityController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '모집 정원',
-                border: OutlineInputBorder(),
-              ),
-              validator: (value) {
-                final capacity = int.tryParse(value ?? '');
-                final minimumCapacity =
-                    widget.meeting.joined > 2 ? widget.meeting.joined : 2;
-                if (capacity == null || capacity < minimumCapacity) {
-                  return widget.meeting.joined > 2
-                      ? '현재 참여 인원 이상으로 입력해 주세요.'
-                      : '정원은 최소 2명 이상이어야 합니다.';
-                }
-                if (capacity > 100) return '정원은 100명 이하여야 합니다.';
-                return null;
-              },
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: Text(_saving ? '저장 중...' : '저장'),
-            ),
-          ],
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: MeetingFormPage(
+          meetingRepository: widget.meetingRepository,
+          categoryRepository: _categoryRepository,
+          locationRepository: _locationRepository,
+          imageUploadRepository: _imageUploadRepository,
+          initialMeeting: widget.meeting,
+          imagePicker: widget.imagePicker,
         ),
       ),
     );

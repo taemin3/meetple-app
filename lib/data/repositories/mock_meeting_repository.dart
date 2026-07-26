@@ -141,16 +141,23 @@ class MockMeetingRepository extends MeetingRepository {
 
   @override
   Future<Meeting> updateMeetingDetails(
-    int meetingId, {
-    required String title,
-    required String description,
-    required int capacity,
-  }) async {
+    int meetingId,
+    UpdateMeetingInput input,
+  ) async {
     final meeting = mockMeetings.first;
     return meeting.copyWith(
-      title: title,
-      description: description,
-      capacity: capacity,
+      title: input.title,
+      category: input.category,
+      tags: [input.category],
+      area: input.locationName,
+      address: input.address,
+      latitude: input.latitude,
+      longitude: input.longitude,
+      scheduledAt: input.scheduledAt,
+      description: input.description,
+      capacity: input.capacity,
+      thumbnailImageUrl: input.imageUrls.isEmpty ? null : input.imageUrls.first,
+      imageUrls: input.imageUrls,
     );
   }
 
