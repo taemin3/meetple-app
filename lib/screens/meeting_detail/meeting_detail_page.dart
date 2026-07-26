@@ -32,7 +32,13 @@ class MeetingDetailPage extends StatefulWidget {
 class _MeetingDetailPageState extends State<MeetingDetailPage> {
   MeetingEngagement? _engagement;
   bool _isLoading = true;
+  bool _engagementLoadFailed = false;
   bool _isBusy = false;
+  bool _isFavoriteBusy = false;
+
+  bool get _isClosed =>
+      widget.meeting.status == 'COMPLETED' ||
+      widget.meeting.status == 'CANCELED';
 
   @override
   void initState() {
@@ -41,6 +47,10 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
   }
 
   Future<void> _loadEngagement() async {
+    setState(() {
+      _isLoading = true;
+      _engagementLoadFailed = false;
+    });
     final meetingId = widget.meeting.id;
     if (meetingId == null) {
       setState(() {
@@ -60,10 +70,15 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
       setState(() {
         _engagement = engagement;
         _isLoading = false;
+        _engagementLoadFailed = false;
       });
     } on Exception catch (error) {
       if (!mounted) return;
-      setState(() => _isLoading = false);
+      setState(() {
+        _engagement = null;
+        _isLoading = false;
+        _engagementLoadFailed = true;
+      });
       _showError(error);
     }
   }
@@ -71,11 +86,17 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
   Future<void> _toggleFavorite() async {
     final meetingId = widget.meeting.id;
     final engagement = _engagement;
-    if (meetingId == null || engagement == null || engagement.isHost) return;
+    if (meetingId == null ||
+        engagement == null ||
+        engagement.isHost ||
+        _isFavoriteBusy) {
+      return;
+    }
 
     final next = !engagement.isBookmarked;
     setState(() {
       _engagement = engagement.copyWith(isBookmarked: next);
+      _isFavoriteBusy = true;
     });
     try {
       await widget.meetingRepository.setBookmarked(meetingId, next);
@@ -85,6 +106,10 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
         _engagement = engagement;
       });
       _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _isFavoriteBusy = false);
+      }
     }
   }
 
@@ -241,10 +266,15 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     if (!mounted || action == null) return;
     switch (action) {
       case 'complete':
-        await _runAction(
+        final succeeded = await _runAction(
           () => widget.meetingRepository.completeMeeting(widget.meeting.id!),
           successMessage: '모임을 완료 처리했습니다.',
         );
+        if (succeeded && mounted) {
+          Navigator.of(context).pop(
+            widget.meeting.copyWith(status: 'COMPLETED'),
+          );
+        }
       case 'cancel':
         await _cancelMeeting();
       case 'delete':
@@ -282,10 +312,18 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     );
     controller.dispose();
     if (reason == null || !mounted) return;
-    await _runAction(
+    final succeeded = await _runAction(
       () => widget.meetingRepository.cancelMeeting(widget.meeting.id!, reason),
       successMessage: '모임을 취소했습니다.',
     );
+    if (succeeded && mounted) {
+      Navigator.of(context).pop(
+        widget.meeting.copyWith(
+          status: 'CANCELED',
+          cancelReason: reason,
+        ),
+      );
+    }
   }
 
   Future<void> _deleteMeeting() async {
@@ -307,29 +345,32 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _runAction(
+    final succeeded = await _runAction(
       () => widget.meetingRepository.deleteMeeting(widget.meeting.id!),
       successMessage: '모임을 삭제했습니다.',
     );
-    if (mounted) Navigator.of(context).pop(true);
+    if (succeeded && mounted) Navigator.of(context).pop(true);
   }
 
-  Future<void> _runAction(
+  Future<bool> _runAction(
     Future<void> Function() action, {
     required String successMessage,
   }) async {
-    if (_isBusy) return;
+    if (_isBusy) return false;
     setState(() => _isBusy = true);
     try {
       await action();
-      if (!mounted) return;
-      setState(() => _isBusy = false);
+      if (!mounted) return true;
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(successMessage)));
+      return true;
     } on Exception catch (error) {
-      if (!mounted) return;
-      setState(() => _isBusy = false);
-      _showError(error);
+      if (mounted) _showError(error);
+      return false;
+    } finally {
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
     }
   }
 
@@ -396,25 +437,38 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
           DetailFloatingHeader(
             isFavorite: engagement?.isBookmarked == true,
             isHost: isHost,
-            onFavoritePressed: _toggleFavorite,
-            onHostMenuPressed: _showHostMenu,
+            showAction: engagement != null && (!isHost || !_isClosed),
+            onFavoritePressed: _isFavoriteBusy ? null : _toggleFavorite,
+            onHostMenuPressed: _isBusy ? null : _showHostMenu,
           ),
         ],
       ),
       bottomNavigationBar: _isLoading
           ? const SizedBox(height: 84)
-          : isHost
-              ? HostDetailBottomBar(
-                  onEditPressed: _openEditMeeting,
-                  onManagePressed: _openParticipationManagement,
+          : _engagementLoadFailed
+              ? DetailUnavailableBottomBar(
+                  label: '참여 상태를 불러오지 못했습니다.',
+                  actionLabel: '다시 시도',
+                  onPressed: _loadEngagement,
                 )
-              : DetailBottomBar(
-                  isFavorite: engagement?.isBookmarked == true,
-                  onFavoritePressed: _toggleFavorite,
-                  participationLabel: _participationLabel,
-                  onParticipationPressed: _participationAction,
-                  isBusy: _isBusy,
-                ),
+              : isHost
+                  ? _isClosed
+                      ? const DetailUnavailableBottomBar(
+                          label: '종료된 모임은 관리할 수 없습니다.',
+                        )
+                      : HostDetailBottomBar(
+                          onEditPressed: _isBusy ? null : _openEditMeeting,
+                          onManagePressed:
+                              _isBusy ? null : _openParticipationManagement,
+                        )
+                  : DetailBottomBar(
+                      isFavorite: engagement?.isBookmarked == true,
+                      onFavoritePressed:
+                          _isFavoriteBusy ? null : _toggleFavorite,
+                      participationLabel: _participationLabel,
+                      onParticipationPressed: _participationAction,
+                      isBusy: _isBusy,
+                    ),
     );
   }
 
@@ -532,14 +586,16 @@ class DetailFloatingHeader extends StatelessWidget {
     super.key,
     required this.isFavorite,
     required this.isHost,
+    required this.showAction,
     required this.onFavoritePressed,
     required this.onHostMenuPressed,
   });
 
   final bool isFavorite;
   final bool isHost;
-  final VoidCallback onFavoritePressed;
-  final VoidCallback onHostMenuPressed;
+  final bool showAction;
+  final VoidCallback? onFavoritePressed;
+  final VoidCallback? onHostMenuPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -566,16 +622,17 @@ class DetailFloatingHeader extends StatelessWidget {
                   onPressed: () => Navigator.of(context).pop(),
                 ),
                 const Spacer(),
-                TransparentHeroIconButton(
-                  key: const Key('meeting-detail-hero-favorite-button'),
-                  icon: isHost
-                      ? Icons.more_vert_rounded
-                      : isFavorite
-                          ? Icons.bookmark_rounded
-                          : Icons.bookmark_border_rounded,
-                  tooltip: isHost ? '모임 관리' : '찜하기',
-                  onPressed: isHost ? onHostMenuPressed : onFavoritePressed,
-                ),
+                if (showAction)
+                  TransparentHeroIconButton(
+                    key: const Key('meeting-detail-hero-favorite-button'),
+                    icon: isHost
+                        ? Icons.more_vert_rounded
+                        : isFavorite
+                            ? Icons.bookmark_rounded
+                            : Icons.bookmark_border_rounded,
+                    tooltip: isHost ? '모임 관리' : '찜하기',
+                    onPressed: isHost ? onHostMenuPressed : onFavoritePressed,
+                  ),
               ],
             ),
           ),
@@ -595,7 +652,7 @@ class TransparentHeroIconButton extends StatelessWidget {
 
   final IconData icon;
   final String tooltip;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -605,6 +662,7 @@ class TransparentHeroIconButton extends StatelessWidget {
       style: IconButton.styleFrom(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
+        disabledForegroundColor: Colors.white54,
         shadowColor: Colors.transparent,
       ),
       icon: Icon(
@@ -1259,7 +1317,7 @@ class DetailBottomBar extends StatelessWidget {
   });
 
   final bool isFavorite;
-  final VoidCallback onFavoritePressed;
+  final VoidCallback? onFavoritePressed;
   final VoidCallback? onParticipationPressed;
   final String participationLabel;
   final bool isBusy;
@@ -1327,8 +1385,8 @@ class HostDetailBottomBar extends StatelessWidget {
     required this.onManagePressed,
   });
 
-  final VoidCallback onEditPressed;
-  final VoidCallback onManagePressed;
+  final VoidCallback? onEditPressed;
+  final VoidCallback? onManagePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -1358,6 +1416,54 @@ class HostDetailBottomBar extends StatelessWidget {
                 onPressed: onManagePressed,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DetailUnavailableBottomBar extends StatelessWidget {
+  const DetailUnavailableBottomBar({
+    super.key,
+    required this.label,
+    this.actionLabel,
+    this.onPressed,
+  });
+
+  final String label;
+  final String? actionLabel;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: AppColors.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 14),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            if (actionLabel != null) ...[
+              const SizedBox(width: 12),
+              TextButton(
+                onPressed: onPressed,
+                child: Text(actionLabel!),
+              ),
+            ],
           ],
         ),
       ),

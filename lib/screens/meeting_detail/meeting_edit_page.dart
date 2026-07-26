@@ -105,8 +105,12 @@ class _MeetingEditPageState extends State<MeetingEditPage> {
               ),
               validator: (value) {
                 final capacity = int.tryParse(value ?? '');
-                if (capacity == null || capacity < widget.meeting.joined) {
-                  return '현재 참여 인원 이상으로 입력해 주세요.';
+                final minimumCapacity =
+                    widget.meeting.joined > 2 ? widget.meeting.joined : 2;
+                if (capacity == null || capacity < minimumCapacity) {
+                  return widget.meeting.joined > 2
+                      ? '현재 참여 인원 이상으로 입력해 주세요.'
+                      : '정원은 최소 2명 이상이어야 합니다.';
                 }
                 if (capacity > 100) return '정원은 100명 이하여야 합니다.';
                 return null;

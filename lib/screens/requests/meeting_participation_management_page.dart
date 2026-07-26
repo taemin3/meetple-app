@@ -27,11 +27,13 @@ class _MeetingParticipationManagementPageState
   static const _labels = ['승인 대기', '승인', '거절', '취소'];
 
   int _selectedIndex = 0;
+  late int _joined;
   late Future<List<MeetingParticipation>> _future;
 
   @override
   void initState() {
     super.initState();
+    _joined = widget.meeting.joined;
     _load();
   }
 
@@ -60,7 +62,12 @@ class _MeetingParticipationManagementPageState
         approve: approve,
       );
       if (!mounted) return;
-      setState(_load);
+      setState(() {
+        if (approve && _joined < widget.meeting.capacity) {
+          _joined += 1;
+        }
+        _load();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(approve ? '참여를 승인했습니다.' : '참여를 거절했습니다.')),
       );
@@ -168,7 +175,7 @@ class _MeetingParticipationManagementPageState
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: FilledButton(
-                                      onPressed: widget.meeting.joined >=
+                                      onPressed: _joined >=
                                               widget.meeting.capacity
                                           ? null
                                           : () => _review(item, approve: true),

@@ -255,16 +255,30 @@ class ApiMeetingRepository extends MeetingRepository {
 
   @override
   Future<List<AppNotification>> getNotifications() async {
-    final response = await _apiClient.getJson(
-      '/api/v1/notifications',
-      queryParameters: const {'size': '100'},
-    );
-    _ensureSuccess(response);
-    final data = _readMap(response['data'], 'data');
-    return [
-      for (final item in _readList(data['content'], 'data.content'))
-        _notificationFromJson(_readMap(item, 'data.content[]')),
-    ];
+    final notifications = <AppNotification>[];
+    var page = 0;
+
+    while (true) {
+      final response = await _apiClient.getJson(
+        '/api/v1/notifications',
+        queryParameters: {'page': '$page', 'size': '100'},
+      );
+      _ensureSuccess(response);
+      final data = _readMap(response['data'], 'data');
+      notifications.addAll([
+        for (final item in _readList(data['content'], 'data.content'))
+          _notificationFromJson(_readMap(item, 'data.content[]')),
+      ]);
+
+      final totalPages = _readInt(data['totalPages']);
+      final isLast = data['last'] == true;
+      if (isLast || totalPages == 0 || page + 1 >= totalPages) {
+        break;
+      }
+      page += 1;
+    }
+
+    return notifications;
   }
 
   @override

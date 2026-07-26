@@ -269,10 +269,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 bottom: sheetHeight + 18,
                 child: MeetingMapPreviewCard(
                   meeting: _selectedMeeting!,
-                  onTap: () => AppRoutes.openMeetingDetail(
-                    context,
-                    _selectedMeeting!,
-                  ),
+                  onTap: () => _openMeetingDetail(_selectedMeeting!),
                 ),
               ),
             AnimatedPositioned(
@@ -293,6 +290,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 onViewAll: visibleMeetings.isEmpty
                     ? null
                     : () => _openMeetingList(visibleMeetings),
+                onMeetingTap: _openMeetingDetail,
               ),
             ),
           ],
@@ -306,6 +304,17 @@ class _DiscoverPageState extends State<DiscoverPage> {
     if (!_requestedInitialLocation && _isLiveMapEnabled) {
       _requestedInitialLocation = true;
       unawaited(_moveToCurrentLocation(showFailureMessage: false));
+    }
+  }
+
+  Future<void> _openMeetingDetail(Meeting meeting) async {
+    final result = await AppRoutes.openMeetingDetail<Object>(
+      context,
+      meeting,
+      meetingRepository: widget.meetingRepository,
+    );
+    if (result != null && mounted) {
+      await _loadMeetingsAt(_searchCenter, zoom: _searchZoom);
     }
   }
 
@@ -647,10 +656,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                         meeting: meeting,
                         onTap: () {
                           Navigator.of(bottomSheetContext).pop();
-                          AppRoutes.openMeetingDetail(
-                            this.context,
-                            meeting,
-                          );
+                          unawaited(_openMeetingDetail(meeting));
                         },
                       );
                     },
@@ -955,6 +961,7 @@ class NearbyMeetingSheet extends StatelessWidget {
     required this.onCollapsedChanged,
     required this.onRetry,
     required this.onViewAll,
+    required this.onMeetingTap,
   });
 
   final List<Meeting> meetings;
@@ -964,6 +971,7 @@ class NearbyMeetingSheet extends StatelessWidget {
   final ValueChanged<bool> onCollapsedChanged;
   final VoidCallback onRetry;
   final VoidCallback? onViewAll;
+  final ValueChanged<Meeting> onMeetingTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1073,6 +1081,7 @@ class NearbyMeetingSheet extends StatelessWidget {
             'nearby-meeting-card-${meeting.id ?? 'index-$index'}',
           ),
           meeting: meeting,
+          onTap: () => onMeetingTap(meeting),
         );
       },
     );
@@ -1080,9 +1089,14 @@ class NearbyMeetingSheet extends StatelessWidget {
 }
 
 class MapMeetingCard extends StatelessWidget {
-  const MapMeetingCard({super.key, required this.meeting});
+  const MapMeetingCard({
+    super.key,
+    required this.meeting,
+    required this.onTap,
+  });
 
   final Meeting meeting;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1107,7 +1121,7 @@ class MapMeetingCard extends StatelessWidget {
                 side: const BorderSide(color: Color(0xFFF0EDF7)),
               ),
               child: InkWell(
-                onTap: () => AppRoutes.openMeetingDetail(context, meeting),
+                onTap: onTap,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

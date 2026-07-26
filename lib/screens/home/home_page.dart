@@ -59,6 +59,17 @@ class _HomePageState extends State<HomePage> {
     setState(_loadMeetings);
   }
 
+  Future<void> _openMeetingDetail(Meeting meeting) async {
+    final result = await AppRoutes.openMeetingDetail<Object>(
+      context,
+      meeting,
+      meetingRepository: widget.meetingRepository,
+    );
+    if (result != null && mounted) {
+      _reloadMeetings();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -94,7 +105,10 @@ class _HomePageState extends State<HomePage> {
             return Column(
               children: [
                 for (final meeting in meetings.take(3))
-                  HomeMeetingTile(meeting: meeting),
+                  HomeMeetingTile(
+                    meeting: meeting,
+                    onTap: () => _openMeetingDetail(meeting),
+                  ),
               ],
             );
           },
@@ -239,9 +253,14 @@ class CategoryShortcutRow extends StatelessWidget {
 }
 
 class HomeMeetingTile extends StatelessWidget {
-  const HomeMeetingTile({super.key, required this.meeting});
+  const HomeMeetingTile({
+    super.key,
+    required this.meeting,
+    required this.onTap,
+  });
 
   final Meeting meeting;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -254,7 +273,7 @@ class HomeMeetingTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         child: InkWell(
           borderRadius: BorderRadius.circular(18),
-          onTap: () => AppRoutes.openMeetingDetail(context, meeting),
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
