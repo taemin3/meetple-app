@@ -86,6 +86,7 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _openViewer(context, imageUrls, index),
                 child: _GalleryNetworkImage(
+                  key: ValueKey('meeting-gallery-image-page-$index'),
                   imageUrl: imageUrls[index],
                 ),
               );
@@ -260,11 +261,15 @@ class _ZoomableNetworkImage extends StatefulWidget {
   State<_ZoomableNetworkImage> createState() => _ZoomableNetworkImageState();
 }
 
-class _ZoomableNetworkImageState extends State<_ZoomableNetworkImage> {
+class _ZoomableNetworkImageState extends State<_ZoomableNetworkImage>
+    with AutomaticKeepAliveClientMixin<_ZoomableNetworkImage> {
   final TransformationController _transformationController =
       TransformationController();
   Offset? _doubleTapPosition;
   bool _isZoomed = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -274,6 +279,7 @@ class _ZoomableNetworkImageState extends State<_ZoomableNetworkImage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onDoubleTapDown: (details) => _doubleTapPosition = details.localPosition,
@@ -340,17 +346,28 @@ class _ZoomableNetworkImageState extends State<_ZoomableNetworkImage> {
   }
 }
 
-class _GalleryNetworkImage extends StatelessWidget {
+class _GalleryNetworkImage extends StatefulWidget {
   const _GalleryNetworkImage({
+    super.key,
     required this.imageUrl,
   });
 
   final String imageUrl;
 
   @override
+  State<_GalleryNetworkImage> createState() => _GalleryNetworkImageState();
+}
+
+class _GalleryNetworkImageState extends State<_GalleryNetworkImage>
+    with AutomaticKeepAliveClientMixin<_GalleryNetworkImage> {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Image.network(
-      imageUrl,
+      widget.imageUrl,
       width: double.infinity,
       fit: BoxFit.cover,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {

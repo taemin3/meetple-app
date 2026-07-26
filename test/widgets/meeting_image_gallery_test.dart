@@ -42,6 +42,11 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('1 / 2'), findsOneWidget);
+    final firstGalleryPage = find.byKey(
+      const ValueKey('meeting-gallery-image-page-0'),
+      skipOffstage: false,
+    );
+    final firstGalleryPageElement = tester.element(firstGalleryPage);
 
     await tester.drag(
       find.byKey(const Key('meeting-detail-image-gallery')),
@@ -50,6 +55,7 @@ void main() {
     await tester.pumpAndSettle();
     _clearExpectedImageErrors(tester);
     expect(find.text('2 / 2'), findsOneWidget);
+    expect(tester.element(firstGalleryPage), same(firstGalleryPageElement));
 
     await tester.drag(
       find.byKey(const Key('meeting-detail-image-gallery')),
@@ -58,6 +64,7 @@ void main() {
     await tester.pumpAndSettle();
     _clearExpectedImageErrors(tester);
     expect(find.text('1 / 2'), findsOneWidget);
+    expect(tester.element(firstGalleryPage), same(firstGalleryPageElement));
 
     await tester.tap(
       find.byKey(const ValueKey('meeting-detail-image-0')),
@@ -71,6 +78,11 @@ void main() {
       tester.getSize(find.byKey(const Key('meeting-image-viewer-pages'))),
       tester.getSize(find.byKey(const Key('meeting-image-viewer'))),
     );
+    final firstViewerPage = find.byKey(
+      const ValueKey('meeting-image-viewer-image-0'),
+      skipOffstage: false,
+    );
+    final firstViewerPageElement = tester.element(firstViewerPage);
 
     await tester.drag(
       find.byKey(const Key('meeting-image-viewer-pages')),
@@ -79,6 +91,7 @@ void main() {
     await tester.pumpAndSettle();
     _clearExpectedImageErrors(tester);
     expect(find.text('2 / 2'), findsOneWidget);
+    expect(tester.element(firstViewerPage), same(firstViewerPageElement));
 
     final interactiveViewerFinder =
         find.byKey(const Key('meeting-image-interactive-viewer'));
