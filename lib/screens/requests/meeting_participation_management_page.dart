@@ -5,6 +5,8 @@ import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
+import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/secondary_button.dart';
 
 class MeetingParticipationManagementPage extends StatefulWidget {
   const MeetingParticipationManagementPage({
@@ -447,47 +449,22 @@ class _ParticipationApplicantCard extends StatelessWidget {
               children: [
                 SizedBox(
                   width: 76,
-                  height: 40,
-                  child: OutlinedButton(
+                  child: SecondaryButton(
+                    label: '거절',
                     onPressed: isReviewing ? null : onReject,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.muted,
-                      side: const BorderSide(color: AppColors.line),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      '거절',
-                      style: TextStyle(fontWeight: FontWeight.w900),
-                    ),
+                    height: 40,
+                    borderRadius: 10,
                   ),
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 88,
-                  height: 40,
-                  child: FilledButton(
+                  child: PrimaryGradientButton(
+                    label: isReviewing ? '처리 중' : '수락',
                     onPressed: isReviewing || !canApprove ? null : onApprove,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      disabledBackgroundColor: AppColors.line,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: isReviewing
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Text(
-                            '수락',
-                            style: TextStyle(fontWeight: FontWeight.w900),
-                          ),
+                    height: 40,
+                    borderRadius: 10,
+                    showShadow: false,
                   ),
                 ),
               ],

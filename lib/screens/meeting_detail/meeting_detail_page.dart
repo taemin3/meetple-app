@@ -14,6 +14,7 @@ import 'meeting_edit_page.dart';
 import '../../widgets/map/meeting_location_map.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/secondary_button.dart';
 
 class MeetingDetailPage extends StatefulWidget {
   const MeetingDetailPage({
@@ -1402,11 +1403,11 @@ class HostDetailBottomBar extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
+              width: 78,
               height: 56,
-              child: OutlinedButton.icon(
+              child: SecondaryButton(
+                label: '수정',
                 onPressed: onEditPressed,
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('수정'),
               ),
             ),
             const SizedBox(width: 10),
