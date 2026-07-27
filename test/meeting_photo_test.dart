@@ -32,6 +32,16 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('meeting-photo-fallback')), findsNothing);
+
+    const loadedChild = SizedBox(key: Key('loaded-meeting-photo'));
+    final loadedFrame = image.frameBuilder!(
+      tester.element(find.byType(MeetingPhoto)),
+      loadedChild,
+      0,
+      false,
+    );
+    expect(loadedFrame, same(loadedChild));
+    expect(loadedFrame, isNot(isA<AnimatedSwitcher>()));
   });
 
   test('uses the first image URL when a thumbnail is unavailable', () {

@@ -29,21 +29,8 @@ class NetworkImageWithSkeleton extends StatelessWidget {
       height: height,
       fit: fit,
       frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded) {
-          return child;
-        }
-
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 180),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeOut,
-          child: frame == null
-              ? skeleton
-              : KeyedSubtree(
-                  key: ValueKey('network-image-loaded-$imageUrl'),
-                  child: child,
-                ),
-        );
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return skeleton;
       },
       errorBuilder: (_, __, ___) => errorWidget,
     );
