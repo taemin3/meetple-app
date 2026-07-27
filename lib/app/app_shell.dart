@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
@@ -11,6 +13,7 @@ import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
+import '../models/meeting.dart';
 import '../screens/chat/chat_page.dart';
 import '../screens/discover/discover_page.dart';
 import '../screens/home/home_page.dart';
@@ -44,6 +47,8 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   AppTab currentTab = AppTab.home;
   late AuthRepository _authRepository;
+  int _homeRefreshToken = 0;
+  int _discoverRefreshToken = 0;
 
   @override
   void initState() {
@@ -132,17 +137,38 @@ class _AppShellState extends State<AppShell> {
 
   void _selectDestination(int index) {
     if (index == 2) {
-      AppRoutes.openCreateMeeting<void>(
-        context,
-        meetingRepository: widget.meetingRepository,
-        categoryRepository: widget.categoryRepository,
-        locationRepository: widget.locationRepository,
-        imageUploadRepository: widget.imageUploadRepository,
-      );
+      unawaited(_openCreateMeeting());
       return;
     }
 
     _selectTab(_tabAt(index));
+  }
+
+  Future<void> _openCreateMeeting() async {
+    final createdMeeting = await AppRoutes.openCreateMeeting<Meeting>(
+      context,
+      meetingRepository: widget.meetingRepository,
+      categoryRepository: widget.categoryRepository,
+      locationRepository: widget.locationRepository,
+      imageUploadRepository: widget.imageUploadRepository,
+    );
+    if (createdMeeting == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      switch (currentTab) {
+        case AppTab.home:
+          _homeRefreshToken++;
+          break;
+        case AppTab.discover:
+          _discoverRefreshToken++;
+          break;
+        case AppTab.chat:
+        case AppTab.profile:
+          break;
+      }
+    });
   }
 
   int _indexOfTab(AppTab tab) {
@@ -171,11 +197,13 @@ class _AppShellState extends State<AppShell> {
           meetingRepository: widget.meetingRepository,
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,
+          refreshToken: _homeRefreshToken,
         );
       case AppTab.discover:
         return DiscoverPage(
           meetingRepository: widget.meetingRepository,
           categoryRepository: widget.categoryRepository,
+          refreshToken: _discoverRefreshToken,
         );
       case AppTab.chat:
         return const ChatPage();

@@ -411,7 +411,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     setState(() => _isSubmitting = true);
 
     Object? submitError;
-    Meeting? updatedMeeting;
+    Meeting? savedMeeting;
     try {
       final localImages = [
         for (final image in _selectedImages)
@@ -433,7 +433,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
       ];
 
       if (widget.initialMeeting case final meeting?) {
-        updatedMeeting = await widget.meetingRepository.updateMeetingDetails(
+        savedMeeting = await widget.meetingRepository.updateMeetingDetails(
           meeting.id!,
           UpdateMeetingInput(
             title: _titleController.text.trim(),
@@ -449,7 +449,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
           ),
         );
       } else {
-        await widget.meetingRepository.createMeeting(
+        savedMeeting = await widget.meetingRepository.createMeeting(
           CreateMeetingInput(
             title: _titleController.text.trim(),
             category: category,
@@ -480,19 +480,12 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     }
 
     if (widget.isEditing) {
-      Navigator.of(context).pop(updatedMeeting);
+      Navigator.of(context).pop(savedMeeting);
       return;
     }
 
     _showSnackBar('모임을 만들었습니다.');
-
-    final navigation = AppNavigation.maybeOf(context);
-    if (navigation != null) {
-      navigation.selectTab(AppTab.home);
-      return;
-    }
-
-    Navigator.of(context).maybePop();
+    Navigator.of(context).pop(savedMeeting);
   }
 
   Future<void> _pickImages() async {

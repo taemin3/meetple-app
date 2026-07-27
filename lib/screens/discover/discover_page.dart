@@ -23,10 +23,12 @@ class DiscoverPage extends StatefulWidget {
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
     this.categoryRepository = const MockCategoryRepository(),
+    this.refreshToken = 0,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
+  final int refreshToken;
 
   @override
   State<DiscoverPage> createState() => _DiscoverPageState();
@@ -98,7 +100,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   void didUpdateWidget(covariant DiscoverPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.meetingRepository != widget.meetingRepository) {
+    if (oldWidget.meetingRepository != widget.meetingRepository ||
+        oldWidget.refreshToken != widget.refreshToken) {
       unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
     }
     if (oldWidget.categoryRepository != widget.categoryRepository) {
