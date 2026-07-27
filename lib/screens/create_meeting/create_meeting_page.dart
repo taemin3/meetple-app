@@ -90,6 +90,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
   LocationSearchResult? _selectedLocation;
   bool _isSubmitting = false;
   bool _isPickingImages = false;
+  bool _imagesChanged = false;
   final List<_SelectedMeetingImage> _selectedImages = [];
 
   @override
@@ -409,7 +410,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             scheduledAt: _scheduledAt!,
             capacity: int.parse(_capacityController.text.trim()),
             description: _descriptionController.text.trim(),
-            imageUrls: imageUrls,
+            imageUrls: _imagesChanged ? imageUrls : null,
           ),
         );
       } else {
@@ -516,6 +517,9 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     setState(() {
       _isPickingImages = false;
       _selectedImages.addAll(nextImages);
+      if (nextImages.isNotEmpty) {
+        _imagesChanged = true;
+      }
     });
 
     if (pickError != null) {
@@ -587,6 +591,9 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     setState(() {
       _isPickingImages = false;
       _selectedImages.addAll(nextImages);
+      if (nextImages.isNotEmpty) {
+        _imagesChanged = true;
+      }
     });
 
     if (restoreError != null) {
@@ -609,7 +616,10 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
       return;
     }
 
-    setState(() => _selectedImages.removeAt(index));
+    setState(() {
+      _selectedImages.removeAt(index);
+      _imagesChanged = true;
+    });
   }
 
   String? _required(String? value, String message) {

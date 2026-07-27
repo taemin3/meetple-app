@@ -145,6 +145,7 @@ class MockMeetingRepository extends MeetingRepository {
     UpdateMeetingInput input,
   ) async {
     final meeting = mockMeetings.first;
+    final imageUrls = input.imageUrls;
     return meeting.copyWith(
       title: input.title,
       category: input.category,
@@ -153,11 +154,16 @@ class MockMeetingRepository extends MeetingRepository {
       address: input.address,
       latitude: input.latitude,
       longitude: input.longitude,
+      date: '${input.scheduledAt.month}/${input.scheduledAt.day}',
+      time:
+          '${_twoDigits(input.scheduledAt.hour)}:${_twoDigits(input.scheduledAt.minute)}',
       scheduledAt: input.scheduledAt,
       description: input.description,
       capacity: input.capacity,
-      thumbnailImageUrl: input.imageUrls.isEmpty ? null : input.imageUrls.first,
-      imageUrls: input.imageUrls,
+      thumbnailImageUrl:
+          imageUrls == null || imageUrls.isEmpty ? null : imageUrls.first,
+      clearThumbnailImageUrl: imageUrls != null && imageUrls.isEmpty,
+      imageUrls: imageUrls,
     );
   }
 

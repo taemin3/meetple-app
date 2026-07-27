@@ -24,11 +24,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('신청자 관리'), findsOneWidget);
-    expect(find.text('전체 4'), findsOneWidget);
+    expect(find.text('전체 5'), findsOneWidget);
     expect(find.text('수락 대기 2'), findsOneWidget);
     expect(find.text('수락 완료 1'), findsOneWidget);
     expect(find.text('거절 1'), findsOneWidget);
     expect(find.text('러너 하나'), findsOneWidget);
+    expect(
+      repository.requestedStatuses.take(4),
+      ['PENDING', 'APPROVED', 'REJECTED', 'CANCELED'],
+    );
+
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(find.text('취소한 신청자'), findsOneWidget);
 
     await tester.tap(find.text('수락 대기 2'));
     await tester.pumpAndSettle();
@@ -93,6 +101,7 @@ const _meeting = Meeting(
 
 class _ParticipationManagementRepository extends MockMeetingRepository {
   final List<int> reviewedIds = [];
+  final List<String> requestedStatuses = [];
   final List<MeetingParticipation> _pending = [
     MeetingParticipation(
       id: 1,
@@ -131,15 +140,28 @@ class _ParticipationManagementRepository extends MockMeetingRepository {
       createdAt: DateTime(2026, 7, 27, 18, 10),
     ),
   ];
+  final List<MeetingParticipation> _canceled = [
+    MeetingParticipation(
+      id: 5,
+      memberId: 15,
+      memberNickname: '취소한 신청자',
+      status: ParticipationStatus.canceled,
+      message: '일정이 생겨 취소합니다.',
+      createdAt: DateTime(2026, 7, 27, 18),
+      canceledAt: DateTime(2026, 7, 27, 18, 5),
+    ),
+  ];
 
   @override
   Future<List<MeetingParticipation>> getParticipations(
     int meetingId, {
     String status = 'PENDING',
   }) async {
+    requestedStatuses.add(status);
     return switch (status) {
       'APPROVED' => List.of(_approved),
       'REJECTED' => List.of(_rejected),
+      'CANCELED' => List.of(_canceled),
       _ => List.of(_pending),
     };
   }

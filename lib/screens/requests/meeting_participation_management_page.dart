@@ -59,11 +59,16 @@ class _MeetingParticipationManagementPageState
         widget.meeting.id!,
         status: 'REJECTED',
       ),
+      widget.meetingRepository.getParticipations(
+        widget.meeting.id!,
+        status: 'CANCELED',
+      ),
     ]);
     return {
       ParticipationStatus.pending: results[0],
       ParticipationStatus.approved: results[1],
       ParticipationStatus.rejected: results[2],
+      ParticipationStatus.canceled: results[3],
     };
   }
 
@@ -89,6 +94,7 @@ class _MeetingParticipationManagementPageState
       ...?groupedItems[ParticipationStatus.pending],
       ...?groupedItems[ParticipationStatus.approved],
       ...?groupedItems[ParticipationStatus.rejected],
+      ...?groupedItems[ParticipationStatus.canceled],
     ];
     items.sort((left, right) {
       final leftTime = left.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);

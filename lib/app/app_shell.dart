@@ -72,6 +72,9 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return MeetingRepositoryScope(
       repository: widget.meetingRepository,
+      categoryRepository: widget.categoryRepository,
+      locationRepository: widget.locationRepository,
+      imageUploadRepository: widget.imageUploadRepository,
       child: AppNavigation(
         currentTab: currentTab,
         selectTab: _selectTab,

@@ -360,6 +360,34 @@ void main() {
     });
   });
 
+  test('omits image URLs when edit form did not change images', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {'id': 20},
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    await repository.updateMeetingDetails(
+      20,
+      UpdateMeetingInput(
+        title: '러닝 모임',
+        category: '운동',
+        locationName: '여의도공원',
+        address: '서울 영등포구 여의공원로 68',
+        latitude: 37.5268,
+        longitude: 126.9228,
+        scheduledAt: DateTime(2026, 8, 10, 19, 30),
+        capacity: 12,
+        description: '함께 달려요.',
+      ),
+    );
+
+    expect(apiClient.body, isNot(contains('imageUrls')));
+  });
+
   test('loads every notification page', () async {
     final apiClient = SequencedApiClient(
       responses: [

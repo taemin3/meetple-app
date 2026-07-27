@@ -237,7 +237,7 @@ class ApiMeetingRepository extends MeetingRepository {
         'scheduledAt': _formatApiDateTime(input.scheduledAt),
         'capacity': input.capacity,
         'description': input.description.trim(),
-        'imageUrls': input.imageUrls,
+        if (input.imageUrls case final imageUrls?) 'imageUrls': imageUrls,
       },
     );
     _ensureSuccess(response);

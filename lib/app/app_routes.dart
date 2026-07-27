@@ -75,15 +75,25 @@ abstract final class AppRoutes {
     BuildContext context,
     Meeting meeting, {
     MeetingRepository? meetingRepository,
+    CategoryRepository? categoryRepository,
+    LocationRepository? locationRepository,
+    ImageUploadRepository? imageUploadRepository,
   }) {
+    final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
     return Navigator.of(context).push<T>(
       MaterialPageRoute<T>(
         settings: const RouteSettings(name: AppRouteNames.meetingDetail),
         builder: (_) => MeetingDetailPage(
           meeting: meeting,
           meetingRepository: meetingRepository ??
-              MeetingRepositoryScope.maybeOf(context) ??
+              repositoryScope?.repository ??
               const MockMeetingRepository(),
+          categoryRepository:
+              categoryRepository ?? repositoryScope?.categoryRepository,
+          locationRepository:
+              locationRepository ?? repositoryScope?.locationRepository,
+          imageUploadRepository:
+              imageUploadRepository ?? repositoryScope?.imageUploadRepository,
         ),
       ),
     );

@@ -135,7 +135,7 @@ class UpdateMeetingInput {
     required this.scheduledAt,
     required this.capacity,
     required this.description,
-    required this.imageUrls,
+    this.imageUrls,
   });
 
   final String title;
@@ -147,5 +147,5 @@ class UpdateMeetingInput {
   final DateTime scheduledAt;
   final int capacity;
   final String description;
-  final List<String> imageUrls;
+  final List<String>? imageUrls;
 }

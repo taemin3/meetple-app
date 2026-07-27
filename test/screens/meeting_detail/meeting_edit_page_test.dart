@@ -65,6 +65,7 @@ void main() {
     expect(input.scheduledAt, DateTime(2026, 8, 10, 19, 30));
     expect(input.capacity, 10);
     expect(input.description, '기존 모임 소개');
+    expect(input.imageUrls, isNull);
     expect(find.text('수정 완료: 수정된 러닝 모임'), findsOneWidget);
   });
 
@@ -171,6 +172,7 @@ final _meeting = Meeting(
   fee: '무료',
   rating: 0,
   reviewCount: 0,
+  thumbnailImageUrl: 'https://cdn.example.com/meeting-thumbnail.png',
   scheduledAt: DateTime(2026, 8, 10, 19, 30),
 );
 
@@ -206,7 +208,7 @@ class _CapturingMeetingRepository extends MockMeetingRepository {
       scheduledAt: input.scheduledAt,
       capacity: input.capacity,
       description: input.description,
-      imageUrls: input.imageUrls,
+      imageUrls: input.imageUrls ?? _meeting.imageUrls,
     );
   }
 }
