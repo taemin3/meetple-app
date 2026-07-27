@@ -22,6 +22,8 @@ class MeetingPhoto extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final imageUrl = meeting.primaryImageUrl;
+    final cacheHeight =
+        (height * MediaQuery.devicePixelRatioOf(context)).ceil();
     final fallback = _MeetingPhotoFallback(
       meeting: meeting,
       height: height,
@@ -41,6 +43,7 @@ class MeetingPhoto extends StatelessWidget {
                 width: double.infinity,
                 height: height,
                 fit: BoxFit.cover,
+                cacheHeight: cacheHeight,
                 skeleton: SkeletonBox(
                   key: const Key('meeting-photo-loading-skeleton'),
                   width: double.infinity,

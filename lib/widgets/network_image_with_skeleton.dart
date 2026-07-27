@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 class NetworkImageWithSkeleton extends StatelessWidget {
@@ -10,6 +11,8 @@ class NetworkImageWithSkeleton extends StatelessWidget {
     this.width,
     this.height,
     this.fit,
+    this.cacheWidth,
+    this.cacheHeight,
   });
 
   final String imageUrl;
@@ -19,20 +22,27 @@ class NetworkImageWithSkeleton extends StatelessWidget {
   final double? width;
   final double? height;
   final BoxFit? fit;
+  final int? cacheWidth;
+  final int? cacheHeight;
 
   @override
   Widget build(BuildContext context) {
-    return Image.network(
-      imageUrl,
+    return CachedNetworkImage(
       key: imageKey,
+      imageUrl: imageUrl,
       width: width,
       height: height,
       fit: fit,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded || frame != null) return child;
-        return skeleton;
-      },
-      errorBuilder: (_, __, ___) => errorWidget,
+      memCacheWidth: cacheWidth,
+      memCacheHeight: cacheHeight,
+      maxWidthDiskCache: cacheWidth,
+      maxHeightDiskCache: cacheHeight,
+      useOldImageOnUrlChange: true,
+      placeholderFadeInDuration: Duration.zero,
+      fadeInDuration: Duration.zero,
+      fadeOutDuration: Duration.zero,
+      placeholder: (_, __) => skeleton,
+      errorWidget: (_, __, ___) => errorWidget,
     );
   }
 }
