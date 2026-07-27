@@ -27,6 +27,11 @@ void main() {
     );
     expect(image.image, isA<NetworkImage>());
     expect((image.image as NetworkImage).url, thumbnailUrl);
+    expect(
+      find.byKey(const Key('meeting-photo-loading-skeleton')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('meeting-photo-fallback')), findsNothing);
   });
 
   test('uses the first image URL when a thumbnail is unavailable', () {

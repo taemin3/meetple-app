@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../core/ui/meeting_style.dart';
 import '../models/meeting.dart';
+import 'loading_skeleton.dart';
+import 'network_image_with_skeleton.dart';
 
 class MeetingPhoto extends StatelessWidget {
   const MeetingPhoto({
@@ -33,19 +35,19 @@ class MeetingPhoto extends StatelessWidget {
         height: height,
         child: imageUrl == null
             ? fallback
-            : Image.network(
-                imageUrl,
-                key: const Key('meeting-photo-network'),
+            : NetworkImageWithSkeleton(
+                imageUrl: imageUrl,
+                imageKey: const Key('meeting-photo-network'),
                 width: double.infinity,
                 height: height,
                 fit: BoxFit.cover,
-                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                  if (wasSynchronouslyLoaded || frame != null) {
-                    return child;
-                  }
-                  return fallback;
-                },
-                errorBuilder: (_, __, ___) => fallback,
+                skeleton: SkeletonBox(
+                  key: const Key('meeting-photo-loading-skeleton'),
+                  width: double.infinity,
+                  height: height,
+                  borderRadius: BorderRadius.zero,
+                ),
+                errorWidget: fallback,
               ),
       ),
     );

@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/meeting.dart';
+import 'loading_skeleton.dart';
 import 'meeting_photo.dart';
+import 'network_image_with_skeleton.dart';
 
 class MeetingImageGallery extends StatefulWidget {
   const MeetingImageGallery({
@@ -370,15 +372,30 @@ class _GalleryNetworkImageState extends State<_GalleryNetworkImage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Image.network(
-      widget.imageUrl,
+    return NetworkImageWithSkeleton(
+      imageUrl: widget.imageUrl,
       width: double.infinity,
       fit: BoxFit.cover,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded || frame != null) return child;
-        return const _GalleryImagePlaceholder();
+      skeleton: const _GalleryImageSkeleton(),
+      errorWidget: const _GalleryImagePlaceholder(),
+    );
+  }
+}
+
+class _GalleryImageSkeleton extends StatelessWidget {
+  const _GalleryImageSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SkeletonBox(
+          key: const Key('meeting-gallery-image-loading-skeleton'),
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          borderRadius: BorderRadius.zero,
+        );
       },
-      errorBuilder: (_, __, ___) => const _GalleryImagePlaceholder(),
     );
   }
 }
