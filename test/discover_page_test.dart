@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/core/theme/app_colors.dart';
 import 'package:meetple/data/repositories/category_repository.dart';
 import 'package:meetple/data/repositories/meeting_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
@@ -7,6 +8,7 @@ import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/discover/discover_page.dart';
 import 'package:meetple/widgets/app_state_view.dart';
+import 'package:meetple/widgets/tag_chip.dart';
 
 void main() {
   testWidgets('shows nearby discovery without a title app bar', (tester) async {
@@ -150,6 +152,37 @@ void main() {
     expect(find.text('러닝'), findsOneWidget);
     expect(find.text('독서'), findsOneWidget);
     expect(find.text('여행'), findsNothing);
+
+    final selectedChip = find.ancestor(
+      of: find.text('전체'),
+      matching: find.byType(TagChip),
+    );
+    final unselectedChip = find.ancestor(
+      of: find.text('러닝'),
+      matching: find.byType(TagChip),
+    );
+    final selectedDecoration = tester.widget<DecoratedBox>(
+      find.descendant(
+        of: selectedChip,
+        matching: find.byType(DecoratedBox),
+      ),
+    );
+    final unselectedDecoration = tester.widget<DecoratedBox>(
+      find.descendant(
+        of: unselectedChip,
+        matching: find.byType(DecoratedBox),
+      ),
+    );
+
+    expect(
+      (selectedDecoration.decoration as BoxDecoration).color,
+      AppColors.primary,
+    );
+    expect(
+      (unselectedDecoration.decoration as BoxDecoration).color,
+      Colors.white,
+    );
+    expect(tester.getSize(selectedChip).height, lessThan(36));
   });
 
   testWidgets('hides stale meetings when a refreshed search fails',

@@ -39,12 +39,19 @@ class CreateMeetingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MeetingFormPage(
-      meetingRepository: meetingRepository,
-      categoryRepository: categoryRepository,
-      locationRepository: locationRepository,
-      imageUploadRepository: imageUploadRepository,
-      imagePicker: imagePicker,
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: MeetingFormPage(
+          meetingRepository: meetingRepository,
+          categoryRepository: categoryRepository,
+          locationRepository: locationRepository,
+          imageUploadRepository: imageUploadRepository,
+          imagePicker: imagePicker,
+        ),
+      ),
     );
   }
 }
@@ -140,96 +147,124 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
 
   @override
   Widget build(BuildContext context) {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+
     return Form(
       key: _formKey,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      child: Column(
         children: [
-          MeetingFormHeader(
-            title: widget.isEditing ? '모임 수정' : '모임 만들기',
-            onClose: _close,
-          ),
-          const SizedBox(height: 24),
-          _ImageUploadBox(
-            images: _selectedImages,
-            isBusy: _isSubmitting || _isPickingImages,
-            onPick: _pickImages,
-            onRemove: _removeImage,
-          ),
-          const SizedBox(height: 26),
-          CreateField(
-            key: const Key('create_meeting_title'),
-            controller: _titleController,
-            label: '모임 제목',
-            hint: 'ex) 같이 책 읽는 모임',
-            textInputAction: TextInputAction.next,
-            validator: (value) => _required(value, '모임 제목을 입력해주세요.'),
-          ),
-          _CategoryField(
-            value: _category,
-            categories: _categories,
-            isLoading: _isLoadingCategories,
-            error: _categoryError,
-            onRetry: _loadCategories,
-            onChanged: (value) {
-              if (value == null) {
-                return;
-              }
+          Expanded(
+            child: ListView(
+              key: const Key('meeting_form_scroll_view'),
+              padding: EdgeInsets.fromLTRB(
+                24,
+                18,
+                24,
+                24 + keyboardInset,
+              ),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              children: [
+                MeetingFormHeader(
+                  title: widget.isEditing ? '모임 수정' : '모임 만들기',
+                  onClose: _close,
+                ),
+                const SizedBox(height: 24),
+                _ImageUploadBox(
+                  images: _selectedImages,
+                  isBusy: _isSubmitting || _isPickingImages,
+                  onPick: _pickImages,
+                  onRemove: _removeImage,
+                ),
+                const SizedBox(height: 26),
+                CreateField(
+                  key: const Key('create_meeting_title'),
+                  controller: _titleController,
+                  label: '모임 제목',
+                  hint: 'ex) 같이 책 읽는 모임',
+                  textInputAction: TextInputAction.next,
+                  validator: (value) => _required(value, '모임 제목을 입력해주세요.'),
+                ),
+                _CategoryField(
+                  value: _category,
+                  categories: _categories,
+                  isLoading: _isLoadingCategories,
+                  error: _categoryError,
+                  onRetry: _loadCategories,
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
 
-              setState(() => _category = value);
-            },
+                    setState(() => _category = value);
+                  },
+                ),
+                CreateField(
+                  key: const Key('create_meeting_schedule'),
+                  controller: _scheduleController,
+                  label: '일시',
+                  hint: '날짜와 시간을 선택해주세요',
+                  readOnly: true,
+                  suffix: Icons.calendar_today_outlined,
+                  onTap: _pickSchedule,
+                  validator: (value) =>
+                      _scheduledAt == null ? '모임 일시를 선택해주세요.' : null,
+                ),
+                CreateField(
+                  key: const Key('create_meeting_location_name'),
+                  controller: _locationNameController,
+                  label: '장소',
+                  hint: '장소를 검색해서 선택해주세요',
+                  readOnly: true,
+                  suffix: Icons.search,
+                  onTap: _openLocationPicker,
+                  validator: (_) =>
+                      _selectedLocation == null ? '장소를 선택해주세요.' : null,
+                ),
+                if (_selectedLocation != null) ...[
+                  _SelectedLocationPanel(location: _selectedLocation!),
+                  const SizedBox(height: 18),
+                ],
+                CreateField(
+                  key: const Key('create_meeting_capacity'),
+                  controller: _capacityController,
+                  label: '인원',
+                  hint: '모집 인원을 입력해주세요',
+                  suffixText: '명',
+                  keyboardType: TextInputType.number,
+                  textInputAction: TextInputAction.next,
+                  validator: _capacityValidator,
+                ),
+                CreateTextArea(
+                  key: const Key('create_meeting_description'),
+                  controller: _descriptionController,
+                ),
+              ],
+            ),
           ),
-          CreateField(
-            key: const Key('create_meeting_schedule'),
-            controller: _scheduleController,
-            label: '일시',
-            hint: '날짜와 시간을 선택해주세요',
-            readOnly: true,
-            suffix: Icons.calendar_today_outlined,
-            onTap: _pickSchedule,
-            validator: (value) =>
-                _scheduledAt == null ? '모임 일시를 선택해주세요.' : null,
-          ),
-          CreateField(
-            key: const Key('create_meeting_location_name'),
-            controller: _locationNameController,
-            label: '장소',
-            hint: '장소를 검색해서 선택해주세요',
-            readOnly: true,
-            suffix: Icons.search,
-            onTap: _openLocationPicker,
-            validator: (_) => _selectedLocation == null ? '장소를 선택해주세요.' : null,
-          ),
-          if (_selectedLocation != null) ...[
-            _SelectedLocationPanel(location: _selectedLocation!),
-            const SizedBox(height: 18),
-          ],
-          CreateField(
-            key: const Key('create_meeting_capacity'),
-            controller: _capacityController,
-            label: '인원',
-            hint: '모집 인원을 입력해주세요',
-            suffixText: '명',
-            keyboardType: TextInputType.number,
-            textInputAction: TextInputAction.next,
-            validator: _capacityValidator,
-          ),
-          CreateTextArea(
-            key: const Key('create_meeting_description'),
-            controller: _descriptionController,
-          ),
-          const SizedBox(height: 12),
-          PrimaryGradientButton(
-            key: const Key('create_meeting_submit'),
-            label: _isSubmitting
-                ? widget.isEditing
-                    ? '수정하는 중...'
-                    : '만드는 중...'
-                : widget.isEditing
-                    ? '수정 완료'
-                    : '모임 만들기',
-            onPressed: _submit,
+          DecoratedBox(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                top: BorderSide(color: AppColors.line),
+              ),
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+                child: PrimaryGradientButton(
+                  key: const Key('create_meeting_submit'),
+                  label: _isSubmitting
+                      ? widget.isEditing
+                          ? '수정하는 중...'
+                          : '만드는 중...'
+                      : widget.isEditing
+                          ? '수정 완료'
+                          : '모임 만들기',
+                  onPressed: _submit,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -376,7 +411,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     setState(() => _isSubmitting = true);
 
     Object? submitError;
-    Meeting? updatedMeeting;
+    Meeting? savedMeeting;
     try {
       final localImages = [
         for (final image in _selectedImages)
@@ -398,7 +433,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
       ];
 
       if (widget.initialMeeting case final meeting?) {
-        updatedMeeting = await widget.meetingRepository.updateMeetingDetails(
+        savedMeeting = await widget.meetingRepository.updateMeetingDetails(
           meeting.id!,
           UpdateMeetingInput(
             title: _titleController.text.trim(),
@@ -414,7 +449,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
           ),
         );
       } else {
-        await widget.meetingRepository.createMeeting(
+        savedMeeting = await widget.meetingRepository.createMeeting(
           CreateMeetingInput(
             title: _titleController.text.trim(),
             category: category,
@@ -445,19 +480,12 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     }
 
     if (widget.isEditing) {
-      Navigator.of(context).pop(updatedMeeting);
+      Navigator.of(context).pop(savedMeeting);
       return;
     }
 
     _showSnackBar('모임을 만들었습니다.');
-
-    final navigation = AppNavigation.maybeOf(context);
-    if (navigation != null) {
-      navigation.selectTab(AppTab.home);
-      return;
-    }
-
-    Navigator.of(context).maybePop();
+    Navigator.of(context).pop(savedMeeting);
   }
 
   Future<void> _pickImages() async {

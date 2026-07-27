@@ -92,16 +92,15 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
               );
             },
           ),
-          if (imageUrls.length > 1)
-            Positioned(
-              top: 72,
-              right: 16,
-              child: _ImageCounter(
-                key: const Key('meeting-detail-image-counter'),
-                current: _currentIndex + 1,
-                total: imageUrls.length,
-              ),
+          Positioned(
+            right: 16,
+            bottom: 16,
+            child: _ImageCounter(
+              key: const Key('meeting-detail-image-counter'),
+              current: _currentIndex + 1,
+              total: imageUrls.length,
             ),
+          ),
         ],
       ),
     );
@@ -215,29 +214,34 @@ class _FullScreenMeetingImageViewerState
               },
             ),
           ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 12, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    key: const Key('meeting-image-viewer-close'),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: '닫기',
-                    style: IconButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      backgroundColor: const Color(0x66000000),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 6, 12, 0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      key: const Key('meeting-image-viewer-close'),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: '닫기',
+                      style: IconButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        backgroundColor: const Color(0x66000000),
+                      ),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
                     ),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                  ),
-                  const Spacer(),
-                  _ImageCounter(
-                    key: const Key('meeting-image-viewer-counter'),
-                    current: _currentIndex + 1,
-                    total: widget.imageUrls.length,
-                  ),
-                ],
+                    const Spacer(),
+                    _ImageCounter(
+                      key: const Key('meeting-image-viewer-counter'),
+                      current: _currentIndex + 1,
+                      total: widget.imageUrls.length,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

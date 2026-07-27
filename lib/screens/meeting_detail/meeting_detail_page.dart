@@ -544,7 +544,7 @@ class DetailHero extends StatelessWidget {
                   colors: [
                     Colors.black.withOpacity(0.36),
                     Colors.transparent,
-                    Colors.black.withOpacity(0.72),
+                    Colors.black.withOpacity(0.4),
                   ],
                   stops: const [0, 0.48, 1],
                 ),
@@ -553,7 +553,7 @@ class DetailHero extends StatelessWidget {
           ),
           Positioned(
             left: 20,
-            right: 20,
+            right: 76,
             bottom: 22,
             child: IgnorePointer(
               child: Column(

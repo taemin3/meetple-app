@@ -7,9 +7,12 @@ import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/category_repository.dart';
 import 'package:meetple/data/repositories/location_repository.dart';
+import 'package:meetple/data/repositories/meeting_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
+import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/location_search_result.dart';
+import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 
@@ -29,19 +32,126 @@ void main() {
     );
   });
 
-  testWidgets('opens create meeting tab from home banner', (
+  testWidgets('opens create meeting screen from home banner', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(540, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const MeetpleApp());
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(meetingRepository: meetingRepository),
+    );
     await tester.pumpAndSettle();
+    final initialLoadCount = meetingRepository.findAllCount;
 
     await tester.tap(find.text('+'));
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
+
+    Navigator.of(
+      tester.element(find.byKey(const Key('create_meeting_submit'))),
+    ).pop(_createdMeeting);
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, initialLoadCount + 1);
+  });
+
+  testWidgets('opens create meeting screen from bottom action', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(meetingRepository: meetingRepository),
+    );
+    await tester.pumpAndSettle();
+    final initialLoadCount = meetingRepository.findAllCount;
+
+    await tester.tap(
+      find.byKey(const Key('bottom-create-meeting-action')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('create_meeting_submit')), findsOneWidget);
+    expect(
+      find.byKey(const Key('app-bottom-navigation')),
+      findsNothing,
+    );
+
+    Navigator.of(
+      tester.element(find.byKey(const Key('create_meeting_submit'))),
+    ).pop(_createdMeeting);
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, initialLoadCount + 1);
+  });
+
+  testWidgets('reloads discover meetings after creating from bottom action', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(meetingRepository: meetingRepository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('탐색'));
+    await tester.pumpAndSettle();
+    final initialLoadCount = meetingRepository.findNearbyCount;
+
+    await tester.tap(
+      find.byKey(const Key('bottom-create-meeting-action')),
+    );
+    await tester.pumpAndSettle();
+    Navigator.of(
+      tester.element(find.byKey(const Key('create_meeting_submit'))),
+    ).pop(_createdMeeting);
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findNearbyCount, initialLoadCount + 1);
+  });
+
+  testWidgets('keeps create action fixed while form scrolls and keyboard opens',
+      (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MeetpleApp());
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('bottom-create-meeting-action')),
+    );
+    await tester.pumpAndSettle();
+
+    final submitButton = find.byKey(const Key('create_meeting_submit'));
+    final initialTop = tester.getTopLeft(submitButton).dy;
+
+    await tester.drag(
+      find.byKey(const Key('meeting_form_scroll_view')),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getTopLeft(submitButton).dy, initialTop);
+
+    await tester.showKeyboard(
+      find.descendant(
+        of: find.byKey(const Key('create_meeting_title')),
+        matching: find.byType(TextFormField),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.getTopLeft(submitButton).dy, initialTop);
   });
 
   testWidgets('validates create meeting form before submit', (
@@ -360,3 +470,38 @@ class _DeferredAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {}
 }
+
+class _CountingMeetingRepository extends MockMeetingRepository {
+  int findAllCount = 0;
+  int findNearbyCount = 0;
+
+  @override
+  Future<List<Meeting>> findAll() {
+    findAllCount++;
+    return super.findAll();
+  }
+
+  @override
+  Future<List<Meeting>> findNearby(NearbyMeetingQuery query) {
+    findNearbyCount++;
+    return super.findNearby(query);
+  }
+}
+
+const _createdMeeting = Meeting(
+  id: 100,
+  title: '새 모임',
+  category: '운동',
+  tags: ['운동'],
+  area: '서울',
+  date: '8/10',
+  time: '19:30',
+  distance: '1km',
+  capacity: 10,
+  joined: 1,
+  host: '모임장',
+  description: '새로 만든 모임',
+  fee: '무료',
+  rating: 0,
+  reviewCount: 0,
+);

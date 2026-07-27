@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_navigation.dart';
 import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/meeting_style.dart';
@@ -24,11 +23,13 @@ class HomePage extends StatefulWidget {
     this.meetingRepository = const MockMeetingRepository(),
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
+    this.refreshToken = 0,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
+  final int refreshToken;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -46,7 +47,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.meetingRepository != widget.meetingRepository) {
+    if (oldWidget.meetingRepository != widget.meetingRepository ||
+        oldWidget.refreshToken != widget.refreshToken) {
       _loadMeetings();
     }
   }
@@ -118,6 +120,7 @@ class _HomePageState extends State<HomePage> {
           meetingRepository: widget.meetingRepository,
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,
+          onMeetingCreated: _reloadMeetings,
         ),
       ],
     );
@@ -349,11 +352,13 @@ class CreateMeetingBanner extends StatelessWidget {
     required this.meetingRepository,
     required this.categoryRepository,
     required this.locationRepository,
+    required this.onMeetingCreated,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
+  final VoidCallback onMeetingCreated;
 
   @override
   Widget build(BuildContext context) {
@@ -410,18 +415,15 @@ class CreateMeetingBanner extends StatelessWidget {
     );
   }
 
-  void _openCreateMeeting(BuildContext context) {
-    final navigation = AppNavigation.maybeOf(context);
-    if (navigation != null) {
-      navigation.selectTab(AppTab.createMeeting);
-      return;
-    }
-
-    AppRoutes.openCreateMeeting(
+  Future<void> _openCreateMeeting(BuildContext context) async {
+    final createdMeeting = await AppRoutes.openCreateMeeting<Meeting>(
       context,
       meetingRepository: meetingRepository,
       categoryRepository: categoryRepository,
       locationRepository: locationRepository,
     );
+    if (createdMeeting != null) {
+      onMeetingCreated();
+    }
   }
 }

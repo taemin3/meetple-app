@@ -43,6 +43,7 @@ class _MeetingEditPageState extends State<MeetingEditPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         bottom: false,

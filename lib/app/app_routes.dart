@@ -55,17 +55,23 @@ abstract final class AppRoutes {
     LocationRepository? locationRepository,
     ImageUploadRepository? imageUploadRepository,
   }) {
+    final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
     return Navigator.of(context).push<T>(
       MaterialPageRoute<T>(
         settings: const RouteSettings(name: AppRouteNames.createMeeting),
         builder: (_) => CreateMeetingPage(
-          meetingRepository: meetingRepository ?? const MockMeetingRepository(),
-          categoryRepository:
-              categoryRepository ?? const MockCategoryRepository(),
-          locationRepository:
-              locationRepository ?? const MockLocationRepository(),
-          imageUploadRepository:
-              imageUploadRepository ?? const MockImageUploadRepository(),
+          meetingRepository: meetingRepository ??
+              repositoryScope?.repository ??
+              const MockMeetingRepository(),
+          categoryRepository: categoryRepository ??
+              repositoryScope?.categoryRepository ??
+              const MockCategoryRepository(),
+          locationRepository: locationRepository ??
+              repositoryScope?.locationRepository ??
+              const MockLocationRepository(),
+          imageUploadRepository: imageUploadRepository ??
+              repositoryScope?.imageUploadRepository ??
+              const MockImageUploadRepository(),
         ),
       ),
     );
