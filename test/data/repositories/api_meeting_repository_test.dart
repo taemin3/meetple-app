@@ -133,6 +133,44 @@ void main() {
     expect(meetings.single.imageUrls, hasLength(2));
   });
 
+  test('maps participation applicant details and timestamps', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'content': [
+            {
+              'id': 100,
+              'memberId': 2,
+              'memberNickname': '러너',
+              'memberProfileImageUrl': 'https://example.com/profile.png',
+              'status': 'PENDING',
+              'message': '함께 달리고 싶어요.',
+              'reviewedAt': null,
+              'canceledAt': null,
+              'createdAt': '2026-07-27T18:35:00',
+            },
+          ],
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final participations = await repository.getParticipations(
+      10,
+      status: 'PENDING',
+    );
+
+    expect(apiClient.path, '/api/v1/meetings/10/participations');
+    expect(apiClient.queryParameters, {
+      'status': 'PENDING',
+      'size': '100',
+    });
+    expect(participations.single.memberNickname, '러너');
+    expect(participations.single.createdAt, DateTime(2026, 7, 27, 18, 35));
+  });
+
   test('throws ApiException when API envelope is unsuccessful', () async {
     final repository = ApiMeetingRepository(
       apiClient: FakeApiClient(
@@ -267,6 +305,89 @@ void main() {
     expect(apiClient.body?['imageUrls'], ['https://cdn.example.com/first.png']);
   });
 
+  test('updates every editable meeting field', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'id': 20,
+          'categoryName': '운동',
+          'title': '저녁 러닝',
+          'description': '함께 달려요.',
+          'locationName': '여의도공원',
+          'address': '서울 영등포구 여의공원로 68',
+          'latitude': 37.5268,
+          'longitude': 126.9228,
+          'scheduledAt': '2026-08-10T19:30:00',
+          'capacity': 12,
+          'currentPeople': 6,
+          'imageUrls': ['https://cdn.example.com/run.png'],
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    await repository.updateMeetingDetails(
+      20,
+      UpdateMeetingInput(
+        title: '저녁 러닝',
+        category: '운동',
+        locationName: '여의도공원',
+        address: '서울 영등포구 여의공원로 68',
+        latitude: 37.5268,
+        longitude: 126.9228,
+        scheduledAt: DateTime(2026, 8, 10, 19, 30),
+        capacity: 12,
+        description: '함께 달려요.',
+        imageUrls: const ['https://cdn.example.com/run.png'],
+      ),
+    );
+
+    expect(apiClient.method, 'PATCH');
+    expect(apiClient.path, '/api/v1/meetings/20');
+    expect(apiClient.body, {
+      'title': '저녁 러닝',
+      'category': '운동',
+      'locationName': '여의도공원',
+      'address': '서울 영등포구 여의공원로 68',
+      'latitude': 37.5268,
+      'longitude': 126.9228,
+      'scheduledAt': '2026-08-10T19:30:00',
+      'capacity': 12,
+      'description': '함께 달려요.',
+      'imageUrls': ['https://cdn.example.com/run.png'],
+    });
+  });
+
+  test('omits image URLs when edit form did not change images', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {'id': 20},
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    await repository.updateMeetingDetails(
+      20,
+      UpdateMeetingInput(
+        title: '러닝 모임',
+        category: '운동',
+        locationName: '여의도공원',
+        address: '서울 영등포구 여의공원로 68',
+        latitude: 37.5268,
+        longitude: 126.9228,
+        scheduledAt: DateTime(2026, 8, 10, 19, 30),
+        capacity: 12,
+        description: '함께 달려요.',
+      ),
+    );
+
+    expect(apiClient.body, isNot(contains('imageUrls')));
+  });
+
   test('loads every notification page', () async {
     final apiClient = SequencedApiClient(
       responses: [
@@ -359,6 +480,17 @@ class FakeApiClient extends ApiClient {
     this.path = path;
     this.body = body;
     this.includeAuthorization = includeAuthorization;
+    return response;
+  }
+
+  @override
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) async {
+    method = 'PATCH';
+    this.path = path;
+    this.body = body;
     return response;
   }
 }

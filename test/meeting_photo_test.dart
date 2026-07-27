@@ -45,6 +45,20 @@ void main() {
     );
   });
 
+  test('can explicitly clear a meeting thumbnail', () {
+    final meeting = mockMeetings.first.copyWith(
+      thumbnailImageUrl: 'https://cdn.meetple.com/meetings/1/thumbnail.png',
+    );
+
+    final cleared = meeting.copyWith(
+      clearThumbnailImageUrl: true,
+      imageUrls: const [],
+    );
+
+    expect(cleared.thumbnailImageUrl, isNull);
+    expect(cleared.primaryImageUrl, isNull);
+  });
+
   testWidgets('keeps the illustrated fallback without an image URL',
       (tester) async {
     await tester.pumpWidget(

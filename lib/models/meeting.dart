@@ -91,6 +91,7 @@ class Meeting {
     double? rating,
     int? reviewCount,
     String? thumbnailImageUrl,
+    bool clearThumbnailImageUrl = false,
     List<String>? imageUrls,
     String? status,
     DateTime? scheduledAt,
@@ -117,7 +118,9 @@ class Meeting {
       fee: fee ?? this.fee,
       rating: rating ?? this.rating,
       reviewCount: reviewCount ?? this.reviewCount,
-      thumbnailImageUrl: thumbnailImageUrl ?? this.thumbnailImageUrl,
+      thumbnailImageUrl: clearThumbnailImageUrl
+          ? null
+          : thumbnailImageUrl ?? this.thumbnailImageUrl,
       imageUrls: imageUrls ?? this.imageUrls,
       status: status ?? this.status,
       scheduledAt: scheduledAt ?? this.scheduledAt,

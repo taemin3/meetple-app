@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/network/api_client.dart';
+import '../../data/repositories/category_repository.dart';
+import '../../data/repositories/image_upload_repository.dart';
+import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
@@ -12,18 +15,25 @@ import '../../models/meeting_engagement.dart';
 import '../requests/meeting_participation_management_page.dart';
 import 'meeting_edit_page.dart';
 import '../../widgets/map/meeting_location_map.dart';
-import '../../widgets/meeting_photo.dart';
+import '../../widgets/meeting_image_gallery.dart';
 import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/secondary_button.dart';
 
 class MeetingDetailPage extends StatefulWidget {
   const MeetingDetailPage({
     super.key,
     required this.meeting,
     this.meetingRepository = const MockMeetingRepository(),
+    this.categoryRepository,
+    this.locationRepository,
+    this.imageUploadRepository,
   });
 
   final Meeting meeting;
   final MeetingRepository meetingRepository;
+  final CategoryRepository? categoryRepository;
+  final LocationRepository? locationRepository;
+  final ImageUploadRepository? imageUploadRepository;
 
   @override
   State<MeetingDetailPage> createState() => _MeetingDetailPageState();
@@ -228,6 +238,9 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
         builder: (_) => MeetingEditPage(
           meeting: widget.meeting,
           meetingRepository: widget.meetingRepository,
+          categoryRepository: widget.categoryRepository,
+          locationRepository: widget.locationRepository,
+          imageUploadRepository: widget.imageUploadRepository,
         ),
       ),
     );
@@ -518,23 +531,23 @@ class DetailHero extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          MeetingPhoto(
+          MeetingImageGallery(
             meeting: meeting,
             height: 300,
-            borderRadius: 0,
-            showIcon: false,
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.36),
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.72),
-                ],
-                stops: const [0, 0.48, 1],
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.36),
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.72),
+                  ],
+                  stops: const [0, 0.48, 1],
+                ),
               ),
             ),
           ),
@@ -542,37 +555,39 @@ class DetailHero extends StatelessWidget {
             left: 20,
             right: 20,
             bottom: 22,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final tag in meeting.tags.take(2))
-                      HeroTagPill(label: tag),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  meeting.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    height: 1.18,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(
-                        color: Color(0x66000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 2),
-                      ),
+            child: IgnorePointer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final tag in meeting.tags.take(2))
+                        HeroTagPill(label: tag),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Text(
+                    meeting.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      height: 1.18,
+                      fontWeight: FontWeight.w900,
+                      shadows: [
+                        Shadow(
+                          color: Color(0x66000000),
+                          blurRadius: 8,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1402,11 +1417,11 @@ class HostDetailBottomBar extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
+              width: 78,
               height: 56,
-              child: OutlinedButton.icon(
+              child: SecondaryButton(
+                label: '수정',
                 onPressed: onEditPressed,
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('수정'),
               ),
             ),
             const SizedBox(width: 10),

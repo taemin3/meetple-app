@@ -16,11 +16,12 @@ import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../data/repositories/mock_location_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/location_search_result.dart';
+import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
 import '../../screens/location_picker/location_picker_page.dart';
 import '../../widgets/primary_gradient_button.dart';
 
-class CreateMeetingPage extends StatefulWidget {
+class CreateMeetingPage extends StatelessWidget {
   const CreateMeetingPage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
@@ -37,16 +38,48 @@ class CreateMeetingPage extends StatefulWidget {
   final ImagePicker? imagePicker;
 
   @override
-  State<CreateMeetingPage> createState() => _CreateMeetingPageState();
+  Widget build(BuildContext context) {
+    return MeetingFormPage(
+      meetingRepository: meetingRepository,
+      categoryRepository: categoryRepository,
+      locationRepository: locationRepository,
+      imageUploadRepository: imageUploadRepository,
+      imagePicker: imagePicker,
+    );
+  }
 }
 
-class _CreateMeetingPageState extends State<CreateMeetingPage> {
+class MeetingFormPage extends StatefulWidget {
+  const MeetingFormPage({
+    super.key,
+    required this.meetingRepository,
+    required this.categoryRepository,
+    required this.locationRepository,
+    required this.imageUploadRepository,
+    this.initialMeeting,
+    this.imagePicker,
+  });
+
+  final MeetingRepository meetingRepository;
+  final CategoryRepository categoryRepository;
+  final LocationRepository locationRepository;
+  final ImageUploadRepository imageUploadRepository;
+  final Meeting? initialMeeting;
+  final ImagePicker? imagePicker;
+
+  bool get isEditing => initialMeeting != null;
+
+  @override
+  State<MeetingFormPage> createState() => _MeetingFormPageState();
+}
+
+class _MeetingFormPageState extends State<MeetingFormPage> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _scheduleController = TextEditingController();
-  final _locationNameController = TextEditingController();
-  final _capacityController = TextEditingController(text: '2');
-  final _descriptionController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _scheduleController;
+  late final TextEditingController _locationNameController;
+  late final TextEditingController _capacityController;
+  late final TextEditingController _descriptionController;
 
   String? _category;
   List<MeetingCategory> _categories = const [];
@@ -57,17 +90,38 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
   LocationSearchResult? _selectedLocation;
   bool _isSubmitting = false;
   bool _isPickingImages = false;
+  bool _imagesChanged = false;
   final List<_SelectedMeetingImage> _selectedImages = [];
 
   @override
   void initState() {
     super.initState();
+    final meeting = widget.initialMeeting;
+    _scheduledAt = _initialSchedule(meeting);
+    _selectedLocation = _initialLocation(meeting);
+    _category = meeting?.category;
+    _titleController = TextEditingController(text: meeting?.title);
+    _scheduleController = TextEditingController(
+      text: _scheduledAt == null ? '' : _formatSchedule(_scheduledAt!),
+    );
+    _locationNameController = TextEditingController(
+      text: _selectedLocation?.name ?? meeting?.area ?? '',
+    );
+    _capacityController = TextEditingController(
+      text: (meeting?.capacity ?? 2).toString(),
+    );
+    _descriptionController = TextEditingController(
+      text: meeting?.description,
+    );
+    _selectedImages.addAll(
+      _initialImageUrls(meeting).map(_SelectedMeetingImage.remote),
+    );
     _loadCategories(showLoading: false);
     unawaited(_restoreLostImages());
   }
 
   @override
-  void didUpdateWidget(covariant CreateMeetingPage oldWidget) {
+  void didUpdateWidget(covariant MeetingFormPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.categoryRepository != widget.categoryRepository) {
       _loadCategories();
@@ -92,7 +146,10 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
         padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         children: [
-          const CreateHeader(),
+          MeetingFormHeader(
+            title: widget.isEditing ? '모임 수정' : '모임 만들기',
+            onClose: _close,
+          ),
           const SizedBox(height: 24),
           _ImageUploadBox(
             images: _selectedImages,
@@ -165,7 +222,13 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
           const SizedBox(height: 12),
           PrimaryGradientButton(
             key: const Key('create_meeting_submit'),
-            label: _isSubmitting ? '만드는 중...' : '모임 만들기',
+            label: _isSubmitting
+                ? widget.isEditing
+                    ? '수정하는 중...'
+                    : '만드는 중...'
+                : widget.isEditing
+                    ? '수정 완료'
+                    : '모임 만들기',
             onPressed: _submit,
           ),
         ],
@@ -202,17 +265,24 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
         return;
       }
 
-      _categories = categories;
-      if (categories.isEmpty) {
+      final initialCategory = widget.initialMeeting?.category;
+      _categories = initialCategory != null &&
+              categories.every((category) => category.name != initialCategory)
+          ? [
+              MeetingCategory(id: -1, name: initialCategory),
+              ...categories,
+            ]
+          : categories;
+      if (_categories.isEmpty) {
         _category = null;
         return;
       }
 
-      final hasSelectedCategory = categories.any(
+      final hasSelectedCategory = _categories.any(
         (category) => category.name == _category,
       );
       if (!hasSelectedCategory) {
-        _category = categories.first.name;
+        _category = _categories.first.name;
       }
     });
   }
@@ -306,32 +376,59 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     setState(() => _isSubmitting = true);
 
     Object? submitError;
+    Meeting? updatedMeeting;
     try {
-      final imageUrls = await widget.imageUploadRepository.uploadMeetingImages(
-        [
-          for (final image in _selectedImages)
+      final localImages = [
+        for (final image in _selectedImages)
+          if (image.bytes != null)
             ImageUploadFile(
               name: image.name,
               contentType: image.contentType,
-              bytes: image.bytes,
+              bytes: image.bytes!,
             ),
-        ],
+      ];
+      final uploadedImageUrls =
+          await widget.imageUploadRepository.uploadMeetingImages(
+        localImages,
       );
+      final imageUrls = [
+        for (final image in _selectedImages)
+          if (image.remoteUrl != null) image.remoteUrl!,
+        ...uploadedImageUrls,
+      ];
 
-      await widget.meetingRepository.createMeeting(
-        CreateMeetingInput(
-          title: _titleController.text.trim(),
-          category: category,
-          locationName: selectedLocation.name,
-          address: selectedLocation.address,
-          latitude: selectedLocation.latitude,
-          longitude: selectedLocation.longitude,
-          scheduledAt: _scheduledAt!,
-          capacity: int.parse(_capacityController.text.trim()),
-          description: _descriptionController.text.trim(),
-          imageUrls: imageUrls,
-        ),
-      );
+      if (widget.initialMeeting case final meeting?) {
+        updatedMeeting = await widget.meetingRepository.updateMeetingDetails(
+          meeting.id!,
+          UpdateMeetingInput(
+            title: _titleController.text.trim(),
+            category: category,
+            locationName: selectedLocation.name,
+            address: selectedLocation.address,
+            latitude: selectedLocation.latitude,
+            longitude: selectedLocation.longitude,
+            scheduledAt: _scheduledAt!,
+            capacity: int.parse(_capacityController.text.trim()),
+            description: _descriptionController.text.trim(),
+            imageUrls: _imagesChanged ? imageUrls : null,
+          ),
+        );
+      } else {
+        await widget.meetingRepository.createMeeting(
+          CreateMeetingInput(
+            title: _titleController.text.trim(),
+            category: category,
+            locationName: selectedLocation.name,
+            address: selectedLocation.address,
+            latitude: selectedLocation.latitude,
+            longitude: selectedLocation.longitude,
+            scheduledAt: _scheduledAt!,
+            capacity: int.parse(_capacityController.text.trim()),
+            description: _descriptionController.text.trim(),
+            imageUrls: imageUrls,
+          ),
+        );
+      }
     } on Object catch (error) {
       submitError = error;
     }
@@ -344,6 +441,11 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
 
     if (submitError != null) {
       _showSnackBar(_submitErrorMessage(submitError));
+      return;
+    }
+
+    if (widget.isEditing) {
+      Navigator.of(context).pop(updatedMeeting);
       return;
     }
 
@@ -415,6 +517,9 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     setState(() {
       _isPickingImages = false;
       _selectedImages.addAll(nextImages);
+      if (nextImages.isNotEmpty) {
+        _imagesChanged = true;
+      }
     });
 
     if (pickError != null) {
@@ -486,6 +591,9 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     setState(() {
       _isPickingImages = false;
       _selectedImages.addAll(nextImages);
+      if (nextImages.isNotEmpty) {
+        _imagesChanged = true;
+      }
     });
 
     if (restoreError != null) {
@@ -508,7 +616,10 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
       return;
     }
 
-    setState(() => _selectedImages.removeAt(index));
+    setState(() {
+      _selectedImages.removeAt(index);
+      _imagesChanged = true;
+    });
   }
 
   String? _required(String? value, String message) {
@@ -526,7 +637,12 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     }
 
     final capacity = int.tryParse(value!.trim());
-    if (capacity == null || capacity < 2 || capacity > 100) {
+    final joined = widget.initialMeeting?.joined ?? 0;
+    final minimumCapacity = joined > 2 ? joined : 2;
+    if (capacity == null || capacity < minimumCapacity || capacity > 100) {
+      if (joined > 2) {
+        return '현재 참여 인원 이상, 100명 이하로 입력해주세요.';
+      }
       return '인원은 2명부터 100명까지 입력해주세요.';
     }
 
@@ -542,7 +658,7 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
       return error.message;
     }
 
-    return '모임을 만들지 못했습니다.';
+    return widget.isEditing ? '모임을 수정하지 못했습니다.' : '모임을 만들지 못했습니다.';
   }
 
   String? _resolveImageContentType(String? mimeType, String fileName) {
@@ -591,6 +707,75 @@ class _CreateMeetingPageState extends State<CreateMeetingPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
+  }
+
+  void _close() {
+    if (widget.isEditing) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+
+    final navigation = AppNavigation.maybeOf(context);
+    if (navigation != null) {
+      navigation.selectTab(AppTab.home);
+      return;
+    }
+
+    Navigator.of(context).maybePop();
+  }
+
+  List<String> _initialImageUrls(Meeting? meeting) {
+    if (meeting == null) return const [];
+    final imageUrls = [
+      for (final imageUrl in meeting.imageUrls)
+        if (imageUrl.trim().isNotEmpty) imageUrl.trim(),
+    ];
+    if (imageUrls.isNotEmpty) return imageUrls;
+    final primaryImageUrl = meeting.primaryImageUrl;
+    return primaryImageUrl == null ? const [] : [primaryImageUrl];
+  }
+
+  LocationSearchResult? _initialLocation(Meeting? meeting) {
+    if (meeting == null || !meeting.hasCoordinate) return null;
+    return LocationSearchResult(
+      id: 'meeting-${meeting.id ?? 'edit'}',
+      type: 'PLACE',
+      name: meeting.area,
+      category: meeting.category,
+      address: meeting.address ?? meeting.area,
+      latitude: meeting.latitude!,
+      longitude: meeting.longitude!,
+      provider: 'MEETING',
+    );
+  }
+
+  DateTime? _initialSchedule(Meeting? meeting) {
+    final scheduledAt = meeting?.scheduledAt;
+    if (scheduledAt != null) return scheduledAt;
+    if (meeting == null) return null;
+
+    final dateMatch = RegExp(r'(\d{1,2})/(\d{1,2})').firstMatch(meeting.date);
+    final timeMatch = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(meeting.time);
+    if (dateMatch == null || timeMatch == null) return null;
+
+    final now = DateTime.now();
+    var candidate = DateTime(
+      now.year,
+      int.parse(dateMatch.group(1)!),
+      int.parse(dateMatch.group(2)!),
+      int.parse(timeMatch.group(1)!),
+      int.parse(timeMatch.group(2)!),
+    );
+    if (!candidate.isAfter(now)) {
+      candidate = DateTime(
+        now.year + 1,
+        candidate.month,
+        candidate.day,
+        candidate.hour,
+        candidate.minute,
+      );
+    }
+    return candidate;
   }
 }
 
@@ -676,22 +861,29 @@ class _SelectedLocationPanel extends StatelessWidget {
   }
 }
 
-class CreateHeader extends StatelessWidget {
-  const CreateHeader({super.key});
+class MeetingFormHeader extends StatelessWidget {
+  const MeetingFormHeader({
+    super.key,
+    required this.title,
+    required this.onClose,
+  });
+
+  final String title;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         IconButton(
-          onPressed: () => _close(context),
+          onPressed: onClose,
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
         ),
-        const Expanded(
+        Expanded(
           child: Text(
-            '모임 만들기',
+            title,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.ink,
               fontSize: 20,
               fontWeight: FontWeight.w900,
@@ -702,19 +894,6 @@ class CreateHeader extends StatelessWidget {
       ],
     );
   }
-
-  void _close(BuildContext context) {
-    final navigation = AppNavigation.maybeOf(context);
-    if (navigation != null) {
-      navigation.selectTab(AppTab.home);
-      return;
-    }
-
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-    }
-  }
 }
 
 class _SelectedMeetingImage {
@@ -722,11 +901,17 @@ class _SelectedMeetingImage {
     required this.name,
     required this.contentType,
     required this.bytes,
-  });
+  }) : remoteUrl = null;
+
+  const _SelectedMeetingImage.remote(this.remoteUrl)
+      : name = '',
+        contentType = '',
+        bytes = null;
 
   final String name;
   final String contentType;
-  final Uint8List bytes;
+  final Uint8List? bytes;
+  final String? remoteUrl;
 }
 
 class _ImageUploadBox extends StatelessWidget {
@@ -842,12 +1027,28 @@ class _SelectedImageTile extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: Image.memory(
-              image.bytes,
-              width: 132,
-              height: 132,
-              fit: BoxFit.cover,
-            ),
+            child: image.remoteUrl == null
+                ? Image.memory(
+                    image.bytes!,
+                    width: 132,
+                    height: 132,
+                    fit: BoxFit.cover,
+                  )
+                : Image.network(
+                    image.remoteUrl!,
+                    width: 132,
+                    height: 132,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const ColoredBox(
+                      color: AppColors.softSurface,
+                      child: Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ),
+                  ),
           ),
           if (isRepresentative)
             Positioned(
