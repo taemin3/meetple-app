@@ -24,12 +24,14 @@ class HomePage extends StatefulWidget {
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.refreshToken = 0,
+    this.onMeetingCreated,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final int refreshToken;
+  final VoidCallback? onMeetingCreated;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -120,7 +122,7 @@ class _HomePageState extends State<HomePage> {
           meetingRepository: widget.meetingRepository,
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,
-          onMeetingCreated: _reloadMeetings,
+          onMeetingCreated: widget.onMeetingCreated ?? _reloadMeetings,
         ),
       ],
     );

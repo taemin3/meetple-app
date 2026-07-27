@@ -32,6 +32,34 @@ void main() {
     );
   });
 
+  testWidgets('keeps tab data loaded while switching tabs', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(meetingRepository: meetingRepository),
+    );
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, 1);
+    expect(meetingRepository.findNearbyCount, 0);
+
+    await tester.tap(find.text('탐색'));
+    await tester.pumpAndSettle();
+    expect(meetingRepository.findNearbyCount, 1);
+
+    await tester.tap(find.text('홈'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('탐색'));
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, 1);
+    expect(meetingRepository.findNearbyCount, 1);
+  });
+
   testWidgets('opens create meeting screen from home banner', (
     WidgetTester tester,
   ) async {
@@ -105,6 +133,7 @@ void main() {
     await tester.tap(find.text('탐색'));
     await tester.pumpAndSettle();
     final initialLoadCount = meetingRepository.findNearbyCount;
+    final initialHomeLoadCount = meetingRepository.findAllCount;
 
     await tester.tap(
       find.byKey(const Key('bottom-create-meeting-action')),
@@ -116,6 +145,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(meetingRepository.findNearbyCount, initialLoadCount + 1);
+    expect(meetingRepository.findAllCount, initialHomeLoadCount);
+
+    await tester.tap(find.text('홈'));
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, initialHomeLoadCount + 1);
   });
 
   testWidgets('keeps create action fixed while form scrolls and keyboard opens',
