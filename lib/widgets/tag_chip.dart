@@ -18,20 +18,23 @@ class TagChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: selected ? AppColors.primary : AppColors.softSurface,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: selected
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.24),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ]
-            : null,
+        color: selected ? AppColors.primary : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: selected ? AppColors.primary : AppColors.line,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: selected
+                ? AppColors.primary.withOpacity(0.2)
+                : const Color(0x1417151F),
+            blurRadius: selected ? 10 : 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -65,6 +65,42 @@ void main() {
     );
   });
 
+  testWidgets('keeps create action fixed while form scrolls and keyboard opens',
+      (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MeetpleApp());
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('bottom-create-meeting-action')),
+    );
+    await tester.pumpAndSettle();
+
+    final submitButton = find.byKey(const Key('create_meeting_submit'));
+    final initialTop = tester.getTopLeft(submitButton).dy;
+
+    await tester.drag(
+      find.byKey(const Key('meeting_form_scroll_view')),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getTopLeft(submitButton).dy, initialTop);
+
+    await tester.showKeyboard(
+      find.descendant(
+        of: find.byKey(const Key('create_meeting_title')),
+        matching: find.byType(TextFormField),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.getTopLeft(submitButton).dy, initialTop);
+  });
+
   testWidgets('validates create meeting form before submit', (
     WidgetTester tester,
   ) async {

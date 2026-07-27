@@ -817,7 +817,7 @@ class CategoryFilterRow extends StatelessWidget {
                 selected: selectedCategory == category,
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
           ],
         ],
       ),
