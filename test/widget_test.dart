@@ -29,7 +29,7 @@ void main() {
     );
   });
 
-  testWidgets('opens create meeting tab from home banner', (
+  testWidgets('opens create meeting screen from home banner', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(540, 1200));
@@ -42,6 +42,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
+  });
+
+  testWidgets('opens create meeting screen from bottom action', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MeetpleApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const Key('bottom-create-meeting-action')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('create_meeting_submit')), findsOneWidget);
+    expect(
+      find.byKey(const Key('app-bottom-navigation')),
+      findsNothing,
+    );
   });
 
   testWidgets('validates create meeting form before submit', (

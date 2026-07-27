@@ -12,11 +12,11 @@ import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../screens/chat/chat_page.dart';
-import '../screens/create_meeting/create_meeting_page.dart';
 import '../screens/discover/discover_page.dart';
 import '../screens/home/home_page.dart';
 import '../screens/profile/profile_page.dart';
 import 'app_navigation.dart';
+import 'app_routes.dart';
 import 'meeting_repository_scope.dart';
 
 class AppShell extends StatefulWidget {
@@ -42,14 +42,6 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  static const _tabs = <AppTab>[
-    AppTab.home,
-    AppTab.discover,
-    AppTab.createMeeting,
-    AppTab.chat,
-    AppTab.profile,
-  ];
-
   AppTab currentTab = AppTab.home;
   late AuthRepository _authRepository;
 
@@ -83,57 +75,48 @@ class _AppShellState extends State<AppShell> {
             bottom: false,
             child: _buildPage(currentTab),
           ),
-          bottomNavigationBar: SafeArea(
-            top: false,
-            child: SizedBox(
-              height: 82,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 540),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: NavigationBar(
-                        height: 66,
-                        elevation: 0,
-                        backgroundColor: Colors.white,
-                        indicatorColor: AppColors.softSurface,
-                        selectedIndex: _indexOfTab(currentTab),
-                        onDestinationSelected: (value) {
-                          _selectTab(_tabAt(value));
-                        },
-                        destinations: const [
-                          NavigationDestination(
-                            icon: Icon(Icons.home_outlined),
-                            selectedIcon: Icon(Icons.home),
-                            label: '홈',
-                          ),
-                          NavigationDestination(
-                            icon: Icon(Icons.search),
-                            selectedIcon: Icon(Icons.search),
-                            label: '탐색',
-                          ),
-                          NavigationDestination(
-                            icon: Icon(Icons.add_circle_outline),
-                            selectedIcon: Icon(Icons.add_circle),
-                            label: '모임 만들기',
-                          ),
-                          NavigationDestination(
-                            icon: Icon(Icons.chat_bubble_outline),
-                            selectedIcon: Icon(Icons.chat_bubble),
-                            label: '채팅',
-                          ),
-                          NavigationDestination(
-                            icon: Icon(Icons.person_outline),
-                            selectedIcon: Icon(Icons.person),
-                            label: '마이',
-                          ),
-                        ],
-                      ),
-                    ),
+          bottomNavigationBar: DecoratedBox(
+            key: const Key('app-bottom-navigation'),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: AppColors.line)),
+            ),
+            child: SafeArea(
+              top: false,
+              child: NavigationBar(
+                height: 70,
+                elevation: 0,
+                backgroundColor: Colors.white,
+                indicatorColor: AppColors.softSurface,
+                selectedIndex: _indexOfTab(currentTab),
+                onDestinationSelected: _selectDestination,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.home_outlined),
+                    selectedIcon: Icon(Icons.home),
+                    label: '홈',
                   ),
-                ),
+                  NavigationDestination(
+                    icon: Icon(Icons.search),
+                    selectedIcon: Icon(Icons.search),
+                    label: '탐색',
+                  ),
+                  NavigationDestination(
+                    icon: _CreateMeetingAction(),
+                    selectedIcon: _CreateMeetingAction(),
+                    label: '모임 만들기',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.chat_bubble_outline),
+                    selectedIcon: Icon(Icons.chat_bubble),
+                    label: '채팅',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.person_outline),
+                    selectedIcon: Icon(Icons.person),
+                    label: '마이',
+                  ),
+                ],
               ),
             ),
           ),
@@ -147,12 +130,38 @@ class _AppShellState extends State<AppShell> {
     setState(() => currentTab = tab);
   }
 
+  void _selectDestination(int index) {
+    if (index == 2) {
+      AppRoutes.openCreateMeeting<void>(
+        context,
+        meetingRepository: widget.meetingRepository,
+        categoryRepository: widget.categoryRepository,
+        locationRepository: widget.locationRepository,
+        imageUploadRepository: widget.imageUploadRepository,
+      );
+      return;
+    }
+
+    _selectTab(_tabAt(index));
+  }
+
   int _indexOfTab(AppTab tab) {
-    return _tabs.indexOf(tab);
+    return switch (tab) {
+      AppTab.home => 0,
+      AppTab.discover => 1,
+      AppTab.chat => 3,
+      AppTab.profile => 4,
+    };
   }
 
   AppTab _tabAt(int index) {
-    return _tabs[index];
+    return switch (index) {
+      0 => AppTab.home,
+      1 => AppTab.discover,
+      3 => AppTab.chat,
+      4 => AppTab.profile,
+      _ => throw RangeError.index(index, const <int>[0, 1, 3, 4]),
+    };
   }
 
   Widget _buildPage(AppTab tab) {
@@ -168,13 +177,6 @@ class _AppShellState extends State<AppShell> {
           meetingRepository: widget.meetingRepository,
           categoryRepository: widget.categoryRepository,
         );
-      case AppTab.createMeeting:
-        return CreateMeetingPage(
-          meetingRepository: widget.meetingRepository,
-          categoryRepository: widget.categoryRepository,
-          locationRepository: widget.locationRepository,
-          imageUploadRepository: widget.imageUploadRepository,
-        );
       case AppTab.chat:
         return const ChatPage();
       case AppTab.profile:
@@ -184,5 +186,34 @@ class _AppShellState extends State<AppShell> {
           onSignedOut: widget.onSignedOut,
         );
     }
+  }
+}
+
+class _CreateMeetingAction extends StatelessWidget {
+  const _CreateMeetingAction();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('bottom-create-meeting-action'),
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(
+        color: AppColors.primary,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x407B61FF),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: const Icon(
+        Icons.add_rounded,
+        color: Colors.white,
+        size: 26,
+      ),
+    );
   }
 }

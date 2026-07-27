@@ -39,12 +39,18 @@ class CreateMeetingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MeetingFormPage(
-      meetingRepository: meetingRepository,
-      categoryRepository: categoryRepository,
-      locationRepository: locationRepository,
-      imageUploadRepository: imageUploadRepository,
-      imagePicker: imagePicker,
+    return Scaffold(
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: MeetingFormPage(
+          meetingRepository: meetingRepository,
+          categoryRepository: categoryRepository,
+          locationRepository: locationRepository,
+          imageUploadRepository: imageUploadRepository,
+          imagePicker: imagePicker,
+        ),
+      ),
     );
   }
 }

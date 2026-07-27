@@ -3,7 +3,6 @@ import 'package:flutter/widgets.dart';
 enum AppTab {
   home,
   discover,
-  createMeeting,
   chat,
   profile,
 }

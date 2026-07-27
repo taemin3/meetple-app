@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../app/app_navigation.dart';
 import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/ui/meeting_style.dart';
@@ -411,12 +410,6 @@ class CreateMeetingBanner extends StatelessWidget {
   }
 
   void _openCreateMeeting(BuildContext context) {
-    final navigation = AppNavigation.maybeOf(context);
-    if (navigation != null) {
-      navigation.selectTab(AppTab.createMeeting);
-      return;
-    }
-
     AppRoutes.openCreateMeeting(
       context,
       meetingRepository: meetingRepository,

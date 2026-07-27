@@ -42,6 +42,14 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('1 / 2'), findsOneWidget);
+    final galleryRect = tester.getRect(
+      find.byKey(const Key('meeting-detail-image-gallery')),
+    );
+    final detailCounterRect = tester.getRect(
+      find.byKey(const Key('meeting-detail-image-counter')),
+    );
+    expect(galleryRect.right - detailCounterRect.right, 16);
+    expect(galleryRect.bottom - detailCounterRect.bottom, 16);
     final firstGalleryPage = find.byKey(
       const ValueKey('meeting-gallery-image-page-0'),
       skipOffstage: false,
@@ -78,6 +86,17 @@ void main() {
       tester.getSize(find.byKey(const Key('meeting-image-viewer-pages'))),
       tester.getSize(find.byKey(const Key('meeting-image-viewer'))),
     );
+    final viewerRect = tester.getRect(
+      find.byKey(const Key('meeting-image-viewer')),
+    );
+    final closeButtonRect = tester.getRect(
+      find.byKey(const Key('meeting-image-viewer-close')),
+    );
+    final viewerCounterRect = tester.getRect(
+      find.byKey(const Key('meeting-image-viewer-counter')),
+    );
+    expect(closeButtonRect.center.dy, lessThan(viewerRect.height / 4));
+    expect(viewerCounterRect.center.dy, lessThan(viewerRect.height / 4));
     final firstViewerPage = find.byKey(
       const ValueKey('meeting-image-viewer-image-0'),
       skipOffstage: false,
@@ -148,6 +167,30 @@ void main() {
     expect(find.byKey(const Key('meeting-image-viewer')), findsOneWidget);
     expect(find.text('2 / 2'), findsOneWidget);
   });
+
+  testWidgets('shows image order for a meeting with one image', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: MeetingImageGallery(meeting: _singleImageMeeting),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    _clearExpectedImageErrors(tester);
+
+    expect(
+      find.byKey(const Key('meeting-detail-image-counter')),
+      findsOneWidget,
+    );
+    expect(find.text('1 / 1'), findsOneWidget);
+  });
 }
 
 Future<void> _doubleTap(WidgetTester tester, Finder finder) async {
@@ -182,4 +225,24 @@ const _meeting = Meeting(
     'https://example.com/first.png',
     'https://example.com/second.png',
   ],
+);
+
+const _singleImageMeeting = Meeting(
+  id: 11,
+  title: '단일 이미지 모임',
+  category: '취미',
+  tags: ['취미'],
+  area: '서울',
+  date: '8/10',
+  time: '19:30',
+  distance: '1km',
+  capacity: 10,
+  joined: 2,
+  host: '모임장',
+  description: '단일 이미지 갤러리 테스트',
+  fee: '무료',
+  rating: 0,
+  reviewCount: 0,
+  thumbnailImageUrl: 'https://example.com/only.png',
+  imageUrls: ['https://example.com/only.png'],
 );

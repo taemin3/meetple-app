@@ -553,7 +553,7 @@ class DetailHero extends StatelessWidget {
           ),
           Positioned(
             left: 20,
-            right: 20,
+            right: 76,
             bottom: 22,
             child: IgnorePointer(
               child: Column(
