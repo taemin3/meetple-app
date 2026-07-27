@@ -12,6 +12,7 @@ import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/category_pill.dart';
+import '../../widgets/loading_skeleton.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/section_title.dart';
@@ -90,8 +91,9 @@ class _HomePageState extends State<HomePage> {
         FutureBuilder<List<Meeting>>(
           future: _meetingsFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const AppLoadingView(message: '모임을 불러오는 중입니다.');
+            final isLoading = snapshot.connectionState != ConnectionState.done;
+            if (isLoading && !snapshot.hasData) {
+              return const _HomeMeetingSkeletonList();
             }
 
             if (snapshot.hasError) {
@@ -108,6 +110,11 @@ class _HomePageState extends State<HomePage> {
 
             return Column(
               children: [
+                if (isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child: LinearProgressIndicator(minHeight: 2),
+                  ),
                 for (final meeting in meetings.take(3))
                   HomeMeetingTile(
                     meeting: meeting,
@@ -342,6 +349,71 @@ class HomeMeetingTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeMeetingSkeletonList extends StatelessWidget {
+  const _HomeMeetingSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const Key('home-meeting-skeleton-list'),
+      children: [
+        for (var index = 0; index < 3; index++)
+          _HomeMeetingSkeletonTile(
+            key: ValueKey('home-meeting-skeleton-$index'),
+          ),
+      ],
+    );
+  }
+}
+
+class _HomeMeetingSkeletonTile extends StatelessWidget {
+  const _HomeMeetingSkeletonTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: const Row(
+          children: [
+            SkeletonBox(
+              width: 112,
+              height: 92,
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+            ),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonBox(width: 138, height: 16),
+                  SizedBox(height: 10),
+                  SkeletonBox(width: 86, height: 22),
+                  SizedBox(height: 10),
+                  SkeletonBox(height: 12),
+                  SizedBox(height: 7),
+                  SkeletonBox(width: 58, height: 12),
+                ],
+              ),
+            ),
+            SizedBox(width: 14),
+            SkeletonBox(
+              width: 20,
+              height: 24,
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+            ),
+          ],
         ),
       ),
     );

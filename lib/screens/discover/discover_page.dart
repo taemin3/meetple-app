@@ -14,6 +14,7 @@ import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/category_pill.dart';
+import '../../widgets/loading_skeleton.dart';
 import '../../widgets/map/nearby_meeting_map.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
@@ -1058,7 +1059,7 @@ class NearbyMeetingSheet extends StatelessWidget {
 
   Widget _buildContent() {
     if (isLoading && meetings.isEmpty) {
-      return const AppLoadingView(message: '내 주변 모임을 찾고 있어요.');
+      return const _NearbyMeetingSkeletonList();
     }
 
     if (error != null && meetings.isEmpty) {
@@ -1087,6 +1088,77 @@ class NearbyMeetingSheet extends StatelessWidget {
           onTap: () => onMeetingTap(meeting),
         );
       },
+    );
+  }
+}
+
+class _NearbyMeetingSkeletonList extends StatelessWidget {
+  const _NearbyMeetingSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      key: const Key('nearby-meeting-skeleton-list'),
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+      scrollDirection: Axis.horizontal,
+      itemCount: 3,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (context, index) {
+        return _MapMeetingSkeletonCard(
+          key: ValueKey('nearby-meeting-skeleton-$index'),
+        );
+      },
+    );
+  }
+}
+
+class _MapMeetingSkeletonCard extends StatelessWidget {
+  const _MapMeetingSkeletonCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 164,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          height: 161,
+          margin: const EdgeInsets.fromLTRB(1, 2, 1, 7),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFF0EDF7)),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(
+                height: 76,
+                borderRadius: BorderRadius.zero,
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
+                child: SkeletonBox(width: 118, height: 14),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
+                child: Row(
+                  children: [
+                    SkeletonBox(width: 48, height: 20),
+                    Spacer(),
+                    SkeletonBox(width: 38, height: 11),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
+                child: SkeletonBox(width: 124, height: 11),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

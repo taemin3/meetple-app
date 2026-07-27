@@ -15,8 +15,91 @@ import 'package:meetple/models/location_search_result.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/auth/login_page.dart';
+import 'package:meetple/screens/home/home_page.dart';
 
 void main() {
+  testWidgets('shows meeting card skeletons during the first home load', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _DeferredFindAllRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomePage(meetingRepository: meetingRepository),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const Key('home-meeting-skeleton-list')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('home-meeting-skeleton-0')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('home-meeting-skeleton-2')),
+      findsOneWidget,
+    );
+
+    meetingRepository.complete(
+      await const MockMeetingRepository().findAll(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('home-meeting-skeleton-list')),
+      findsNothing,
+    );
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+  });
+
+  testWidgets('keeps home cards visible while refreshing existing data', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _RefreshableFindAllRepository();
+    Widget buildHome(int refreshToken) {
+      return MaterialApp(
+        home: Scaffold(
+          body: HomePage(
+            meetingRepository: meetingRepository,
+            refreshToken: refreshToken,
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(buildHome(0));
+    await tester.pumpAndSettle();
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+
+    await tester.pumpWidget(buildHome(1));
+    await tester.pump();
+
+    expect(
+      find.byKey(const Key('home-meeting-skeleton-list')),
+      findsNothing,
+    );
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsOneWidget);
+
+    meetingRepository.completeRefresh(
+      await const MockMeetingRepository().findAll(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+  });
+
   testWidgets('shows Meetple home when session is restored', (
     WidgetTester tester,
   ) async {
@@ -520,6 +603,37 @@ class _CountingMeetingRepository extends MockMeetingRepository {
   Future<List<Meeting>> findNearby(NearbyMeetingQuery query) {
     findNearbyCount++;
     return super.findNearby(query);
+  }
+}
+
+class _DeferredFindAllRepository extends MockMeetingRepository {
+  final Completer<List<Meeting>> _completer = Completer<List<Meeting>>();
+
+  @override
+  Future<List<Meeting>> findAll() {
+    return _completer.future;
+  }
+
+  void complete(List<Meeting> meetings) {
+    _completer.complete(meetings);
+  }
+}
+
+class _RefreshableFindAllRepository extends MockMeetingRepository {
+  final Completer<List<Meeting>> _refreshCompleter = Completer<List<Meeting>>();
+  int _findAllCount = 0;
+
+  @override
+  Future<List<Meeting>> findAll() {
+    _findAllCount++;
+    if (_findAllCount == 1) {
+      return super.findAll();
+    }
+    return _refreshCompleter.future;
+  }
+
+  void completeRefresh(List<Meeting> meetings) {
+    _refreshCompleter.complete(meetings);
   }
 }
 
