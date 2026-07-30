@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/mock/mock_meetings.dart';
@@ -22,11 +23,26 @@ void main() {
       ),
     );
 
-    final image = tester.widget<Image>(
-      find.byKey(const Key('meeting-photo-network')),
+    final image = tester.widget<CachedNetworkImage>(
+      find.byKey(
+        ValueKey('meeting-photo-network-${meeting.id}'),
+      ),
     );
-    expect(image.image, isA<NetworkImage>());
-    expect((image.image as NetworkImage).url, thumbnailUrl);
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(
+      tester.element(find.byType(MeetingPhoto)),
+    );
+    final expectedCacheHeight = (120 * devicePixelRatio).ceil();
+    expect(image.imageUrl, thumbnailUrl);
+    expect(image.memCacheHeight, expectedCacheHeight);
+    expect(image.maxHeightDiskCache, expectedCacheHeight);
+    expect(image.fadeInDuration, Duration.zero);
+    expect(image.fadeOutDuration, Duration.zero);
+    expect(image.useOldImageOnUrlChange, isFalse);
+    expect(
+      find.byKey(const Key('meeting-photo-loading-skeleton')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('meeting-photo-fallback')), findsNothing);
   });
 
   test('uses the first image URL when a thumbnail is unavailable', () {
@@ -69,7 +85,16 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const Key('meeting-photo-network')), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.key is ValueKey<String> &&
+            (widget.key! as ValueKey<String>)
+                .value
+                .startsWith('meeting-photo-network-'),
+      ),
+      findsNothing,
+    );
     expect(find.byKey(const Key('meeting-photo-fallback')), findsOneWidget);
   });
 }

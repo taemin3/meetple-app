@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/core/theme/app_colors.dart';
@@ -11,6 +13,59 @@ import 'package:meetple/widgets/app_state_view.dart';
 import 'package:meetple/widgets/tag_chip.dart';
 
 void main() {
+  testWidgets('shows meeting card skeletons during the first nearby load',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    final meetingRepository = _DeferredNearbyMeetingRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DiscoverPage(meetingRepository: meetingRepository),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const Key('nearby-meeting-skeleton-list')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('nearby-meeting-skeleton-0'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey('nearby-meeting-skeleton-2'),
+        skipOffstage: false,
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const Key('nearby-meeting-skeleton-list')),
+          )
+          .label,
+      '내 주변 모임을 불러오는 중입니다.',
+    );
+    semantics.dispose();
+
+    meetingRepository.complete(
+      await const MockMeetingRepository().findAll(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('nearby-meeting-skeleton-list')),
+      findsNothing,
+    );
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+  });
+
   testWidgets('shows nearby discovery without a title app bar', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
@@ -271,5 +326,18 @@ class _FailsFilteredNearbyRepository extends MeetingRepository {
   @override
   Future<Meeting> createMeeting(CreateMeetingInput input) {
     return _delegate.createMeeting(input);
+  }
+}
+
+class _DeferredNearbyMeetingRepository extends MockMeetingRepository {
+  final Completer<List<Meeting>> _completer = Completer<List<Meeting>>();
+
+  @override
+  Future<List<Meeting>> findNearby(NearbyMeetingQuery query) {
+    return _completer.future;
+  }
+
+  void complete(List<Meeting> meetings) {
+    _completer.complete(meetings);
   }
 }

@@ -1,9 +1,12 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../models/meeting.dart';
+import 'loading_skeleton.dart';
 import 'meeting_photo.dart';
+import 'network_image_with_skeleton.dart';
 
 class MeetingImageGallery extends StatefulWidget {
   const MeetingImageGallery({
@@ -67,6 +70,7 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
         showIcon: false,
       );
     }
+    final cacheSize = _screenCacheSize(context);
 
     return SizedBox(
       key: const Key('meeting-detail-image-gallery'),
@@ -88,6 +92,8 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
                 child: _GalleryNetworkImage(
                   key: ValueKey('meeting-gallery-image-page-$index'),
                   imageUrl: imageUrls[index],
+                  cacheWidth: cacheSize.width,
+                  cacheHeight: cacheSize.height,
                 ),
               );
             },
@@ -127,7 +133,12 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
 
   void _precacheImages() {
     final imageUrls = _imageUrls;
-    final signature = imageUrls.join('\n');
+    final cacheSize = _screenCacheSize(context);
+    final signature = [
+      cacheSize.width,
+      cacheSize.height,
+      ...imageUrls,
+    ].join('\n');
     if (imageUrls.isEmpty || signature == _precacheSignature) {
       return;
     }
@@ -136,7 +147,11 @@ class _MeetingImageGalleryState extends State<MeetingImageGallery> {
     for (final imageUrl in imageUrls) {
       unawaited(
         precacheImage(
-          NetworkImage(imageUrl),
+          CachedNetworkImageProvider(
+            imageUrl,
+            maxWidth: cacheSize.width,
+            maxHeight: cacheSize.height,
+          ),
           context,
           onError: (_, __) {},
         ),
@@ -284,6 +299,7 @@ class _ZoomableNetworkImageState extends State<_ZoomableNetworkImage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+    final cacheSize = _screenCacheSize(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onDoubleTapDown: (details) => _doubleTapPosition = details.localPosition,
@@ -298,16 +314,15 @@ class _ZoomableNetworkImageState extends State<_ZoomableNetworkImage>
         onInteractionUpdate: (_) => _syncZoomState(),
         onInteractionEnd: (_) => _syncZoomState(),
         child: SizedBox.expand(
-          child: Image.network(
-            widget.imageUrl,
+          child: NetworkImageWithSkeleton(
+            imageUrl: widget.imageUrl,
             fit: BoxFit.contain,
-            loadingBuilder: (context, child, progress) {
-              if (progress == null) return child;
-              return const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              );
-            },
-            errorBuilder: (_, __, ___) => const Center(
+            cacheWidth: cacheSize.width,
+            cacheHeight: cacheSize.height,
+            skeleton: const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            ),
+            errorWidget: const Center(
               child: Icon(
                 Icons.broken_image_outlined,
                 color: Colors.white54,
@@ -354,9 +369,13 @@ class _GalleryNetworkImage extends StatefulWidget {
   const _GalleryNetworkImage({
     super.key,
     required this.imageUrl,
+    required this.cacheWidth,
+    required this.cacheHeight,
   });
 
   final String imageUrl;
+  final int cacheWidth;
+  final int cacheHeight;
 
   @override
   State<_GalleryNetworkImage> createState() => _GalleryNetworkImageState();
@@ -370,15 +389,32 @@ class _GalleryNetworkImageState extends State<_GalleryNetworkImage>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Image.network(
-      widget.imageUrl,
+    return NetworkImageWithSkeleton(
+      imageUrl: widget.imageUrl,
       width: double.infinity,
       fit: BoxFit.cover,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (wasSynchronouslyLoaded || frame != null) return child;
-        return const _GalleryImagePlaceholder();
+      cacheWidth: widget.cacheWidth,
+      cacheHeight: widget.cacheHeight,
+      skeleton: const _GalleryImageSkeleton(),
+      errorWidget: const _GalleryImagePlaceholder(),
+    );
+  }
+}
+
+class _GalleryImageSkeleton extends StatelessWidget {
+  const _GalleryImageSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SkeletonBox(
+          key: const Key('meeting-gallery-image-loading-skeleton'),
+          width: constraints.maxWidth,
+          height: constraints.maxHeight,
+          borderRadius: BorderRadius.zero,
+        );
       },
-      errorBuilder: (_, __, ___) => const _GalleryImagePlaceholder(),
     );
   }
 }
@@ -449,4 +485,13 @@ List<String> meetingImageUrls(Meeting meeting) {
     addImageUrl(imageUrl);
   }
   return imageUrls;
+}
+
+({int width, int height}) _screenCacheSize(BuildContext context) {
+  final logicalSize = MediaQuery.sizeOf(context);
+  final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+  return (
+    width: (logicalSize.width * devicePixelRatio).ceil(),
+    height: (logicalSize.height * devicePixelRatio).ceil(),
+  );
 }

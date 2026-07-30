@@ -14,6 +14,7 @@ import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/category_pill.dart';
+import '../../widgets/loading_skeleton.dart';
 import '../../widgets/map/nearby_meeting_map.dart';
 import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
@@ -24,11 +25,13 @@ class DiscoverPage extends StatefulWidget {
     this.meetingRepository = const MockMeetingRepository(),
     this.categoryRepository = const MockCategoryRepository(),
     this.refreshToken = 0,
+    this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
   final int refreshToken;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<DiscoverPage> createState() => _DiscoverPageState();
@@ -317,7 +320,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
       meetingRepository: widget.meetingRepository,
     );
     if (result != null && mounted) {
-      await _loadMeetingsAt(_searchCenter, zoom: _searchZoom);
+      final onMeetingChanged = widget.onMeetingChanged;
+      if (onMeetingChanged != null) {
+        onMeetingChanged();
+      } else {
+        await _loadMeetingsAt(_searchCenter, zoom: _searchZoom);
+      }
     }
   }
 
@@ -1058,7 +1066,7 @@ class NearbyMeetingSheet extends StatelessWidget {
 
   Widget _buildContent() {
     if (isLoading && meetings.isEmpty) {
-      return const AppLoadingView(message: '내 주변 모임을 찾고 있어요.');
+      return const _NearbyMeetingSkeletonList();
     }
 
     if (error != null && meetings.isEmpty) {
@@ -1087,6 +1095,84 @@ class NearbyMeetingSheet extends StatelessWidget {
           onTap: () => onMeetingTap(meeting),
         );
       },
+    );
+  }
+}
+
+class _NearbyMeetingSkeletonList extends StatelessWidget {
+  const _NearbyMeetingSkeletonList();
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      key: const Key('nearby-meeting-skeleton-list'),
+      container: true,
+      liveRegion: true,
+      label: '내 주변 모임을 불러오는 중입니다.',
+      child: ExcludeSemantics(
+        child: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          scrollDirection: Axis.horizontal,
+          itemCount: 3,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (context, index) {
+            return _MapMeetingSkeletonCard(
+              key: ValueKey('nearby-meeting-skeleton-$index'),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _MapMeetingSkeletonCard extends StatelessWidget {
+  const _MapMeetingSkeletonCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 164,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: Container(
+          height: 161,
+          margin: const EdgeInsets.fromLTRB(1, 2, 1, 7),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFF0EDF7)),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SkeletonBox(
+                height: 76,
+                borderRadius: BorderRadius.zero,
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
+                child: SkeletonBox(width: 118, height: 14),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
+                child: Row(
+                  children: [
+                    SkeletonBox(width: 48, height: 20),
+                    Spacer(),
+                    SkeletonBox(width: 38, height: 11),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
+                child: SkeletonBox(width: 124, height: 11),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

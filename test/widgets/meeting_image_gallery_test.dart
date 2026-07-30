@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/models/meeting.dart';
@@ -30,13 +31,32 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
 
     expect(
-      find.byKey(const Key('meeting-gallery-image-placeholder')),
+      find.byKey(const Key('meeting-gallery-image-loading-skeleton')),
       findsWidgets,
     );
+    final cachedImage = tester.widget<CachedNetworkImage>(
+      find.byType(CachedNetworkImage).first,
+    );
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(
+      tester.element(find.byType(MeetingImageGallery)),
+    );
+    final mediaSize = MediaQuery.sizeOf(
+      tester.element(find.byType(MeetingImageGallery)),
+    );
+    expect(
+      cachedImage.memCacheWidth,
+      (mediaSize.width * devicePixelRatio).ceil(),
+    );
+    expect(
+      cachedImage.memCacheHeight,
+      (mediaSize.height * devicePixelRatio).ceil(),
+    );
+    expect(cachedImage.maxWidthDiskCache, cachedImage.memCacheWidth);
+    expect(cachedImage.maxHeightDiskCache, cachedImage.memCacheHeight);
     expect(
       find.byKey(const Key('meeting-detail-image-counter')),
       findsOneWidget,
@@ -60,7 +80,7 @@ void main() {
       find.byKey(const Key('meeting-detail-image-gallery')),
       const Offset(-320, 0),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
     expect(find.text('2 / 2'), findsOneWidget);
     expect(tester.element(firstGalleryPage), same(firstGalleryPageElement));
@@ -69,15 +89,17 @@ void main() {
       find.byKey(const Key('meeting-detail-image-gallery')),
       const Offset(320, 0),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
     expect(find.text('1 / 2'), findsOneWidget);
     expect(tester.element(firstGalleryPage), same(firstGalleryPageElement));
 
-    await tester.tap(
-      find.byKey(const ValueKey('meeting-detail-image-0')),
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const Key('meeting-detail-image-gallery')),
+      ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
 
     expect(find.byKey(const Key('meeting-image-viewer')), findsOneWidget);
@@ -107,7 +129,7 @@ void main() {
       find.byKey(const Key('meeting-image-viewer-pages')),
       const Offset(-320, 0),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
     expect(find.text('2 / 2'), findsOneWidget);
     expect(tester.element(firstViewerPage), same(firstViewerPageElement));
@@ -147,21 +169,23 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
 
     await tester.drag(
       find.byKey(const Key('meeting-detail-image-gallery')),
       const Offset(-320, 0),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
     expect(find.text('2 / 2'), findsOneWidget);
 
-    await tester.tap(
-      find.byKey(const ValueKey('meeting-detail-image-1')),
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const Key('meeting-detail-image-gallery')),
+      ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
 
     expect(find.byKey(const Key('meeting-image-viewer')), findsOneWidget);
@@ -182,7 +206,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await _pumpUiTransition(tester);
     _clearExpectedImageErrors(tester);
 
     expect(
@@ -198,6 +222,12 @@ Future<void> _doubleTap(WidgetTester tester, Finder finder) async {
   await tester.pump(const Duration(milliseconds: 50));
   await tester.tap(finder);
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+Future<void> _pumpUiTransition(WidgetTester tester) async {
+  for (var frame = 0; frame < 120; frame++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
 }
 
 void _clearExpectedImageErrors(WidgetTester tester) {
