@@ -170,18 +170,36 @@ class ApiMeetingRepository extends MeetingRepository {
   @override
   Future<List<MeetingParticipation>> getParticipations(
     int meetingId, {
-    String status = 'PENDING',
+    String? status,
   }) async {
-    final response = await _apiClient.getJson(
-      '/api/v1/meetings/$meetingId/participations',
-      queryParameters: {'status': status, 'size': '100'},
-    );
-    _ensureSuccess(response);
-    final data = _readMap(response['data'], 'data');
-    return [
-      for (final item in _readList(data['content'], 'data.content'))
-        _participationFromJson(_readMap(item, 'data.content[]')),
-    ];
+    final participations = <MeetingParticipation>[];
+    var page = 0;
+
+    while (true) {
+      final response = await _apiClient.getJson(
+        '/api/v1/meetings/$meetingId/participations',
+        queryParameters: {
+          if (status != null) 'status': status,
+          'page': '$page',
+          'size': '100',
+        },
+      );
+      _ensureSuccess(response);
+      final data = _readMap(response['data'], 'data');
+      participations.addAll([
+        for (final item in _readList(data['content'], 'data.content'))
+          _participationFromJson(_readMap(item, 'data.content[]')),
+      ]);
+
+      final totalPages = _readInt(data['totalPages']);
+      final isLast = data['last'] == true;
+      if (isLast || totalPages == 0 || page + 1 >= totalPages) {
+        break;
+      }
+      page++;
+    }
+
+    return participations;
   }
 
   @override

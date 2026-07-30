@@ -35,7 +35,7 @@ abstract class MeetingRepository {
 
   Future<List<MeetingParticipation>> getParticipations(
     int meetingId, {
-    String status = 'PENDING',
+    String? status,
   }) {
     throw UnimplementedError();
   }

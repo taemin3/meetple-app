@@ -46,30 +46,17 @@ class _MeetingParticipationManagementPageState
 
   Future<Map<ParticipationStatus, List<MeetingParticipation>>>
       _loadParticipations() async {
-    final results = await Future.wait([
-      widget.meetingRepository.getParticipations(
-        widget.meeting.id!,
-        status: 'PENDING',
-      ),
-      widget.meetingRepository.getParticipations(
-        widget.meeting.id!,
-        status: 'APPROVED',
-      ),
-      widget.meetingRepository.getParticipations(
-        widget.meeting.id!,
-        status: 'REJECTED',
-      ),
-      widget.meetingRepository.getParticipations(
-        widget.meeting.id!,
-        status: 'CANCELED',
-      ),
-    ]);
-    return {
-      ParticipationStatus.pending: results[0],
-      ParticipationStatus.approved: results[1],
-      ParticipationStatus.rejected: results[2],
-      ParticipationStatus.canceled: results[3],
+    final participations = await widget.meetingRepository.getParticipations(
+      widget.meeting.id!,
+    );
+    final groupedItems = {
+      for (final status in ParticipationStatus.values)
+        status: <MeetingParticipation>[],
     };
+    for (final participation in participations) {
+      groupedItems[participation.status]!.add(participation);
+    }
+    return groupedItems;
   }
 
   void _reload() {

@@ -29,10 +29,7 @@ void main() {
     expect(find.text('수락 완료 1'), findsOneWidget);
     expect(find.text('거절 1'), findsOneWidget);
     expect(find.text('러너 하나'), findsOneWidget);
-    expect(
-      repository.requestedStatuses.take(4),
-      ['PENDING', 'APPROVED', 'REJECTED', 'CANCELED'],
-    );
+    expect(repository.requestedStatuses, [null]);
 
     await tester.drag(find.byType(ListView), const Offset(0, -500));
     await tester.pumpAndSettle();
@@ -101,7 +98,7 @@ const _meeting = Meeting(
 
 class _ParticipationManagementRepository extends MockMeetingRepository {
   final List<int> reviewedIds = [];
-  final List<String> requestedStatuses = [];
+  final List<String?> requestedStatuses = [];
   final List<MeetingParticipation> _pending = [
     MeetingParticipation(
       id: 1,
@@ -155,9 +152,17 @@ class _ParticipationManagementRepository extends MockMeetingRepository {
   @override
   Future<List<MeetingParticipation>> getParticipations(
     int meetingId, {
-    String status = 'PENDING',
+    String? status,
   }) async {
     requestedStatuses.add(status);
+    if (status == null) {
+      return [
+        ..._pending,
+        ..._approved,
+        ..._rejected,
+        ..._canceled,
+      ];
+    }
     return switch (status) {
       'APPROVED' => List.of(_approved),
       'REJECTED' => List.of(_rejected),
