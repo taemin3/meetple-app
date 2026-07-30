@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../app/app_routes.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../models/meeting.dart';
-import '../../widgets/meeting_photo.dart';
+import '../../widgets/meeting_list_card.dart';
 
 class BookmarkedMeetingsPage extends StatefulWidget {
   const BookmarkedMeetingsPage({
@@ -55,35 +55,19 @@ class _BookmarkedMeetingsPageState extends State<BookmarkedMeetingsPage> {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) {
               final meeting = meetings[index];
-              return Card(
-                clipBehavior: Clip.antiAlias,
-                child: ListTile(
-                  onTap: () async {
-                    await AppRoutes.openMeetingDetail(
-                      context,
-                      meeting,
-                      meetingRepository: widget.meetingRepository,
-                    );
-                    if (mounted) _reload();
-                  },
-                  contentPadding: const EdgeInsets.all(10),
-                  leading: SizedBox(
-                    width: 72,
-                    child: MeetingPhoto(
-                      meeting: meeting,
-                      height: 64,
-                      borderRadius: 12,
-                      showIcon: false,
-                    ),
-                  ),
-                  title: Text(
-                    meeting.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  subtitle: Text('${meeting.date} · ${meeting.area}'),
-                  trailing: const Icon(Icons.chevron_right),
+              return MeetingListCard(
+                meeting: meeting,
+                onTap: () async {
+                  await AppRoutes.openMeetingDetail(
+                    context,
+                    meeting,
+                    meetingRepository: widget.meetingRepository,
+                  );
+                  if (mounted) _reload();
+                },
+                trailing: const Icon(
+                  Icons.bookmark,
+                  color: Color(0xFF7B61FF),
                 ),
               );
             },

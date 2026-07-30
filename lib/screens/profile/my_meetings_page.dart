@@ -4,7 +4,7 @@ import '../../app/app_routes.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
-import '../../widgets/meeting_photo.dart';
+import '../../widgets/meeting_list_card.dart';
 
 class MyMeetingsPage extends StatefulWidget {
   const MyMeetingsPage({
@@ -79,38 +79,22 @@ class _MyMeetingsPageState extends State<MyMeetingsPage> {
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final meeting = meetings[index];
-                return Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: ListTile(
-                    key: ValueKey('my-meeting-${meeting.id ?? index}'),
-                    onTap: () async {
-                      await AppRoutes.openMeetingDetail(
-                        context,
-                        meeting,
-                        meetingRepository: widget.meetingRepository,
-                      );
-                      if (mounted) {
-                        _reload();
-                      }
-                    },
-                    contentPadding: const EdgeInsets.all(10),
-                    leading: SizedBox(
-                      width: 72,
-                      child: MeetingPhoto(
-                        meeting: meeting,
-                        height: 64,
-                        borderRadius: 12,
-                        showIcon: false,
-                      ),
-                    ),
-                    title: Text(
-                      meeting.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    subtitle: Text('${meeting.date} · ${meeting.area}'),
-                    trailing: const Icon(Icons.chevron_right),
+                return MeetingListCard(
+                  key: ValueKey('my-meeting-${meeting.id ?? index}'),
+                  meeting: meeting,
+                  onTap: () async {
+                    await AppRoutes.openMeetingDetail(
+                      context,
+                      meeting,
+                      meetingRepository: widget.meetingRepository,
+                    );
+                    if (mounted) {
+                      _reload();
+                    }
+                  },
+                  trailing: const Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey,
                   ),
                 );
               },
