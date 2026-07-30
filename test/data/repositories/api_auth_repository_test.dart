@@ -44,6 +44,9 @@ void main() {
     expect(session.user.id, 1);
     expect(session.user.email, 'user@example.com');
     expect(session.user.nickname, '민지');
+    expect(session.user.createdMeetingsCount, 3);
+    expect(session.user.joinedMeetingsCount, 4);
+    expect(session.user.likedMeetingsCount, 5);
     expect((await tokenStore.read())?.accessToken, 'access-token');
   });
 
@@ -363,6 +366,9 @@ Map<String, dynamic> _profileJson({
     'profileImageUrl': 'https://example.com/profile.png',
     'region': '서울',
     'role': 'USER',
+    'createdMeetingsCount': 3,
+    'joinedMeetingsCount': 4,
+    'likedMeetingsCount': 5,
   };
 }
 

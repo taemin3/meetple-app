@@ -8,6 +8,8 @@ enum ParticipationStatus {
 class MeetingParticipation {
   const MeetingParticipation({
     required this.id,
+    this.meetingId,
+    this.meetingTitle,
     required this.memberId,
     required this.memberNickname,
     this.memberProfileImageUrl,
@@ -19,6 +21,8 @@ class MeetingParticipation {
   });
 
   final int id;
+  final int? meetingId;
+  final String? meetingTitle;
   final int memberId;
   final String memberNickname;
   final String? memberProfileImageUrl;

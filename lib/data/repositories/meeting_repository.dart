@@ -7,6 +7,10 @@ abstract class MeetingRepository {
 
   Future<List<Meeting>> findAll();
 
+  Future<Meeting> findById(int meetingId) {
+    throw UnimplementedError();
+  }
+
   Future<List<Meeting>> findNearby(NearbyMeetingQuery query);
 
   Future<Meeting> createMeeting(CreateMeetingInput input);
@@ -68,6 +72,18 @@ abstract class MeetingRepository {
   }
 
   Future<List<Meeting>> getBookmarkedMeetings() {
+    throw UnimplementedError();
+  }
+
+  Future<List<Meeting>> getHostedMeetings() {
+    throw UnimplementedError();
+  }
+
+  Future<List<Meeting>> getJoinedMeetings() {
+    throw UnimplementedError();
+  }
+
+  Future<List<MeetingParticipation>> getMyApplications() {
     throw UnimplementedError();
   }
 

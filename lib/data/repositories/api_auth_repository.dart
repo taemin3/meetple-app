@@ -69,6 +69,12 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthSession?> refreshSession() async {
+    _session = null;
+    return restoreSession();
+  }
+
+  @override
   Future<AuthSession> signIn({
     required String email,
     required String password,
@@ -233,6 +239,9 @@ class ApiAuthRepository implements AuthRepository {
       handle: _handleFrom(nickname, email),
       email: email,
       profileImageUrl: _readNullableString(json['profileImageUrl']),
+      createdMeetingsCount: _readInt(json['createdMeetingsCount']),
+      joinedMeetingsCount: _readInt(json['joinedMeetingsCount']),
+      likedMeetingsCount: _readInt(json['likedMeetingsCount']),
     );
   }
 

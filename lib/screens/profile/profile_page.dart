@@ -8,23 +8,28 @@ import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
+import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/surface_panel.dart';
 import '../auth/auth_form_widgets.dart';
 import '../notifications/notifications_page.dart';
 import 'bookmarked_meetings_page.dart';
+import 'my_applications_page.dart';
+import 'my_meetings_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.isActive = true,
     this.onSignedOut,
   });
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final bool isActive;
   final VoidCallback? onSignedOut;
 
   @override
@@ -39,7 +44,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _authRepository = widget.authRepository ?? MockAuthRepository();
-    _loadSession();
+    _loadSession(forceRefresh: widget.isActive);
   }
 
   @override
@@ -48,16 +53,20 @@ class _ProfilePageState extends State<ProfilePage> {
     if (oldWidget.authRepository != widget.authRepository &&
         widget.authRepository != null) {
       _authRepository = widget.authRepository!;
-      _loadSession();
+      _loadSession(forceRefresh: widget.isActive);
+    } else if (!oldWidget.isActive && widget.isActive) {
+      _reloadSession(forceRefresh: true);
     }
   }
 
-  void _loadSession() {
-    _sessionFuture = _authRepository.restoreSession();
+  void _loadSession({bool forceRefresh = false}) {
+    _sessionFuture = forceRefresh
+        ? _authRepository.refreshSession()
+        : _authRepository.restoreSession();
   }
 
-  void _reloadSession() {
-    setState(_loadSession);
+  void _reloadSession({bool forceRefresh = false}) {
+    setState(() => _loadSession(forceRefresh: forceRefresh));
   }
 
   @override
@@ -140,8 +149,35 @@ class _ProfileContentState extends State<ProfileContent> {
         const SizedBox(height: 18),
         ProfileMenuGroup(
           items: [
-            (Icons.event_available_outlined, '내가 만든 모임', null),
-            (Icons.group_outlined, '참여 중인 모임', null),
+            (
+              Icons.event_available_outlined,
+              '내가 만든 모임',
+              () => _openMeetings(
+                    title: '내가 만든 모임',
+                    emptyMessage: '아직 만든 모임이 없습니다.',
+                    loader: widget.meetingRepository.getHostedMeetings,
+                  ),
+            ),
+            (
+              Icons.group_outlined,
+              '참여 중인 모임',
+              () => _openMeetings(
+                    title: '참여 중인 모임',
+                    emptyMessage: '현재 참여 중인 모임이 없습니다.',
+                    loader: widget.meetingRepository.getJoinedMeetings,
+                  ),
+            ),
+            (
+              Icons.assignment_outlined,
+              '내 신청 내역',
+              () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => MyApplicationsPage(
+                        meetingRepository: widget.meetingRepository,
+                      ),
+                    ),
+                  ),
+            ),
             (
               Icons.favorite_border,
               '찜한 모임',
@@ -223,6 +259,23 @@ class _ProfileContentState extends State<ProfileContent> {
     }
 
     widget.onSignedOut();
+  }
+
+  void _openMeetings({
+    required String title,
+    required String emptyMessage,
+    required Future<List<Meeting>> Function() loader,
+  }) {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => MyMeetingsPage(
+          title: title,
+          emptyMessage: emptyMessage,
+          meetingRepository: widget.meetingRepository,
+          loader: loader,
+        ),
+      ),
+    );
   }
 }
 
