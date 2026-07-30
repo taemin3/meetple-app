@@ -110,7 +110,7 @@ class MockMeetingRepository extends MeetingRepository {
   @override
   Future<List<MeetingParticipation>> getParticipations(
     int meetingId, {
-    String status = 'PENDING',
+    String? status,
   }) async {
     return const [];
   }

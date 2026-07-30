@@ -165,10 +165,88 @@ void main() {
     expect(apiClient.path, '/api/v1/meetings/10/participations');
     expect(apiClient.queryParameters, {
       'status': 'PENDING',
+      'page': '0',
       'size': '100',
     });
     expect(participations.single.memberNickname, '러너');
     expect(participations.single.createdAt, DateTime(2026, 7, 27, 18, 35));
+  });
+
+  test('loads every participation page without a status filter', () async {
+    final apiClient = SequencedApiClient(
+      responses: [
+        {
+          'status': 200,
+          'success': true,
+          'data': {
+            'content': [
+              _participationJson(id: 100, status: 'PENDING'),
+            ],
+            'totalPages': 2,
+            'last': false,
+          },
+        },
+        {
+          'status': 200,
+          'success': true,
+          'data': {
+            'content': [
+              _participationJson(id: 101, status: 'APPROVED'),
+            ],
+            'totalPages': 2,
+            'last': true,
+          },
+        },
+      ],
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final participations = await repository.getParticipations(10);
+
+    expect(participations.map((item) => item.id), [100, 101]);
+    expect(apiClient.queries, [
+      {'page': '0', 'size': '100'},
+      {'page': '1', 'size': '100'},
+    ]);
+  });
+
+  test('approves and rejects participation through meeting API paths',
+      () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': _participationJson(id: 100, status: 'APPROVED'),
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final approved = await repository.reviewParticipation(
+      10,
+      100,
+      approve: true,
+    );
+
+    expect(apiClient.method, 'PATCH');
+    expect(
+      apiClient.path,
+      '/api/v1/meetings/10/participations/100/approve',
+    );
+    expect(approved.status.name, 'approved');
+
+    apiClient.response['data'] =
+        _participationJson(id: 101, status: 'REJECTED');
+    final rejected = await repository.reviewParticipation(
+      10,
+      101,
+      approve: false,
+    );
+
+    expect(
+      apiClient.path,
+      '/api/v1/meetings/10/participations/101/reject',
+    );
+    expect(rejected.status.name, 'rejected');
   });
 
   test('throws ApiException when API envelope is unsuccessful', () async {
@@ -447,6 +525,23 @@ String _timeLabel(DateTime dateTime) {
 
 String _twoDigits(int value) {
   return value.toString().padLeft(2, '0');
+}
+
+Map<String, dynamic> _participationJson({
+  required int id,
+  required String status,
+}) {
+  return {
+    'id': id,
+    'memberId': 2,
+    'memberNickname': '러너',
+    'memberProfileImageUrl': 'https://example.com/profile.png',
+    'status': status,
+    'message': '함께 달리고 싶어요.',
+    'reviewedAt': status == 'PENDING' ? null : '2026-07-27T18:40:00',
+    'canceledAt': null,
+    'createdAt': '2026-07-27T18:35:00',
+  };
 }
 
 class FakeApiClient extends ApiClient {
