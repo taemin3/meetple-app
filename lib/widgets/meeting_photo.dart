@@ -39,11 +39,14 @@ class MeetingPhoto extends StatelessWidget {
             ? fallback
             : NetworkImageWithSkeleton(
                 imageUrl: imageUrl,
-                imageKey: const Key('meeting-photo-network'),
+                imageKey: ValueKey(
+                  'meeting-photo-network-${meeting.id ?? imageUrl}',
+                ),
                 width: double.infinity,
                 height: height,
                 fit: BoxFit.cover,
                 cacheHeight: cacheHeight,
+                useOldImageOnUrlChange: false,
                 skeleton: SkeletonBox(
                   key: const Key('meeting-photo-loading-skeleton'),
                   width: double.infinity,

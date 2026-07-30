@@ -15,6 +15,7 @@ import 'package:meetple/widgets/tag_chip.dart';
 void main() {
   testWidgets('shows meeting card skeletons during the first nearby load',
       (tester) async {
+    final semantics = tester.ensureSemantics();
     final meetingRepository = _DeferredNearbyMeetingRepository();
     await tester.pumpWidget(
       MaterialApp(
@@ -43,6 +44,15 @@ void main() {
       ),
       findsOneWidget,
     );
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const Key('nearby-meeting-skeleton-list')),
+          )
+          .label,
+      '내 주변 모임을 불러오는 중입니다.',
+    );
+    semantics.dispose();
 
     meetingRepository.complete(
       await const MockMeetingRepository().findAll(),

@@ -21,6 +21,7 @@ void main() {
   testWidgets('shows meeting card skeletons during the first home load', (
     WidgetTester tester,
   ) async {
+    final semantics = tester.ensureSemantics();
     await tester.binding.setSurfaceSize(const Size(540, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -46,6 +47,15 @@ void main() {
       find.byKey(const ValueKey('home-meeting-skeleton-2')),
       findsOneWidget,
     );
+    expect(
+      tester
+          .getSemantics(
+            find.byKey(const Key('home-meeting-skeleton-list')),
+          )
+          .label,
+      '추천 모임을 불러오는 중입니다.',
+    );
+    semantics.dispose();
 
     meetingRepository.complete(
       await const MockMeetingRepository().findAll(),
@@ -141,6 +151,117 @@ void main() {
 
     expect(meetingRepository.findAllCount, 1);
     expect(meetingRepository.findNearbyCount, 1);
+  });
+
+  testWidgets('pauses skeleton animations in an inactive tab', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _DeferredFindAllRepository();
+    await tester.pumpWidget(
+      MeetpleApp(meetingRepository: meetingRepository),
+    );
+    await tester.pump();
+
+    final homeSkeleton = find.byKey(
+      const Key('home-meeting-skeleton-list'),
+      skipOffstage: false,
+    );
+    expect(homeSkeleton, findsOneWidget);
+    expect(
+      tester
+          .widget<TickerMode>(
+            find.byKey(const ValueKey('app-tab-ticker-home')),
+          )
+          .enabled,
+      isTrue,
+    );
+
+    await tester.tap(find.text('탐색'));
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<TickerMode>(
+            find.byKey(
+              const ValueKey('app-tab-ticker-home'),
+              skipOffstage: false,
+            ),
+          )
+          .enabled,
+      isFalse,
+    );
+
+    meetingRepository.complete(
+      await const MockMeetingRepository().findAll(),
+    );
+    await tester.pump();
+  });
+
+  testWidgets('dismisses the search keyboard when switching tabs', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MeetpleApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('탐색'));
+    await tester.pumpAndSettle();
+
+    final searchField = find.byType(TextField).first;
+    await tester.showKeyboard(searchField);
+    final searchFocusNode = tester
+        .widget<EditableText>(
+          find.descendant(
+            of: searchField,
+            matching: find.byType(EditableText),
+          ),
+        )
+        .focusNode;
+    expect(searchFocusNode.hasFocus, isTrue);
+
+    await tester.tap(find.text('홈'));
+    await tester.pump();
+
+    expect(searchFocusNode.hasFocus, isFalse);
+  });
+
+  testWidgets('refreshes the other visited tab after a meeting changes', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(meetingRepository: meetingRepository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('탐색'));
+    await tester.pumpAndSettle();
+    final initialNearbyLoadCount = meetingRepository.findNearbyCount;
+    await tester.tap(find.text('홈'));
+    await tester.pumpAndSettle();
+    final initialHomeLoadCount = meetingRepository.findAllCount;
+
+    await tester.tap(find.text('한강 러닝 크루 🏃'));
+    await tester.pumpAndSettle();
+    Navigator.of(
+      tester.element(find.text('모임 소개')),
+    ).pop('updated');
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, initialHomeLoadCount + 1);
+    expect(meetingRepository.findNearbyCount, initialNearbyLoadCount);
+
+    await tester.tap(find.text('탐색'));
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findNearbyCount, initialNearbyLoadCount + 1);
   });
 
   testWidgets('opens create meeting screen from home banner', (

@@ -85,10 +85,10 @@ class _AppShellState extends State<AppShell> {
               sizing: StackFit.expand,
               index: _stackIndexOfTab(currentTab),
               children: [
-                _buildTab(AppTab.home),
-                _buildTab(AppTab.discover),
-                _buildTab(AppTab.chat),
-                _buildTab(AppTab.profile),
+                _buildTabSlot(AppTab.home),
+                _buildTabSlot(AppTab.discover),
+                _buildTabSlot(AppTab.chat),
+                _buildTabSlot(AppTab.profile),
               ],
             ),
           ),
@@ -148,6 +148,7 @@ class _AppShellState extends State<AppShell> {
       return;
     }
 
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       currentTab = tab;
       final wasVisited = _visitedTabs.contains(tab);
@@ -160,6 +161,7 @@ class _AppShellState extends State<AppShell> {
 
   void _selectDestination(int index) {
     if (index == 2) {
+      FocusManager.instance.primaryFocus?.unfocus();
       unawaited(_openCreateMeeting());
       return;
     }
@@ -179,10 +181,10 @@ class _AppShellState extends State<AppShell> {
       return;
     }
 
-    _handleMeetingCreated();
+    _invalidateMeetingTabs();
   }
 
-  void _handleMeetingCreated() {
+  void _invalidateMeetingTabs() {
     if (!mounted) {
       return;
     }
@@ -199,6 +201,14 @@ class _AppShellState extends State<AppShell> {
         }
       }
     });
+  }
+
+  Widget _buildTabSlot(AppTab tab) {
+    return TickerMode(
+      key: ValueKey('app-tab-ticker-${tab.name}'),
+      enabled: currentTab == tab,
+      child: _buildTab(tab),
+    );
   }
 
   void _refreshTab(AppTab tab) {
@@ -255,13 +265,15 @@ class _AppShellState extends State<AppShell> {
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,
           refreshToken: _homeRefreshToken,
-          onMeetingCreated: _handleMeetingCreated,
+          onMeetingCreated: _invalidateMeetingTabs,
+          onMeetingChanged: _invalidateMeetingTabs,
         );
       case AppTab.discover:
         return DiscoverPage(
           meetingRepository: widget.meetingRepository,
           categoryRepository: widget.categoryRepository,
           refreshToken: _discoverRefreshToken,
+          onMeetingChanged: _invalidateMeetingTabs,
         );
       case AppTab.chat:
         return const ChatPage();

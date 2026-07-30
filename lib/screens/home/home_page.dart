@@ -26,6 +26,7 @@ class HomePage extends StatefulWidget {
     this.locationRepository = const MockLocationRepository(),
     this.refreshToken = 0,
     this.onMeetingCreated,
+    this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
@@ -33,6 +34,7 @@ class HomePage extends StatefulWidget {
   final LocationRepository locationRepository;
   final int refreshToken;
   final VoidCallback? onMeetingCreated;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -71,7 +73,7 @@ class _HomePageState extends State<HomePage> {
       meetingRepository: widget.meetingRepository,
     );
     if (result != null && mounted) {
-      _reloadMeetings();
+      (widget.onMeetingChanged ?? _reloadMeetings)();
     }
   }
 
@@ -360,14 +362,21 @@ class _HomeMeetingSkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Semantics(
       key: const Key('home-meeting-skeleton-list'),
-      children: [
-        for (var index = 0; index < 3; index++)
-          _HomeMeetingSkeletonTile(
-            key: ValueKey('home-meeting-skeleton-$index'),
-          ),
-      ],
+      container: true,
+      liveRegion: true,
+      label: '추천 모임을 불러오는 중입니다.',
+      child: ExcludeSemantics(
+        child: Column(
+          children: [
+            for (var index = 0; index < 3; index++)
+              _HomeMeetingSkeletonTile(
+                key: ValueKey('home-meeting-skeleton-$index'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

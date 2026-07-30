@@ -24,7 +24,9 @@ void main() {
     );
 
     final image = tester.widget<CachedNetworkImage>(
-      find.byKey(const Key('meeting-photo-network')),
+      find.byKey(
+        ValueKey('meeting-photo-network-${meeting.id}'),
+      ),
     );
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(
       tester.element(find.byType(MeetingPhoto)),
@@ -35,7 +37,7 @@ void main() {
     expect(image.maxHeightDiskCache, expectedCacheHeight);
     expect(image.fadeInDuration, Duration.zero);
     expect(image.fadeOutDuration, Duration.zero);
-    expect(image.useOldImageOnUrlChange, isTrue);
+    expect(image.useOldImageOnUrlChange, isFalse);
     expect(
       find.byKey(const Key('meeting-photo-loading-skeleton')),
       findsOneWidget,
@@ -83,7 +85,16 @@ void main() {
       ),
     );
 
-    expect(find.byKey(const Key('meeting-photo-network')), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget.key is ValueKey<String> &&
+            (widget.key! as ValueKey<String>)
+                .value
+                .startsWith('meeting-photo-network-'),
+      ),
+      findsNothing,
+    );
     expect(find.byKey(const Key('meeting-photo-fallback')), findsOneWidget);
   });
 }

@@ -13,6 +13,7 @@ class NetworkImageWithSkeleton extends StatelessWidget {
     this.fit,
     this.cacheWidth,
     this.cacheHeight,
+    this.useOldImageOnUrlChange = true,
   });
 
   final String imageUrl;
@@ -24,6 +25,7 @@ class NetworkImageWithSkeleton extends StatelessWidget {
   final BoxFit? fit;
   final int? cacheWidth;
   final int? cacheHeight;
+  final bool useOldImageOnUrlChange;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +39,7 @@ class NetworkImageWithSkeleton extends StatelessWidget {
       memCacheHeight: cacheHeight,
       maxWidthDiskCache: cacheWidth,
       maxHeightDiskCache: cacheHeight,
-      useOldImageOnUrlChange: true,
+      useOldImageOnUrlChange: useOldImageOnUrlChange,
       placeholderFadeInDuration: Duration.zero,
       fadeInDuration: Duration.zero,
       fadeOutDuration: Duration.zero,

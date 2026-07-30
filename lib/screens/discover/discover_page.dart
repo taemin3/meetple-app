@@ -25,11 +25,13 @@ class DiscoverPage extends StatefulWidget {
     this.meetingRepository = const MockMeetingRepository(),
     this.categoryRepository = const MockCategoryRepository(),
     this.refreshToken = 0,
+    this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
   final int refreshToken;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<DiscoverPage> createState() => _DiscoverPageState();
@@ -318,7 +320,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
       meetingRepository: widget.meetingRepository,
     );
     if (result != null && mounted) {
-      await _loadMeetingsAt(_searchCenter, zoom: _searchZoom);
+      final onMeetingChanged = widget.onMeetingChanged;
+      if (onMeetingChanged != null) {
+        onMeetingChanged();
+      } else {
+        await _loadMeetingsAt(_searchCenter, zoom: _searchZoom);
+      }
     }
   }
 
@@ -1097,17 +1104,24 @@ class _NearbyMeetingSkeletonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    return Semantics(
       key: const Key('nearby-meeting-skeleton-list'),
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-      scrollDirection: Axis.horizontal,
-      itemCount: 3,
-      separatorBuilder: (_, __) => const SizedBox(width: 12),
-      itemBuilder: (context, index) {
-        return _MapMeetingSkeletonCard(
-          key: ValueKey('nearby-meeting-skeleton-$index'),
-        );
-      },
+      container: true,
+      liveRegion: true,
+      label: '내 주변 모임을 불러오는 중입니다.',
+      child: ExcludeSemantics(
+        child: ListView.separated(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          scrollDirection: Axis.horizontal,
+          itemCount: 3,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (context, index) {
+            return _MapMeetingSkeletonCard(
+              key: ValueKey('nearby-meeting-skeleton-$index'),
+            );
+          },
+        ),
+      ),
     );
   }
 }
