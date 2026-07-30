@@ -4,7 +4,9 @@ import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../models/meeting_engagement.dart';
+import '../../widgets/app_page_header.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/segmented_count_filter_bar.dart';
 import '../../widgets/surface_panel.dart';
 
 class MyApplicationsPage extends StatefulWidget {
@@ -38,64 +40,78 @@ class _MyApplicationsPageState extends State<MyApplicationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('내 신청 내역')),
-      body: Column(
-        children: [
-          _ApplicationFilters(
-            selectedStatus: _selectedStatus,
-            onSelected: (status) => setState(() => _selectedStatus = status),
-          ),
-          Expanded(
-            child: FutureBuilder<List<MeetingParticipation>>(
-              future: _future,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const AppLoadingView(
-                    message: '신청 내역을 불러오는 중입니다.',
-                    height: double.infinity,
-                  );
-                }
-                if (snapshot.hasError) {
-                  return AppErrorView(
-                    message: '신청 내역을 불러오지 못했습니다.',
-                    height: double.infinity,
-                    onRetry: _reload,
-                  );
-                }
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const AppPageHeader(title: '내 신청 내역'),
+            Expanded(
+              child: FutureBuilder<List<MeetingParticipation>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const AppLoadingView(
+                      message: '신청 내역을 불러오는 중입니다.',
+                      height: double.infinity,
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return AppErrorView(
+                      message: '신청 내역을 불러오지 못했습니다.',
+                      height: double.infinity,
+                      onRetry: _reload,
+                    );
+                  }
 
-                final applications = (snapshot.data ?? const [])
-                    .where(
-                      (item) =>
-                          _selectedStatus == null ||
-                          item.status == _selectedStatus,
-                    )
-                    .toList(growable: false);
-                if (applications.isEmpty) {
-                  return const AppEmptyView(
-                    message: '해당하는 신청 내역이 없습니다.',
-                    height: double.infinity,
+                  final allApplications = snapshot.data ?? const [];
+                  final applications = allApplications
+                      .where(
+                        (item) =>
+                            _selectedStatus == null ||
+                            item.status == _selectedStatus,
+                      )
+                      .toList(growable: false);
+                  return Column(
+                    children: [
+                      _ApplicationFilters(
+                        applications: allApplications,
+                        selectedStatus: _selectedStatus,
+                        onSelected: (status) =>
+                            setState(() => _selectedStatus = status),
+                      ),
+                      Expanded(
+                        child: applications.isEmpty
+                            ? const AppEmptyView(
+                                message: '해당하는 신청 내역이 없습니다.',
+                                height: double.infinity,
+                              )
+                            : RefreshIndicator(
+                                onRefresh: () async {
+                                  _reload();
+                                  await _future;
+                                },
+                                child: ListView.separated(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                  itemCount: applications.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 10),
+                                  itemBuilder: (context, index) =>
+                                      _ApplicationCard(
+                                    application: applications[index],
+                                    onTap: () =>
+                                        _openMeeting(applications[index]),
+                                  ),
+                                ),
+                              ),
+                      ),
+                    ],
                   );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    _reload();
-                    await _future;
-                  },
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    itemCount: applications.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) => _ApplicationCard(
-                      application: applications[index],
-                      onTap: () => _openMeeting(applications[index]),
-                    ),
-                  ),
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -132,38 +148,44 @@ class _MyApplicationsPageState extends State<MyApplicationsPage> {
 
 class _ApplicationFilters extends StatelessWidget {
   const _ApplicationFilters({
+    required this.applications,
     required this.selectedStatus,
     required this.onSelected,
   });
 
+  final List<MeetingParticipation> applications;
   final ParticipationStatus? selectedStatus;
   final ValueChanged<ParticipationStatus?> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    const filters = <(String, ParticipationStatus?)>[
-      ('전체', null),
-      ('대기', ParticipationStatus.pending),
-      ('승인', ParticipationStatus.approved),
-      ('거절', ParticipationStatus.rejected),
-      ('취소', ParticipationStatus.canceled),
+    const filters = <SegmentedCountFilterItem<ParticipationStatus?>>[
+      SegmentedCountFilterItem(value: null, label: '전체'),
+      SegmentedCountFilterItem(
+        value: ParticipationStatus.pending,
+        label: '대기',
+      ),
+      SegmentedCountFilterItem(
+        value: ParticipationStatus.approved,
+        label: '승인',
+      ),
+      SegmentedCountFilterItem(
+        value: ParticipationStatus.rejected,
+        label: '거절',
+      ),
+      SegmentedCountFilterItem(
+        value: ParticipationStatus.canceled,
+        label: '취소',
+      ),
     ];
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-      child: Row(
-        children: [
-          for (final filter in filters) ...[
-            ChoiceChip(
-              label: Text(filter.$1),
-              selected: selectedStatus == filter.$2,
-              onSelected: (_) => onSelected(filter.$2),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ],
-      ),
+    return SegmentedCountFilterBar<ParticipationStatus?>(
+      items: filters,
+      selectedValue: selectedStatus,
+      countFor: (status) => status == null
+          ? applications.length
+          : applications.where((item) => item.status == status).length,
+      onSelected: onSelected,
     );
   }
 }

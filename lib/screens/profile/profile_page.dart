@@ -9,6 +9,7 @@ import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/meeting.dart';
+import '../../models/meeting_list_filter.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/primary_gradient_button.dart';
 import '../../widgets/surface_panel.dart';
@@ -156,6 +157,11 @@ class _ProfileContentState extends State<ProfileContent> {
                     title: '내가 만든 모임',
                     emptyMessage: '아직 만든 모임이 없습니다.',
                     loader: widget.meetingRepository.getHostedMeetings,
+                    filters: const [
+                      MeetingListFilter.all,
+                      MeetingListFilter.ongoing,
+                      MeetingListFilter.ended,
+                    ],
                   ),
             ),
             (
@@ -163,8 +169,12 @@ class _ProfileContentState extends State<ProfileContent> {
               '참여 중인 모임',
               () => _openMeetings(
                     title: '참여 중인 모임',
-                    emptyMessage: '현재 참여 중인 모임이 없습니다.',
+                    emptyMessage: '참여한 모임이 없습니다.',
                     loader: widget.meetingRepository.getJoinedMeetings,
+                    filters: const [
+                      MeetingListFilter.all,
+                      MeetingListFilter.ended,
+                    ],
                   ),
             ),
             (
@@ -265,6 +275,7 @@ class _ProfileContentState extends State<ProfileContent> {
     required String title,
     required String emptyMessage,
     required Future<List<Meeting>> Function() loader,
+    required List<MeetingListFilter> filters,
   }) {
     Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -273,6 +284,7 @@ class _ProfileContentState extends State<ProfileContent> {
           emptyMessage: emptyMessage,
           meetingRepository: widget.meetingRepository,
           loader: loader,
+          filters: filters,
         ),
       ),
     );
