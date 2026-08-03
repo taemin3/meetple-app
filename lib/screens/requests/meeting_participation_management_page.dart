@@ -6,7 +6,7 @@ import '../../data/repositories/meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
 import '../../widgets/app_page_header.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/primary_button.dart';
 import '../../widgets/secondary_button.dart';
 import '../../widgets/segmented_count_filter_bar.dart';
 
@@ -402,12 +402,11 @@ class _ParticipationApplicantCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 88,
-                  child: PrimaryGradientButton(
+                  child: PrimaryButton(
                     label: isReviewing ? '처리 중' : '수락',
                     onPressed: isReviewing || !canApprove ? null : onApprove,
                     height: 40,
                     borderRadius: 10,
-                    showShadow: false,
                   ),
                 ),
               ],

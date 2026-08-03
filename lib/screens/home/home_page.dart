@@ -12,7 +12,7 @@ import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/meeting_list_card.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/primary_button.dart';
 import '../../widgets/section_title.dart';
 import '../notifications/notifications_page.dart';
 
@@ -421,7 +421,7 @@ class CreateMeetingBanner extends StatelessWidget {
           ),
           SizedBox(
             width: 90,
-            child: PrimaryGradientButton(
+            child: PrimaryButton(
               label: '+',
               onPressed: () => _openCreateMeeting(context),
             ),

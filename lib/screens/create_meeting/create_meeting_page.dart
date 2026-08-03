@@ -19,7 +19,7 @@ import '../../models/location_search_result.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
 import '../../screens/location_picker/location_picker_page.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/primary_button.dart';
 import '../../widgets/app_page_header.dart';
 
 class CreateMeetingPage extends StatelessWidget {
@@ -253,7 +253,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
               top: false,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
-                child: PrimaryGradientButton(
+                child: PrimaryButton(
                   key: const Key('create_meeting_submit'),
                   label: _isSubmitting
                       ? widget.isEditing

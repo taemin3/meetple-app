@@ -16,7 +16,7 @@ import '../requests/meeting_participation_management_page.dart';
 import 'meeting_edit_page.dart';
 import '../../widgets/map/meeting_location_map.dart';
 import '../../widgets/meeting_image_gallery.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/primary_button.dart';
 import '../../widgets/secondary_button.dart';
 
 class MeetingDetailPage extends StatefulWidget {
@@ -1408,7 +1408,7 @@ class DetailBottomBar extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: PrimaryGradientButton(
+              child: PrimaryButton(
                 label: isBusy ? '처리 중...' : participationLabel,
                 onPressed: onParticipationPressed,
               ),
@@ -1453,7 +1453,7 @@ class HostDetailBottomBar extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: PrimaryGradientButton(
+              child: PrimaryButton(
                 label: '참여 신청 관리',
                 onPressed: onManagePressed,
               ),

@@ -4,6 +4,7 @@ import '../../app/app_route_names.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../models/auth_session.dart';
+import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
 import 'signup_page.dart';
 
@@ -160,10 +161,12 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                         ),
                         SizedBox(height: buttonSpacing),
-                        _LoginButton(
+                        PrimaryButton(
                           height: buttonHeight,
                           label: _isSubmitting ? '로그인 중...' : '로그인',
                           onPressed: _isSubmitting ? null : _submit,
+                          borderRadius: isCompact ? 16 : 18,
+                          fontSize: isCompact ? 15 : 17,
                         ),
                         SizedBox(height: signUpSpacing),
                         _SignUpPrompt(
@@ -376,69 +379,6 @@ class _LoginTextField extends StatelessWidget {
               ] else
                 SizedBox(width: isCompact ? 16 : 18),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LoginButton extends StatelessWidget {
-  const _LoginButton({
-    required this.height,
-    required this.label,
-    required this.onPressed,
-  });
-
-  final double height;
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onPressed != null;
-    final isCompact = height < 60;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: enabled
-              ? const [
-                  AppColors.primary,
-                  AppColors.secondary,
-                  AppColors.accent,
-                ]
-              : [
-                  AppColors.primary.withOpacity(0.56),
-                  AppColors.secondary.withOpacity(0.56),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(enabled ? 0.24 : 0.1),
-            blurRadius: 28,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(isCompact ? 16 : 18),
-          child: SizedBox(
-            height: height,
-            child: Center(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isCompact ? 15 : 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
           ),
         ),
       ),

@@ -11,7 +11,7 @@ import '../../models/auth_user.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_list_filter.dart';
 import '../../widgets/app_state_view.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/primary_button.dart';
 import '../../widgets/surface_panel.dart';
 import '../auth/auth_form_widgets.dart';
 import '../notifications/notifications_page.dart';
@@ -455,7 +455,7 @@ class SignedOutProfile extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 26),
-        PrimaryGradientButton(
+        PrimaryButton(
           label: '로그인하기',
           onPressed: () => _openLogin(context),
         ),
