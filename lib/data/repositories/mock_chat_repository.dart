@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../../models/chat_message.dart';
 import '../../models/chat_room.dart';
 import 'chat_repository.dart';
@@ -8,14 +10,17 @@ class MockChatRepository implements ChatRepository {
   @override
   Future<ChatRoomListPage> getRooms({int page = 0, int size = 20}) async {
     final rooms = _rooms();
+    final totalPages = rooms.isEmpty ? 0 : (rooms.length + size - 1) ~/ size;
+    final start = math.min(page * size, rooms.length);
+    final end = math.min(start + size, rooms.length);
     return ChatRoomListPage(
-      content: rooms.take(size).toList(),
+      content: rooms.sublist(start, end),
       page: page,
       size: size,
       totalElements: rooms.length,
-      totalPages: rooms.isEmpty ? 0 : 1,
-      isFirst: true,
-      isLast: true,
+      totalPages: totalPages,
+      isFirst: page == 0,
+      isLast: totalPages == 0 || page >= totalPages - 1,
     );
   }
 

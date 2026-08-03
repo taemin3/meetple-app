@@ -57,6 +57,7 @@ class _AppShellState extends State<AppShell> {
   final Set<AppTab> _staleTabs = <AppTab>{};
   int _homeRefreshToken = 0;
   int _discoverRefreshToken = 0;
+  int _chatRefreshToken = 0;
 
   @override
   void initState() {
@@ -159,7 +160,7 @@ class _AppShellState extends State<AppShell> {
       currentTab = tab;
       final wasVisited = _visitedTabs.contains(tab);
       _visitedTabs.add(tab);
-      if (wasVisited && _staleTabs.remove(tab)) {
+      if (wasVisited && (tab == AppTab.chat || _staleTabs.remove(tab))) {
         _refreshTab(tab);
       }
     });
@@ -226,6 +227,8 @@ class _AppShellState extends State<AppShell> {
         _discoverRefreshToken++;
         break;
       case AppTab.chat:
+        _chatRefreshToken++;
+        break;
       case AppTab.profile:
         break;
     }
@@ -285,6 +288,7 @@ class _AppShellState extends State<AppShell> {
         return ChatPage(
           chatRepository: widget.chatRepository,
           currentMemberId: widget.currentMemberId,
+          refreshToken: _chatRefreshToken,
         );
       case AppTab.profile:
         return ProfilePage(

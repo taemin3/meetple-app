@@ -15,36 +15,65 @@ class ChatPage extends StatefulWidget {
     super.key,
     this.chatRepository = const MockChatRepository(),
     this.currentMemberId = 1,
+    this.refreshToken = 0,
   });
 
   final ChatRepository chatRepository;
   final int currentMemberId;
+  final int refreshToken;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
 }
 
 class _ChatPageState extends State<ChatPage> {
-  late Future<ChatRoomListPage> _roomsFuture;
+  late Future<List<ChatRoom>> _roomsFuture;
 
   @override
   void initState() {
     super.initState();
-    _roomsFuture = widget.chatRepository.getRooms();
+    _roomsFuture = _loadAllRooms();
   }
 
   @override
   void didUpdateWidget(covariant ChatPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.chatRepository != widget.chatRepository) {
-      _roomsFuture = widget.chatRepository.getRooms();
+    if (oldWidget.chatRepository != widget.chatRepository ||
+        oldWidget.refreshToken != widget.refreshToken) {
+      _roomsFuture = _loadAllRooms();
     }
   }
 
   Future<void> _refresh() async {
-    final future = widget.chatRepository.getRooms();
-    setState(() => _roomsFuture = future);
-    await future;
+    final future = _loadAllRooms();
+    setState(() {
+      _roomsFuture = future;
+    });
+    try {
+      await future;
+    } on Exception {
+      // 오류 표시는 FutureBuilder가 담당하고 콜백의 비동기 오류는 소비한다.
+    }
+  }
+
+  Future<List<ChatRoom>> _loadAllRooms() async {
+    const pageSize = 20;
+    final rooms = <ChatRoom>[];
+    var pageNumber = 0;
+
+    while (true) {
+      final page = await widget.chatRepository.getRooms(
+        page: pageNumber,
+        size: pageSize,
+      );
+      rooms.addAll(page.content);
+
+      final nextPage = page.page + 1;
+      if (page.isLast || page.totalPages == 0 || nextPage >= page.totalPages) {
+        return rooms;
+      }
+      pageNumber = nextPage;
+    }
   }
 
   @override
@@ -55,7 +84,7 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           _ChatListHeader(onRefresh: _refresh),
           Expanded(
-            child: FutureBuilder<ChatRoomListPage>(
+            child: FutureBuilder<List<ChatRoom>>(
               future: _roomsFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
@@ -72,7 +101,7 @@ class _ChatPageState extends State<ChatPage> {
                   );
                 }
 
-                final rooms = snapshot.data?.content ?? const <ChatRoom>[];
+                final rooms = snapshot.data ?? const <ChatRoom>[];
                 if (rooms.isEmpty) {
                   return RefreshIndicator(
                     onRefresh: _refresh,
@@ -114,15 +143,20 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _openRoom(ChatRoom room) async {
+    Future<void>? readCompletion;
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
         builder: (_) => ChatRoomPage(
           room: room,
           chatRepository: widget.chatRepository,
           currentMemberId: widget.currentMemberId,
+          onReadStarted: (completion) => readCompletion = completion,
         ),
       ),
     );
+    if (readCompletion case final completion?) {
+      await completion;
+    }
     if (mounted) await _refresh();
   }
 

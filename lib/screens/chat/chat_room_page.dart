@@ -16,11 +16,13 @@ class ChatRoomPage extends StatefulWidget {
     required this.room,
     required this.chatRepository,
     required this.currentMemberId,
+    this.onReadStarted,
   });
 
   final ChatRoom room;
   final ChatRepository chatRepository;
   final int currentMemberId;
+  final ValueChanged<Future<void>>? onReadStarted;
 
   @override
   State<ChatRoomPage> createState() => _ChatRoomPageState();
@@ -63,7 +65,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       });
       _scrollToLatest();
       final latestSequence = page.latestSequence;
-      if (latestSequence != null) unawaited(_markRead(latestSequence));
+      if (latestSequence != null) {
+        final completion = _markRead(latestSequence);
+        widget.onReadStarted?.call(completion);
+        unawaited(completion);
+      }
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
