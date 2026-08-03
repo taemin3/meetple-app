@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../models/auth_session.dart';
+import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
 
 class SignUpPage extends StatefulWidget {
@@ -829,11 +830,14 @@ class _SignUpStickyFooter extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _GradientActionButton(
+                    PrimaryButton(
                       label: isProfileStep
                           ? (isSubmitting ? '가입 중...' : '가입 완료')
                           : '다음',
                       onPressed: onPrimaryPressed,
+                      height: 48,
+                      borderRadius: 14,
+                      fontSize: 16,
                     ),
                   ],
                 ),
@@ -1321,66 +1325,6 @@ class _ProfilePhotoPicker extends StatelessWidget {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GradientActionButton extends StatelessWidget {
-  const _GradientActionButton({
-    required this.label,
-    required this.onPressed,
-  });
-
-  final String label;
-  final VoidCallback? onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final enabled = onPressed != null;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: enabled
-              ? const [
-                  AppColors.primary,
-                  AppColors.secondary,
-                  AppColors.accent,
-                ]
-              : [
-                  AppColors.primary.withOpacity(0.52),
-                  AppColors.secondary.withOpacity(0.52),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withOpacity(enabled ? 0.22 : 0.08),
-            blurRadius: 26,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(14),
-          child: SizedBox(
-            height: 48,
-            child: Center(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
               ),
             ),
           ),

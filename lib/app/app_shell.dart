@@ -281,6 +281,7 @@ class _AppShellState extends State<AppShell> {
         return ProfilePage(
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
+          isActive: currentTab == AppTab.profile,
           onSignedOut: widget.onSignedOut,
         );
     }

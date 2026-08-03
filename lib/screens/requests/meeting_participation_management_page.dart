@@ -5,8 +5,10 @@ import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/app_page_header.dart';
+import '../../widgets/primary_button.dart';
 import '../../widgets/secondary_button.dart';
+import '../../widgets/segmented_count_filter_bar.dart';
 
 class MeetingParticipationManagementPage extends StatefulWidget {
   const MeetingParticipationManagementPage({
@@ -143,63 +145,71 @@ class _MeetingParticipationManagementPageState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFC),
-      appBar: AppBar(
-        title: const Text(
-          '신청자 관리',
-          style: TextStyle(
-            color: AppColors.ink,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        scrolledUnderElevation: 0,
-      ),
-      body: FutureBuilder<Map<ParticipationStatus, List<MeetingParticipation>>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _ParticipationErrorView(onRetry: _reload);
-          }
+      body: SafeArea(
+        child: Column(
+          children: [
+            const AppPageHeader(title: '신청자 관리'),
+            Expanded(
+              child: FutureBuilder<
+                  Map<ParticipationStatus, List<MeetingParticipation>>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return _ParticipationErrorView(onRetry: _reload);
+                  }
 
-          final groupedItems = snapshot.data ?? const {};
-          final items = _itemsFor(groupedItems);
-          return Column(
-            children: [
-              _ParticipationFilterBar(
-                filters: _filters,
-                selectedFilter: _selectedFilter,
-                countFor: (filter) => _countFor(filter, groupedItems),
-                onSelected: _selectFilter,
-              ),
-              _ParticipationInfoBanner(filter: _selectedFilter),
-              Expanded(
-                child: items.isEmpty
-                    ? _ParticipationEmptyView(filter: _selectedFilter)
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          return _ParticipationApplicantCard(
-                            participation: item,
-                            isReviewing: _reviewingIds.contains(item.id),
-                            canApprove: _joined < widget.meeting.capacity,
-                            onReject: () => _review(item, approve: false),
-                            onApprove: () => _review(item, approve: true),
-                          );
-                        },
+                  final groupedItems = snapshot.data ?? const {};
+                  final items = _itemsFor(groupedItems);
+                  return Column(
+                    children: [
+                      SegmentedCountFilterBar<_ParticipationFilter>(
+                        items: [
+                          for (final filter in _filters)
+                            SegmentedCountFilterItem(
+                              value: filter,
+                              label: filter.label,
+                            ),
+                        ],
+                        selectedValue: _selectedFilter,
+                        countFor: (filter) => _countFor(filter, groupedItems),
+                        onSelected: _selectFilter,
                       ),
+                      _ParticipationInfoBanner(filter: _selectedFilter),
+                      Expanded(
+                        child: items.isEmpty
+                            ? _ParticipationEmptyView(filter: _selectedFilter)
+                            : ListView.separated(
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 14, 16, 28),
+                                itemCount: items.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final item = items[index];
+                                  return _ParticipationApplicantCard(
+                                    participation: item,
+                                    isReviewing:
+                                        _reviewingIds.contains(item.id),
+                                    canApprove:
+                                        _joined < widget.meeting.capacity,
+                                    onReject: () =>
+                                        _review(item, approve: false),
+                                    onApprove: () =>
+                                        _review(item, approve: true),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  );
+                },
               ),
-            ],
-          );
-        },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -215,66 +225,6 @@ enum _ParticipationFilter {
 
   final String label;
   final ParticipationStatus? status;
-}
-
-class _ParticipationFilterBar extends StatelessWidget {
-  const _ParticipationFilterBar({
-    required this.filters,
-    required this.selectedFilter,
-    required this.countFor,
-    required this.onSelected,
-  });
-
-  final List<_ParticipationFilter> filters;
-  final _ParticipationFilter selectedFilter;
-  final int Function(_ParticipationFilter filter) countFor;
-  final ValueChanged<_ParticipationFilter> onSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Colors.white,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 5, 12, 10),
-        child: Row(
-          children: [
-            for (final filter in filters)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(9),
-                    onTap: () => onSelected(filter),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 160),
-                      padding: const EdgeInsets.symmetric(vertical: 9),
-                      decoration: BoxDecoration(
-                        color: selectedFilter == filter
-                            ? AppColors.primary
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                      child: Text(
-                        '${filter.label} ${countFor(filter)}',
-                        maxLines: 1,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: selectedFilter == filter
-                              ? Colors.white
-                              : AppColors.ink,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _ParticipationInfoBanner extends StatelessWidget {
@@ -452,12 +402,11 @@ class _ParticipationApplicantCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 88,
-                  child: PrimaryGradientButton(
+                  child: PrimaryButton(
                     label: isReviewing ? '처리 중' : '수락',
                     onPressed: isReviewing || !canApprove ? null : onApprove,
                     height: 40,
                     borderRadius: 10,
-                    showShadow: false,
                   ),
                 ),
               ],

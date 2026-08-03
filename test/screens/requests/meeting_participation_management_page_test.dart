@@ -4,7 +4,7 @@ import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/requests/meeting_participation_management_page.dart';
-import 'package:meetple/widgets/primary_gradient_button.dart';
+import 'package:meetple/widgets/primary_button.dart';
 
 void main() {
   testWidgets('shows applicant counts and filters by review status',
@@ -42,7 +42,7 @@ void main() {
     expect(find.text('러너 둘'), findsOneWidget);
     expect(find.text('참여자 하나'), findsNothing);
     expect(
-      find.widgetWithText(PrimaryGradientButton, '수락'),
+      find.widgetWithText(PrimaryButton, '수락'),
       findsNWidgets(2),
     );
   });
@@ -63,7 +63,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(PrimaryGradientButton, '수락').first);
+    await tester.tap(find.widgetWithText(PrimaryButton, '수락').first);
     await tester.pumpAndSettle();
 
     expect(repository.reviewedIds, [1]);
@@ -71,8 +71,8 @@ void main() {
     expect(find.text('수락 완료 2'), findsOneWidget);
     expect(find.text('모임 정원이 가득 찼습니다.'), findsOneWidget);
 
-    final remainingButton = tester.widget<PrimaryGradientButton>(
-      find.widgetWithText(PrimaryGradientButton, '수락'),
+    final remainingButton = tester.widget<PrimaryButton>(
+      find.widgetWithText(PrimaryButton, '수락'),
     );
     expect(remainingButton.onPressed, isNull);
   });

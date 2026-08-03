@@ -69,6 +69,49 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthSession?> refreshSession() async {
+    final previousSession = _session;
+    final tokens = await _tokenStore.read();
+    if (tokens == null) {
+      return previousSession;
+    }
+
+    try {
+      return await _restoreWithTokens(tokens, clearOnFailure: false);
+    } on ApiException catch (error) {
+      if (error.statusCode != 401) {
+        _session = previousSession;
+        rethrow;
+      }
+      if (tokens.refreshToken.isEmpty) {
+        await _clearSession();
+        return null;
+      }
+
+      try {
+        final refreshedTokens = await _reissue(tokens.refreshToken);
+        return await _restoreWithTokens(
+          refreshedTokens,
+          clearOnFailure: false,
+        );
+      } on ApiException catch (refreshError) {
+        if (refreshError.statusCode == 401) {
+          await _clearSession();
+          return null;
+        }
+        _session = previousSession;
+        rethrow;
+      } on Exception {
+        _session = previousSession;
+        rethrow;
+      }
+    } on Exception {
+      _session = previousSession;
+      rethrow;
+    }
+  }
+
+  @override
   Future<AuthSession> signIn({
     required String email,
     required String password,
@@ -167,7 +210,10 @@ class ApiAuthRepository implements AuthRepository {
     return tokens;
   }
 
-  Future<AuthSession> _restoreWithTokens(AuthTokenPair tokens) async {
+  Future<AuthSession> _restoreWithTokens(
+    AuthTokenPair tokens, {
+    bool clearOnFailure = true,
+  }) async {
     await _tokenStore.write(tokens);
 
     try {
@@ -182,7 +228,9 @@ class ApiAuthRepository implements AuthRepository {
 
       return session;
     } catch (_) {
-      await _clearSession();
+      if (clearOnFailure) {
+        await _clearSession();
+      }
       rethrow;
     }
   }
@@ -233,6 +281,9 @@ class ApiAuthRepository implements AuthRepository {
       handle: _handleFrom(nickname, email),
       email: email,
       profileImageUrl: _readNullableString(json['profileImageUrl']),
+      createdMeetingsCount: _readInt(json['createdMeetingsCount']),
+      joinedMeetingsCount: _readInt(json['joinedMeetingsCount']),
+      likedMeetingsCount: _readInt(json['likedMeetingsCount']),
     );
   }
 

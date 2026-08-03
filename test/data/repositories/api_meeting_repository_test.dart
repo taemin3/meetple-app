@@ -210,6 +210,73 @@ void main() {
     ]);
   });
 
+  test('loads hosted and joined meetings from my-page API paths', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'content': [
+            {
+              'id': 10,
+              'title': '한강 러닝',
+              'categoryName': '운동',
+              'locationName': '여의도',
+              'capacity': 10,
+              'currentPeople': 4,
+            },
+          ],
+          'totalPages': 1,
+          'last': true,
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final hosted = await repository.getHostedMeetings();
+
+    expect(apiClient.path, '/api/v1/users/me/meetings/hosted');
+    expect(apiClient.queryParameters, {'page': '0', 'size': '100'});
+    expect(hosted.single.title, '한강 러닝');
+
+    final joined = await repository.getJoinedMeetings();
+
+    expect(apiClient.path, '/api/v1/users/me/meetings/joined');
+    expect(joined.single.id, 10);
+  });
+
+  test('maps my participation applications with meeting details', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'content': [
+            {
+              'id': 100,
+              'meetingId': 10,
+              'meetingTitle': '한강 러닝',
+              'memberId': 2,
+              'memberNickname': '러너',
+              'status': 'APPROVED',
+              'message': '함께 달리고 싶어요.',
+            },
+          ],
+          'totalPages': 1,
+          'last': true,
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final applications = await repository.getMyApplications();
+
+    expect(apiClient.path, '/api/v1/users/me/applications');
+    expect(applications.single.meetingId, 10);
+    expect(applications.single.meetingTitle, '한강 러닝');
+    expect(applications.single.status.name, 'approved');
+  });
+
   test('approves and rejects participation through meeting API paths',
       () async {
     final apiClient = FakeApiClient(

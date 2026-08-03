@@ -16,7 +16,7 @@ import '../requests/meeting_participation_management_page.dart';
 import 'meeting_edit_page.dart';
 import '../../widgets/map/meeting_location_map.dart';
 import '../../widgets/meeting_image_gallery.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/primary_button.dart';
 import '../../widgets/secondary_button.dart';
 
 class MeetingDetailPage extends StatefulWidget {
@@ -127,51 +127,12 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     final meetingId = widget.meeting.id;
     if (meetingId == null || _isBusy) return;
 
-    final controller = TextEditingController();
     final message = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          4,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '참여 신청',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            const Text('모임장에게 전할 메시지가 있다면 적어주세요. (선택)'),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              maxLength: 500,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: '신청 메시지를 입력해 주세요.',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.of(context).pop(controller.text),
-                child: const Text('신청하기'),
-              ),
-            ),
-          ],
-        ),
-      ),
+      builder: (_) => const _ParticipationRequestSheet(),
     );
-    controller.dispose();
     if (message == null || !mounted) return;
 
     await _runAction(() async {
@@ -516,6 +477,72 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
       return null;
     }
     return _requestParticipation;
+  }
+}
+
+class _ParticipationRequestSheet extends StatefulWidget {
+  const _ParticipationRequestSheet();
+
+  @override
+  State<_ParticipationRequestSheet> createState() =>
+      _ParticipationRequestSheetState();
+}
+
+class _ParticipationRequestSheetState
+    extends State<_ParticipationRequestSheet> {
+  final _messageController = TextEditingController();
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    FocusScope.of(context).unfocus();
+    Navigator.of(context).pop(_messageController.text);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        4,
+        20,
+        20 + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '참여 신청',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          const Text('모임장에게 전할 메시지가 있다면 적어주세요. (선택)'),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _messageController,
+            maxLength: 500,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: '신청 메시지를 입력해 주세요.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _submit,
+              child: const Text('신청하기'),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1381,7 +1408,7 @@ class DetailBottomBar extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: PrimaryGradientButton(
+              child: PrimaryButton(
                 label: isBusy ? '처리 중...' : participationLabel,
                 onPressed: onParticipationPressed,
               ),
@@ -1426,7 +1453,7 @@ class HostDetailBottomBar extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: PrimaryGradientButton(
+              child: PrimaryButton(
                 label: '참여 신청 관리',
                 onPressed: onManagePressed,
               ),

@@ -59,6 +59,13 @@ class ApiMeetingRepository extends MeetingRepository {
   }
 
   @override
+  Future<Meeting> findById(int meetingId) async {
+    final response = await _apiClient.getJson('/api/v1/meetings/$meetingId');
+    _ensureSuccess(response);
+    return _meetingFromJson(_readMap(response['data'], 'data'));
+  }
+
+  @override
   Future<List<Meeting>> findNearby(NearbyMeetingQuery query) async {
     final response = await _apiClient.getJson(
       '/api/v1/meetings/nearby',
@@ -264,16 +271,24 @@ class ApiMeetingRepository extends MeetingRepository {
 
   @override
   Future<List<Meeting>> getBookmarkedMeetings() async {
-    final response = await _apiClient.getJson(
+    return _getAllMeetings(
       '/api/v1/users/me/meetings/bookmarked',
-      queryParameters: const {'size': '100'},
     );
-    _ensureSuccess(response);
-    final data = _readMap(response['data'], 'data');
-    return [
-      for (final item in _readList(data['content'], 'data.content'))
-        _meetingFromJson(_readMap(item, 'data.content[]')),
-    ];
+  }
+
+  @override
+  Future<List<Meeting>> getHostedMeetings() {
+    return _getAllMeetings('/api/v1/users/me/meetings/hosted');
+  }
+
+  @override
+  Future<List<Meeting>> getJoinedMeetings() {
+    return _getAllMeetings('/api/v1/users/me/meetings/joined');
+  }
+
+  @override
+  Future<List<MeetingParticipation>> getMyApplications() {
+    return _getAllParticipations('/api/v1/users/me/applications');
   }
 
   @override
@@ -311,6 +326,59 @@ class ApiMeetingRepository extends MeetingRepository {
         '/api/v1/notifications/$notificationId/read',
       ),
     );
+  }
+
+  Future<List<Meeting>> _getAllMeetings(String path) async {
+    final meetings = <Meeting>[];
+    var page = 0;
+
+    while (true) {
+      final response = await _apiClient.getJson(
+        path,
+        queryParameters: {'page': '$page', 'size': '100'},
+      );
+      _ensureSuccess(response);
+      final data = _readMap(response['data'], 'data');
+      meetings.addAll([
+        for (final item in _readList(data['content'], 'data.content'))
+          _meetingFromJson(_readMap(item, 'data.content[]')),
+      ]);
+      if (_isLastPage(data, page)) {
+        break;
+      }
+      page += 1;
+    }
+
+    return meetings;
+  }
+
+  Future<List<MeetingParticipation>> _getAllParticipations(String path) async {
+    final participations = <MeetingParticipation>[];
+    var page = 0;
+
+    while (true) {
+      final response = await _apiClient.getJson(
+        path,
+        queryParameters: {'page': '$page', 'size': '100'},
+      );
+      _ensureSuccess(response);
+      final data = _readMap(response['data'], 'data');
+      participations.addAll([
+        for (final item in _readList(data['content'], 'data.content'))
+          _participationFromJson(_readMap(item, 'data.content[]')),
+      ]);
+      if (_isLastPage(data, page)) {
+        break;
+      }
+      page += 1;
+    }
+
+    return participations;
+  }
+
+  bool _isLastPage(Map<String, dynamic> data, int page) {
+    final totalPages = _readInt(data['totalPages']);
+    return data['last'] == true || totalPages == 0 || page + 1 >= totalPages;
   }
 
   void _ensureSuccess(Map<String, dynamic> response) {
@@ -383,6 +451,8 @@ class ApiMeetingRepository extends MeetingRepository {
   MeetingParticipation _participationFromJson(Map<String, dynamic> json) {
     return MeetingParticipation(
       id: _readInt(json['id']),
+      meetingId: _readNullableInt(json['meetingId']),
+      meetingTitle: _readNullableString(json['meetingTitle']),
       memberId: _readInt(json['memberId']),
       memberNickname:
           _readString(json['memberNickname'], fallback: '알 수 없는 사용자'),

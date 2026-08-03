@@ -19,7 +19,8 @@ import '../../models/location_search_result.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
 import '../../screens/location_picker/location_picker_page.dart';
-import '../../widgets/primary_gradient_button.dart';
+import '../../widgets/primary_button.dart';
+import '../../widgets/app_page_header.dart';
 
 class CreateMeetingPage extends StatelessWidget {
   const CreateMeetingPage({
@@ -164,9 +165,9 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
               ),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
-                MeetingFormHeader(
+                AppPageHeader(
                   title: widget.isEditing ? '모임 수정' : '모임 만들기',
-                  onClose: _close,
+                  onBack: _close,
                 ),
                 const SizedBox(height: 24),
                 _ImageUploadBox(
@@ -252,7 +253,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
               top: false,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
-                child: PrimaryGradientButton(
+                child: PrimaryButton(
                   key: const Key('create_meeting_submit'),
                   label: _isSubmitting
                       ? widget.isEditing
@@ -885,41 +886,6 @@ class _SelectedLocationPanel extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class MeetingFormHeader extends StatelessWidget {
-  const MeetingFormHeader({
-    super.key,
-    required this.title,
-    required this.onClose,
-  });
-
-  final String title;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        IconButton(
-          onPressed: onClose,
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-        ),
-        Expanded(
-          child: Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: AppColors.ink,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        const SizedBox(width: 48),
-      ],
     );
   }
 }

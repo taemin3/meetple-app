@@ -11,6 +11,14 @@ class MockMeetingRepository extends MeetingRepository {
   Future<List<Meeting>> findAll() => Future.value(mockMeetings);
 
   @override
+  Future<Meeting> findById(int meetingId) async {
+    return mockMeetings.firstWhere(
+      (meeting) => meeting.id == meetingId,
+      orElse: () => mockMeetings.first,
+    );
+  }
+
+  @override
   Future<List<Meeting>> findNearby(NearbyMeetingQuery query) async {
     const offsets = [
       (0.0032, 0.0015),
@@ -170,6 +178,30 @@ class MockMeetingRepository extends MeetingRepository {
   @override
   Future<List<Meeting>> getBookmarkedMeetings() async =>
       mockMeetings.take(2).toList();
+
+  @override
+  Future<List<Meeting>> getHostedMeetings() async =>
+      mockMeetings.take(2).toList();
+
+  @override
+  Future<List<Meeting>> getJoinedMeetings() async =>
+      mockMeetings.skip(1).take(2).toList();
+
+  @override
+  Future<List<MeetingParticipation>> getMyApplications() async {
+    return [
+      MeetingParticipation(
+        id: 1,
+        meetingId: mockMeetings.first.id,
+        meetingTitle: mockMeetings.first.title,
+        memberId: 2,
+        memberNickname: '나',
+        status: ParticipationStatus.pending,
+        message: '함께 참여하고 싶어요.',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+      ),
+    ];
+  }
 
   @override
   Future<List<AppNotification>> getNotifications() async {

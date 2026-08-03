@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/app_notification.dart';
+import '../../widgets/app_page_header.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({
@@ -55,57 +56,72 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('알림')),
-      body: FutureBuilder<List<AppNotification>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return const Center(child: Text('알림을 불러오지 못했습니다.'));
-          }
-          final items = snapshot.data ?? const [];
-          if (items.isEmpty) {
-            return const Center(child: Text('새로운 알림이 없습니다.'));
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final isReading = _readingIds.contains(item.id);
-              return Card(
-                color: item.isRead ? Colors.white : AppColors.softSurface,
-                child: ListTile(
-                  onTap: isReading ? null : () => _read(item),
-                  leading: CircleAvatar(
-                    backgroundColor: AppColors.primary.withOpacity(0.12),
-                    foregroundColor: AppColors.primary,
-                    child: Icon(_iconFor(item.type)),
-                  ),
-                  title: Text(
-                    item.title,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  subtitle: Text(item.message),
-                  trailing: isReading
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : item.isRead
-                          ? null
-                          : const CircleAvatar(
-                              radius: 4,
-                              backgroundColor: AppColors.primary,
+      backgroundColor: AppColors.canvas,
+      body: SafeArea(
+        child: Column(
+          children: [
+            const AppPageHeader(title: '알림'),
+            Expanded(
+              child: FutureBuilder<List<AppNotification>>(
+                future: _future,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return const Center(child: Text('알림을 불러오지 못했습니다.'));
+                  }
+                  final items = snapshot.data ?? const [];
+                  if (items.isEmpty) {
+                    return const Center(child: Text('새로운 알림이 없습니다.'));
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      final isReading = _readingIds.contains(item.id);
+                      return Card(
+                        color:
+                            item.isRead ? Colors.white : AppColors.softSurface,
+                        child: ListTile(
+                          onTap: isReading ? null : () => _read(item),
+                          leading: CircleAvatar(
+                            backgroundColor:
+                                AppColors.primary.withOpacity(0.12),
+                            foregroundColor: AppColors.primary,
+                            child: Icon(_iconFor(item.type)),
+                          ),
+                          title: Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
                             ),
-                ),
-              );
-            },
-          );
-        },
+                          ),
+                          subtitle: Text(item.message),
+                          trailing: isReading
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : item.isRead
+                                  ? null
+                                  : const CircleAvatar(
+                                      radius: 4,
+                                      backgroundColor: AppColors.primary,
+                                    ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

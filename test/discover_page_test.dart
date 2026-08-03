@@ -144,6 +144,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('submits a participation request from meeting detail',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DiscoverPage(
+            meetingRepository: MockMeetingRepository(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('한강 러닝 크루 🏃'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('참여 신청하기'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '함께 참여하고 싶어요.');
+    await tester.tap(find.text('신청하기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('승인 대기 중 · 신청 취소'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('collapses and expands the nearby meeting sheet', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
