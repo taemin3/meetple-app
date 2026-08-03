@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/category_repository.dart';
+import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
+import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
@@ -27,6 +29,8 @@ class AppShell extends StatefulWidget {
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.chatRepository = const MockChatRepository(),
+    required this.currentMemberId,
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.imageUploadRepository = const MockImageUploadRepository(),
@@ -35,6 +39,8 @@ class AppShell extends StatefulWidget {
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final ChatRepository chatRepository;
+  final int currentMemberId;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
@@ -276,7 +282,10 @@ class _AppShellState extends State<AppShell> {
           onMeetingChanged: _invalidateMeetingTabs,
         );
       case AppTab.chat:
-        return const ChatPage();
+        return ChatPage(
+          chatRepository: widget.chatRepository,
+          currentMemberId: widget.currentMemberId,
+        );
       case AppTab.profile:
         return ProfilePage(
           authRepository: _authRepository,

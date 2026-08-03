@@ -2,12 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/app_dependencies.dart';
 import 'package:meetple/data/repositories/api_auth_repository.dart';
 import 'package:meetple/data/repositories/api_category_repository.dart';
+import 'package:meetple/data/repositories/api_chat_repository.dart';
 import 'package:meetple/data/repositories/api_image_upload_repository.dart';
 import 'package:meetple/data/repositories/api_location_repository.dart';
 import 'package:meetple/data/repositories/api_meeting_repository.dart';
 import 'package:meetple/data/repositories/auth_token_store.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/data/repositories/mock_category_repository.dart';
+import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_image_upload_repository.dart';
 import 'package:meetple/data/repositories/mock_location_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
@@ -43,6 +45,22 @@ void main() {
     );
 
     expect(repository, isA<ApiMeetingRepository>());
+  });
+
+  test('creates mock chat repository by default', () {
+    final repository = createChatRepository();
+
+    expect(repository, isA<MockChatRepository>());
+  });
+
+  test('creates API chat repository when API mode is enabled', () {
+    final repository = createChatRepository(
+      useApiRepository: true,
+      apiBaseUrl: 'http://localhost:8080',
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    expect(repository, isA<ApiChatRepository>());
   });
 
   test('creates mock image upload repository by default', () {

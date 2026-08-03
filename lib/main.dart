@@ -21,6 +21,7 @@ Future<void> main() async {
     MeetpleApp(
       authRepository: createAuthRepository(),
       meetingRepository: createMeetingRepository(),
+      chatRepository: createChatRepository(),
       categoryRepository: createCategoryRepository(),
       locationRepository: createLocationRepository(),
       imageUploadRepository: createImageUploadRepository(),

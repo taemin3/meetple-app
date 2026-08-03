@@ -1,17 +1,20 @@
 import '../core/config/app_config.dart';
 import '../data/repositories/api_auth_repository.dart';
 import '../data/repositories/api_category_repository.dart';
+import '../data/repositories/api_chat_repository.dart';
 import '../data/repositories/api_image_upload_repository.dart';
 import '../data/repositories/api_location_repository.dart';
 import '../data/repositories/api_meeting_repository.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/auth_token_store.dart';
 import '../data/repositories/category_repository.dart';
+import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
+import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
@@ -51,6 +54,26 @@ MeetingRepository createMeetingRepository({
   }
 
   return const MockMeetingRepository();
+}
+
+ChatRepository createChatRepository({
+  bool useApiRepository = AppConfig.useApiRepository,
+  String apiBaseUrl = AppConfig.apiBaseUrl,
+  AuthTokenStore? tokenStore,
+}) {
+  if (useApiRepository) {
+    final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+
+    return ApiChatRepository.withBaseUrl(
+      baseUrl: apiBaseUrl,
+      accessTokenProvider: () async {
+        final tokens = await resolvedTokenStore.read();
+        return tokens?.accessToken;
+      },
+    );
+  }
+
+  return const MockChatRepository();
 }
 
 ImageUploadRepository createImageUploadRepository({
