@@ -1,10 +1,13 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../data/realtime/chat_client_message_id.dart';
+import '../../data/realtime/chat_realtime_client.dart';
 import '../../models/chat_message.dart';
 import '../../models/chat_room.dart';
 import '../../widgets/app_page_header.dart';
@@ -15,12 +18,14 @@ class ChatRoomPage extends StatefulWidget {
     super.key,
     required this.room,
     required this.chatRepository,
+    required this.chatRealtimeClient,
     required this.currentMemberId,
     this.onReadStarted,
   });
 
   final ChatRoom room;
   final ChatRepository chatRepository;
+  final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
   final ValueChanged<Future<void>>? onReadStarted;
 
@@ -30,23 +35,131 @@ class ChatRoomPage extends StatefulWidget {
 
 class _ChatRoomPageState extends State<ChatRoomPage> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
+  final ChatClientMessageIdGenerator _messageIdGenerator =
+      ChatClientMessageIdGenerator();
   final List<ChatMessage> _messages = [];
+  final List<StreamSubscription<dynamic>> _realtimeSubscriptions = [];
+  ChatRealtimeSession? _realtimeSession;
+  ChatRealtimeConnectionState _connectionState =
+      ChatRealtimeConnectionState.connecting;
   bool _loading = true;
   bool _loadingOlder = false;
   bool _hasMore = false;
+  bool _disposing = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _messageController.addListener(_onDraftChanged);
     unawaited(_loadInitial());
+    unawaited(_connectRealtime());
   }
 
   @override
   void dispose() {
+    _disposing = true;
+    _messageController
+      ..removeListener(_onDraftChanged)
+      ..dispose();
+    unawaited(_closeRealtime());
     _scrollController.dispose();
     super.dispose();
   }
+
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _connectRealtime() async {
+    if (_disposing) return;
+    if (mounted) {
+      setState(() => _connectionState = ChatRealtimeConnectionState.connecting);
+    }
+    await _closeRealtime();
+    if (!mounted || _disposing) return;
+
+    final session = widget.chatRealtimeClient.openRoom(
+      roomId: widget.room.roomId,
+      currentMemberId: widget.currentMemberId,
+    );
+    _realtimeSession = session;
+    _realtimeSubscriptions.addAll([
+      session.connectionStates.listen(_onConnectionStateChanged),
+      session.messages.listen(_onRealtimeMessage),
+      session.errors.listen(_onRealtimeError),
+    ]);
+    session.activate();
+  }
+
+  Future<void> _closeRealtime() async {
+    final subscriptions = List<StreamSubscription<dynamic>>.of(
+      _realtimeSubscriptions,
+    );
+    _realtimeSubscriptions.clear();
+    final session = _realtimeSession;
+    _realtimeSession = null;
+    await Future.wait([
+      ...subscriptions.map((subscription) => subscription.cancel()),
+      if (session != null) session.close(),
+    ]);
+  }
+
+  void _onConnectionStateChanged(ChatRealtimeConnectionState state) {
+    if (!mounted || _disposing) return;
+    setState(() => _connectionState = state);
+  }
+
+  void _onRealtimeMessage(ChatMessage message) {
+    if (!mounted || _disposing || message.roomId != widget.room.roomId) return;
+    final isDuplicate = _messages.any(
+      (existing) =>
+          existing.id == message.id ||
+          existing.clientMessageId == message.clientMessageId,
+    );
+    if (isDuplicate) return;
+
+    setState(() {
+      _messages.add(message);
+      _messages.sort((left, right) => left.sequence.compareTo(right.sequence));
+    });
+    _scrollToLatest();
+    final completion = _markRead(message.sequence);
+    widget.onReadStarted?.call(completion);
+    unawaited(completion);
+  }
+
+  void _onRealtimeError(ChatRealtimeException error) {
+    if (!mounted || _disposing) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error.message)),
+    );
+  }
+
+  void _sendMessage() {
+    final content = _messageController.text.trim();
+    if (!_canSubmit || content.isEmpty) return;
+
+    try {
+      _realtimeSession!.send(
+        clientMessageId: _messageIdGenerator.generate(),
+        content: content,
+      );
+      _messageController.clear();
+    } on ChatRealtimeException catch (error) {
+      _onRealtimeError(error);
+    } on Exception {
+      _onRealtimeError(
+        const ChatRealtimeException('메시지를 전송하지 못했습니다.'),
+      );
+    }
+  }
+
+  bool get _canSubmit =>
+      widget.room.canSend &&
+      _connectionState == ChatRealtimeConnectionState.connected &&
+      _messageController.text.trim().isNotEmpty;
 
   Future<void> _loadInitial() async {
     setState(() {
@@ -57,9 +170,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       final page = await widget.chatRepository.getMessages(widget.room.roomId);
       if (!mounted) return;
       setState(() {
+        final realtimeMessages = List<ChatMessage>.of(_messages);
         _messages
           ..clear()
           ..addAll(page.content);
+        for (final message in realtimeMessages) {
+          final isDuplicate = _messages.any(
+            (existing) =>
+                existing.id == message.id ||
+                existing.clientMessageId == message.clientMessageId,
+          );
+          if (!isDuplicate) _messages.add(message);
+        }
+        _messages
+            .sort((left, right) => left.sequence.compareTo(right.sequence));
         _hasMore = page.hasMore;
         _loading = false;
       });
@@ -133,7 +257,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           children: [
             AppPageHeader(title: widget.room.meetingTitle),
             Expanded(child: _buildBody()),
-            _ReadOnlyComposer(canSend: widget.room.canSend),
+            _ChatComposer(
+              controller: _messageController,
+              canSend: widget.room.canSend,
+              connectionState: _connectionState,
+              canSubmit: _canSubmit,
+              onSend: _sendMessage,
+              onReconnect: _connectRealtime,
+            ),
           ],
         ),
       ),
@@ -291,10 +422,22 @@ class _MessageTime extends StatelessWidget {
   }
 }
 
-class _ReadOnlyComposer extends StatelessWidget {
-  const _ReadOnlyComposer({required this.canSend});
+class _ChatComposer extends StatelessWidget {
+  const _ChatComposer({
+    required this.controller,
+    required this.canSend,
+    required this.connectionState,
+    required this.canSubmit,
+    required this.onSend,
+    required this.onReconnect,
+  });
 
+  final TextEditingController controller;
   final bool canSend;
+  final ChatRealtimeConnectionState connectionState;
+  final bool canSubmit;
+  final VoidCallback onSend;
+  final Future<void> Function() onReconnect;
 
   @override
   Widget build(BuildContext context) {
@@ -305,21 +448,126 @@ class _ReadOnlyComposer extends StatelessWidget {
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.line)),
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: const BoxDecoration(
-          color: AppColors.softSurface,
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-        ),
-        child: Text(
-          canSend ? '실시간 연결 후 메시지를 보낼 수 있어요.' : '종료된 모임에서는 메시지를 보낼 수 없어요.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+      child: canSend
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (connectionState != ChatRealtimeConnectionState.connected)
+                  _ConnectionNotice(
+                    state: connectionState,
+                    onReconnect: onReconnect,
+                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        key: const Key('chat-message-input'),
+                        controller: controller,
+                        enabled: connectionState ==
+                            ChatRealtimeConnectionState.connected,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.newline,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(1000),
+                        ],
+                        decoration: const InputDecoration(
+                          hintText: '메시지를 입력하세요',
+                          filled: true,
+                          fillColor: AppColors.softSurface,
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide.none,
+                            borderRadius: BorderRadius.all(Radius.circular(18)),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      key: const Key('send-chat-message'),
+                      tooltip: '메시지 전송',
+                      onPressed: canSubmit ? onSend : null,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        disabledBackgroundColor: AppColors.softSurface,
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: AppColors.subtle,
+                      ),
+                      icon: const Icon(Icons.arrow_upward_rounded),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: const BoxDecoration(
+                color: AppColors.softSurface,
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+              child: const Text(
+                '종료된 모임에서는 메시지를 보낼 수 없어요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _ConnectionNotice extends StatelessWidget {
+  const _ConnectionNotice({
+    required this.state,
+    required this.onReconnect,
+  });
+
+  final ChatRealtimeConnectionState state;
+  final Future<void> Function() onReconnect;
+
+  @override
+  Widget build(BuildContext context) {
+    final isConnecting = state == ChatRealtimeConnectionState.connecting;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (isConnecting)
+            const SizedBox.square(
+              dimension: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            const Icon(
+              Icons.cloud_off_outlined,
+              color: AppColors.muted,
+              size: 17,
+            ),
+          const SizedBox(width: 7),
+          Text(
+            isConnecting ? '실시간 채팅에 연결하는 중입니다.' : '실시간 연결이 끊어졌습니다.',
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
+          if (!isConnecting)
+            TextButton(
+              key: const Key('reconnect-chat'),
+              onPressed: onReconnect,
+              child: const Text('다시 연결'),
+            ),
+        ],
       ),
     );
   }

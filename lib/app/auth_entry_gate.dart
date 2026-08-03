@@ -8,6 +8,7 @@ import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
+import '../data/realtime/chat_realtime_client.dart';
 import '../models/auth_session.dart';
 import '../screens/auth/login_page.dart';
 import 'app_shell.dart';
@@ -24,6 +25,7 @@ class AuthEntryGate extends StatefulWidget {
     this.authRepository,
     required this.meetingRepository,
     required this.chatRepository,
+    required this.chatRealtimeClient,
     required this.categoryRepository,
     required this.locationRepository,
     required this.imageUploadRepository,
@@ -32,6 +34,7 @@ class AuthEntryGate extends StatefulWidget {
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
   final ChatRepository chatRepository;
+  final ChatRealtimeClient chatRealtimeClient;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
@@ -77,6 +80,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
           chatRepository: widget.chatRepository,
+          chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: _session!.user.id,
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,

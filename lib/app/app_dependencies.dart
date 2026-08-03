@@ -18,6 +18,9 @@ import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
+import '../data/realtime/chat_realtime_client.dart';
+import '../data/realtime/mock_chat_realtime_client.dart';
+import '../data/realtime/stomp_chat_realtime_client.dart';
 
 const AuthTokenStore _apiAuthTokenStore = FlutterSecureAuthTokenStore();
 
@@ -74,6 +77,26 @@ ChatRepository createChatRepository({
   }
 
   return const MockChatRepository();
+}
+
+ChatRealtimeClient createChatRealtimeClient({
+  bool useApiRepository = AppConfig.useApiRepository,
+  String apiBaseUrl = AppConfig.apiBaseUrl,
+  AuthTokenStore? tokenStore,
+}) {
+  if (useApiRepository) {
+    final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+
+    return StompChatRealtimeClient(
+      baseUrl: apiBaseUrl,
+      accessTokenProvider: () async {
+        final tokens = await resolvedTokenStore.read();
+        return tokens?.accessToken;
+      },
+    );
+  }
+
+  return const MockChatRealtimeClient();
 }
 
 ImageUploadRepository createImageUploadRepository({

@@ -12,6 +12,8 @@ import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
+import '../data/realtime/chat_realtime_client.dart';
+import '../data/realtime/mock_chat_realtime_client.dart';
 import 'auth_entry_gate.dart';
 
 class MeetpleApp extends StatelessWidget {
@@ -20,6 +22,7 @@ class MeetpleApp extends StatelessWidget {
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
     this.chatRepository = const MockChatRepository(),
+    this.chatRealtimeClient = const MockChatRealtimeClient(),
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.imageUploadRepository = const MockImageUploadRepository(),
@@ -28,6 +31,7 @@ class MeetpleApp extends StatelessWidget {
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
   final ChatRepository chatRepository;
+  final ChatRealtimeClient chatRealtimeClient;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
@@ -42,6 +46,7 @@ class MeetpleApp extends StatelessWidget {
         authRepository: authRepository,
         meetingRepository: meetingRepository,
         chatRepository: chatRepository,
+        chatRealtimeClient: chatRealtimeClient,
         categoryRepository: categoryRepository,
         locationRepository: locationRepository,
         imageUploadRepository: imageUploadRepository,

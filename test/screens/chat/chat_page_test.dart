@@ -39,7 +39,7 @@ void main() {
     expect(find.byKey(const Key('chat-message-list')), findsOneWidget);
     expect(find.text('곧 도착해요.'), findsOneWidget);
     expect(find.text('저도 가는 중이에요.'), findsOneWidget);
-    expect(find.text('실시간 연결 후 메시지를 보낼 수 있어요.'), findsOneWidget);
+    expect(find.byKey(const Key('chat-message-input')), findsOneWidget);
     expect(repository.markedRoomId, 10);
     expect(repository.markedSequence, 2);
   });

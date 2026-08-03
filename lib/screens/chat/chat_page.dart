@@ -5,6 +5,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/repositories/mock_chat_repository.dart';
+import '../../data/realtime/chat_realtime_client.dart';
+import '../../data/realtime/mock_chat_realtime_client.dart';
 import '../../models/chat_room.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/network_image_with_skeleton.dart';
@@ -14,11 +16,13 @@ class ChatPage extends StatefulWidget {
   const ChatPage({
     super.key,
     this.chatRepository = const MockChatRepository(),
+    this.chatRealtimeClient = const MockChatRealtimeClient(),
     this.currentMemberId = 1,
     this.refreshToken = 0,
   });
 
   final ChatRepository chatRepository;
+  final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
   final int refreshToken;
 
@@ -149,6 +153,7 @@ class _ChatPageState extends State<ChatPage> {
         builder: (_) => ChatRoomPage(
           room: room,
           chatRepository: widget.chatRepository,
+          chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
           onReadStarted: (completion) => readCompletion = completion,
         ),
