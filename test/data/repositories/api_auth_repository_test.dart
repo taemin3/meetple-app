@@ -258,6 +258,87 @@ void main() {
     expect((await tokenStore.read())?.accessToken, 'reissued-access-token');
   });
 
+  test('preserves current session when profile refresh fails transiently',
+      () async {
+    final tokenStore = MemoryAuthTokenStore();
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'accessToken': 'access-token',
+            'refreshToken': 'refresh-token',
+          },
+        ),
+        _apiResponse(data: _profileJson()),
+        const ApiException(statusCode: 500, message: 'Profile failed'),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+    final session = await repository.signIn(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await expectLater(
+      repository.refreshSession(),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.statusCode,
+          'statusCode',
+          500,
+        ),
+      ),
+    );
+
+    expect(await repository.restoreSession(), same(session));
+    expect((await tokenStore.read())?.accessToken, 'access-token');
+    expect(apiClient.requests.map((request) => request.path), [
+      '/api/v1/auth/login',
+      '/api/v1/users/me',
+      '/api/v1/users/me',
+    ]);
+  });
+
+  test('clears current session when refresh token is also unauthorized',
+      () async {
+    final tokenStore = MemoryAuthTokenStore();
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'accessToken': 'access-token',
+            'refreshToken': 'refresh-token',
+          },
+        ),
+        _apiResponse(data: _profileJson()),
+        const ApiException(statusCode: 401, message: 'Unauthorized'),
+        const ApiException(statusCode: 401, message: 'Refresh unauthorized'),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+    await repository.signIn(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    final session = await repository.refreshSession();
+
+    expect(session, isNull);
+    expect(await tokenStore.read(), isNull);
+    expect(apiClient.requests.map((request) => request.path), [
+      '/api/v1/auth/login',
+      '/api/v1/users/me',
+      '/api/v1/users/me',
+      '/api/v1/auth/reissue',
+    ]);
+  });
+
   test('signs out through backend logout API and clears tokens', () async {
     final tokenStore = MemoryAuthTokenStore(
       initialTokens: const AuthTokenPair(
