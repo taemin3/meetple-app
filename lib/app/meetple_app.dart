@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/category_repository.dart';
+import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
+import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
@@ -17,6 +19,7 @@ class MeetpleApp extends StatelessWidget {
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.chatRepository = const MockChatRepository(),
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.imageUploadRepository = const MockImageUploadRepository(),
@@ -24,6 +27,7 @@ class MeetpleApp extends StatelessWidget {
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final ChatRepository chatRepository;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
@@ -37,6 +41,7 @@ class MeetpleApp extends StatelessWidget {
       home: AuthEntryGate(
         authRepository: authRepository,
         meetingRepository: meetingRepository,
+        chatRepository: chatRepository,
         categoryRepository: categoryRepository,
         locationRepository: locationRepository,
         imageUploadRepository: imageUploadRepository,

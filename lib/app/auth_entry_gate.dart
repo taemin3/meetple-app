@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/category_repository.dart';
+import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
@@ -22,6 +23,7 @@ class AuthEntryGate extends StatefulWidget {
     super.key,
     this.authRepository,
     required this.meetingRepository,
+    required this.chatRepository,
     required this.categoryRepository,
     required this.locationRepository,
     required this.imageUploadRepository,
@@ -29,6 +31,7 @@ class AuthEntryGate extends StatefulWidget {
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final ChatRepository chatRepository;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
@@ -40,6 +43,7 @@ class AuthEntryGate extends StatefulWidget {
 class _AuthEntryGateState extends State<AuthEntryGate> {
   late AuthRepository _authRepository;
   _AuthEntryState _state = _AuthEntryState.checking;
+  AuthSession? _session;
   int _restoreGeneration = 0;
 
   @override
@@ -72,6 +76,8 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
         return AppShell(
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
+          chatRepository: widget.chatRepository,
+          currentMemberId: _session!.user.id,
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,
           imageUploadRepository: widget.imageUploadRepository,
@@ -100,6 +106,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
     }
 
     setState(() {
+      _session = session;
       _state = session == null
           ? _AuthEntryState.signedOut
           : _AuthEntryState.signedIn;
@@ -107,11 +114,17 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   }
 
   void _showSignedIn(AuthSession session) {
-    setState(() => _state = _AuthEntryState.signedIn);
+    setState(() {
+      _session = session;
+      _state = _AuthEntryState.signedIn;
+    });
   }
 
   void _showSignedOut() {
-    setState(() => _state = _AuthEntryState.signedOut);
+    setState(() {
+      _session = null;
+      _state = _AuthEntryState.signedOut;
+    });
   }
 }
 
