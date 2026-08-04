@@ -47,7 +47,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   bool _loading = true;
   bool _loadingOlder = false;
   bool _hasMore = false;
-  bool _hasNewMessagesBelow = false;
+  bool _showJumpToLatest = false;
   bool _disposing = false;
   int? _pendingReadSequence;
   String? _pendingClientMessageId;
@@ -96,11 +96,11 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   void _onScrollChanged() {
-    if (!_isNearLatest) return;
-    if (_hasNewMessagesBelow && mounted) {
-      setState(() => _hasNewMessagesBelow = false);
+    final shouldShowJumpButton = !_isNearLatest;
+    if (_showJumpToLatest != shouldShowJumpButton && mounted) {
+      setState(() => _showJumpToLatest = shouldShowJumpButton);
     }
-    _flushPendingRead();
+    if (!shouldShowJumpButton) _flushPendingRead();
   }
 
   Future<void> _connectRealtime() async {
@@ -172,7 +172,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         _messages.sort(
           (left, right) => left.sequence.compareTo(right.sequence),
         );
-        _hasNewMessagesBelow = !shouldScrollToLatest;
+        _showJumpToLatest = !shouldScrollToLatest;
       }
     });
     if (shouldClearDraft) _messageController.clear();
@@ -331,8 +331,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   void _scrollToLatest() {
-    if (_hasNewMessagesBelow && mounted) {
-      setState(() => _hasNewMessagesBelow = false);
+    if (_showJumpToLatest && mounted) {
+      setState(() => _showJumpToLatest = false);
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
@@ -402,43 +402,46 @@ class _ChatRoomPageState extends State<ChatRoomPage>
             }
             final messageIndex = index - 1;
             final message = _messages[messageIndex];
+            final showDateSeparator = messageIndex == 0 ||
+                !_isSameCalendarDay(
+                  _messages[messageIndex - 1].createdAt,
+                  message.createdAt,
+                );
             final showTime = messageIndex == _messages.length - 1 ||
                 !_isSameMessageGroup(
                   message,
                   _messages[messageIndex + 1],
                 );
-            return _MessageBubble(
-              message: message,
-              isMine: message.senderId == widget.currentMemberId,
-              showTime: showTime,
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showDateSeparator)
+                  _ChatDateSeparator(dateTime: message.createdAt),
+                _MessageBubble(
+                  message: message,
+                  isMine: message.senderId == widget.currentMemberId,
+                  showTime: showTime,
+                ),
+              ],
             );
           },
         ),
-        if (_hasNewMessagesBelow)
+        if (_showJumpToLatest)
           Positioned(
-            left: 0,
-            right: 0,
+            right: 16,
             bottom: 12,
-            child: Center(
-              child: FilledButton.icon(
-                key: const Key('jump-to-latest-chat-message'),
-                onPressed: _scrollToLatest,
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size(0, 32),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                  textStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                icon: const Icon(Icons.arrow_downward_rounded, size: 15),
-                label: const Text('새 메시지'),
+            child: IconButton.filled(
+              key: const Key('jump-to-latest-chat-message'),
+              tooltip: '최신 메시지로 이동',
+              onPressed: _scrollToLatest,
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.square(42),
+                padding: const EdgeInsets.all(9),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
+              icon: const Icon(Icons.arrow_downward_rounded, size: 22),
             ),
           ),
       ],
@@ -496,6 +499,51 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       ),
     );
   }
+}
+
+class _ChatDateSeparator extends StatelessWidget {
+  const _ChatDateSeparator({required this.dateTime});
+
+  final DateTime dateTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+      child: Row(
+        children: [
+          const Expanded(child: Divider(color: AppColors.line)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              _formatChatDate(dateTime),
+              style: const TextStyle(
+                color: AppColors.subtle,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const Expanded(child: Divider(color: AppColors.line)),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatChatDate(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  final today = DateTime.now();
+  if (_isSameCalendarDay(local, today)) return '오늘';
+  return '${local.year}년 ${local.month}월 ${local.day}일';
+}
+
+bool _isSameCalendarDay(DateTime left, DateTime right) {
+  final localLeft = left.toLocal();
+  final localRight = right.toLocal();
+  return localLeft.year == localRight.year &&
+      localLeft.month == localRight.month &&
+      localLeft.day == localRight.day;
 }
 
 class _MessageBubble extends StatelessWidget {

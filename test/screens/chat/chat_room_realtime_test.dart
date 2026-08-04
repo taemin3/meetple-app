@@ -279,6 +279,22 @@ void main() {
       scrollable.position.maxScrollExtent - positionBeforeMessage,
       greaterThan(120),
     );
+    final jumpButton = find.byKey(
+      const Key('jump-to-latest-chat-message'),
+    );
+    expect(jumpButton, findsOneWidget);
+    expect(
+      find.descendant(
+        of: jumpButton,
+        matching: find.byIcon(Icons.arrow_downward_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.getSize(jumpButton).width, lessThanOrEqualTo(48));
+    expect(
+      tester.getRect(messageList).right - tester.getRect(jumpButton).right,
+      closeTo(16, 1),
+    );
 
     realtimeClient.session.addMessage(
       _chatMessage(id: 31, sequence: 31, content: '새로 도착한 메시지'),
@@ -286,19 +302,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(scrollable.position.pixels, closeTo(positionBeforeMessage, 1));
-    expect(
-      find.byKey(const Key('jump-to-latest-chat-message')),
-      findsOneWidget,
-    );
+    expect(jumpButton, findsOneWidget);
     expect(repository.markedSequence, 30);
-    expect(
-      tester
-          .getSize(find.byKey(const Key('jump-to-latest-chat-message')))
-          .width,
-      lessThan(120),
-    );
 
-    await tester.tap(find.byKey(const Key('jump-to-latest-chat-message')));
+    await tester.tap(jumpButton);
     await tester.pumpAndSettle();
 
     expect(
@@ -361,6 +368,54 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('10:15'), findsOneWidget);
+  });
+
+  testWidgets('shows date separators and labels the current date as today', (
+    WidgetTester tester,
+  ) async {
+    final today = DateTime.now();
+    final previousDate = DateTime(
+      today.year,
+      today.month,
+      today.day,
+    ).subtract(const Duration(days: 1));
+    final previousDateLabel =
+        '${previousDate.year}년 ${previousDate.month}월 ${previousDate.day}일';
+    final history = [
+      _chatMessage(
+        id: 1,
+        sequence: 1,
+        content: '어제 첫 메시지',
+        createdAt: previousDate.add(const Duration(hours: 10)),
+      ),
+      _chatMessage(
+        id: 2,
+        sequence: 2,
+        content: '어제 두 번째 메시지',
+        createdAt: previousDate.add(const Duration(hours: 11)),
+      ),
+      _chatMessage(
+        id: 3,
+        sequence: 3,
+        content: '오늘 메시지',
+        createdAt: DateTime(today.year, today.month, today.day, 9),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(messages: history),
+          chatRealtimeClient: _FakeChatRealtimeClient(),
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(previousDateLabel), findsOneWidget);
+    expect(find.text('오늘'), findsOneWidget);
   });
 }
 
