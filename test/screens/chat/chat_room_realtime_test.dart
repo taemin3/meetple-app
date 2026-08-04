@@ -86,9 +86,134 @@ void main() {
     await tester.pumpAndSettle();
     expect(realtimeClient.session.closed, isTrue);
   });
+
+  testWidgets('shows realtime messages after persisted history fails', (
+    WidgetTester tester,
+  ) async {
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(loadError: Exception()),
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('이전 메시지를 불러오지 못했습니다.'), findsOneWidget);
+
+    realtimeClient.session.addMessage(_receivedMessage);
+    await tester.pumpAndSettle();
+
+    expect(find.text('반가워요.'), findsOneWidget);
+    expect(find.text('이전 메시지를 불러오지 못했습니다.'), findsNothing);
+  });
+
+  testWidgets('marks background messages as read only after resuming', (
+    WidgetTester tester,
+  ) async {
+    final repository = _ChatRoomRepository();
+    final realtimeClient = _FakeChatRealtimeClient();
+    addTearDown(() {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    realtimeClient.session.addMessage(_receivedMessage);
+    await tester.pump();
+
+    expect(repository.markedSequence, isNull);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(repository.markedSequence, 3);
+  });
+
+  testWidgets('keeps scroll position when a message arrives above the bottom', (
+    WidgetTester tester,
+  ) async {
+    final realtimeClient = _FakeChatRealtimeClient();
+    final history = List<ChatMessage>.generate(
+      30,
+      (index) => _chatMessage(
+        id: index + 1,
+        sequence: index + 1,
+        content: '이전 메시지 ${index + 1}',
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(messages: history),
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final messageList = find.byKey(const Key('chat-message-list'));
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(of: messageList, matching: find.byType(Scrollable)),
+    );
+    expect(scrollable.position.maxScrollExtent, greaterThan(0));
+
+    await tester.drag(messageList, const Offset(0, 500));
+    await tester.pumpAndSettle();
+    final positionBeforeMessage = scrollable.position.pixels;
+    expect(
+      scrollable.position.maxScrollExtent - positionBeforeMessage,
+      greaterThan(120),
+    );
+
+    realtimeClient.session.addMessage(
+      _chatMessage(id: 31, sequence: 31, content: '새로 도착한 메시지'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(scrollable.position.pixels, closeTo(positionBeforeMessage, 1));
+    expect(
+      find.byKey(const Key('jump-to-latest-chat-message')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('jump-to-latest-chat-message')));
+    await tester.pumpAndSettle();
+
+    expect(
+      scrollable.position.maxScrollExtent - scrollable.position.pixels,
+      closeTo(0, 1),
+    );
+  });
 }
 
 class _ChatRoomRepository implements ChatRepository {
+  _ChatRoomRepository({
+    this.messages = const [],
+    this.loadError,
+  });
+
+  final List<ChatMessage> messages;
+  final Object? loadError;
   int? markedSequence;
 
   @override
@@ -98,7 +223,12 @@ class _ChatRoomRepository implements ChatRepository {
     int? afterSequence,
     int size = 50,
   }) async {
-    return const ChatMessagePage(content: [], hasMore: false);
+    if (loadError case final error?) throw error;
+    return ChatMessagePage(
+      content: messages,
+      hasMore: false,
+      latestSequence: messages.isEmpty ? null : messages.last.sequence,
+    );
   }
 
   @override
@@ -197,13 +327,25 @@ const _room = ChatRoom(
   canSend: true,
 );
 
-final _receivedMessage = ChatMessage(
+final _receivedMessage = _chatMessage(
   id: 3,
-  roomId: 10,
   sequence: 3,
-  clientMessageId: '8d36a57b-fbd1-4910-a02d-91ddcbaf8911',
-  senderId: 2,
-  senderNickname: '민준',
   content: '반가워요.',
-  createdAt: DateTime(2026, 8, 4, 10),
 );
+
+ChatMessage _chatMessage({
+  required int id,
+  required int sequence,
+  required String content,
+}) {
+  return ChatMessage(
+    id: id,
+    roomId: 10,
+    sequence: sequence,
+    clientMessageId: 'client-message-$id',
+    senderId: 2,
+    senderNickname: '민준',
+    content: content,
+    createdAt: DateTime(2026, 8, 4, 10).add(Duration(minutes: sequence)),
+  );
+}

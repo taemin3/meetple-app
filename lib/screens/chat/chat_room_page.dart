@@ -33,7 +33,8 @@ class ChatRoomPage extends StatefulWidget {
   State<ChatRoomPage> createState() => _ChatRoomPageState();
 }
 
-class _ChatRoomPageState extends State<ChatRoomPage> {
+class _ChatRoomPageState extends State<ChatRoomPage>
+    with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final ChatClientMessageIdGenerator _messageIdGenerator =
@@ -46,12 +47,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   bool _loading = true;
   bool _loadingOlder = false;
   bool _hasMore = false;
+  bool _hasNewMessagesBelow = false;
   bool _disposing = false;
+  int? _pendingReadSequence;
+  AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _appLifecycleState =
+        WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
+    _scrollController.addListener(_onScrollChanged);
     _messageController.addListener(_onDraftChanged);
     unawaited(_loadInitial());
     unawaited(_connectRealtime());
@@ -60,6 +68,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   @override
   void dispose() {
     _disposing = true;
+    WidgetsBinding.instance.removeObserver(this);
+    _scrollController.removeListener(_onScrollChanged);
     _messageController
       ..removeListener(_onDraftChanged)
       ..dispose();
@@ -68,8 +78,24 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appLifecycleState = state;
+    if (state == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _flushPendingRead();
+      });
+    }
+  }
+
   void _onDraftChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _onScrollChanged() {
+    if (_hasNewMessagesBelow && _isNearLatest && mounted) {
+      setState(() => _hasNewMessagesBelow = false);
+    }
   }
 
   Future<void> _connectRealtime() async {
@@ -120,14 +146,15 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
     if (isDuplicate) return;
 
+    final shouldScrollToLatest = _isNearLatest;
     setState(() {
       _messages.add(message);
       _messages.sort((left, right) => left.sequence.compareTo(right.sequence));
+      _errorMessage = null;
+      if (!shouldScrollToLatest) _hasNewMessagesBelow = true;
     });
-    _scrollToLatest();
-    final completion = _markRead(message.sequence);
-    widget.onReadStarted?.call(completion);
-    unawaited(completion);
+    if (shouldScrollToLatest) _scrollToLatest();
+    _queueRead(message.sequence);
   }
 
   void _onRealtimeError(ChatRealtimeException error) {
@@ -190,16 +217,17 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       _scrollToLatest();
       final latestSequence = page.latestSequence;
       if (latestSequence != null) {
-        final completion = _markRead(latestSequence);
-        widget.onReadStarted?.call(completion);
-        unawaited(completion);
+        _queueRead(latestSequence);
       }
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _errorMessage =
-            error is ApiException ? error.message : '이전 메시지를 불러오지 못했습니다.';
+        _errorMessage = _messages.isEmpty
+            ? error is ApiException
+                ? error.message
+                : '이전 메시지를 불러오지 못했습니다.'
+            : null;
       });
     }
   }
@@ -241,10 +269,46 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
+  void _queueRead(int latestSequence) {
+    final pending = _pendingReadSequence;
+    if (pending == null || latestSequence > pending) {
+      _pendingReadSequence = latestSequence;
+    }
+    _flushPendingRead();
+  }
+
+  void _flushPendingRead() {
+    final latestSequence = _pendingReadSequence;
+    if (latestSequence == null || !_isRouteVisible) return;
+    _pendingReadSequence = null;
+    final completion = _markRead(latestSequence);
+    widget.onReadStarted?.call(completion);
+    unawaited(completion);
+  }
+
+  bool get _isRouteVisible =>
+      mounted &&
+      _appLifecycleState == AppLifecycleState.resumed &&
+      (ModalRoute.of(context)?.isCurrent ?? false);
+
+  bool get _isNearLatest {
+    if (!_scrollController.hasClients) return true;
+    final position = _scrollController.position;
+    return position.maxScrollExtent - position.pixels <= 120;
+  }
+
   void _scrollToLatest() {
+    if (_hasNewMessagesBelow && mounted) {
+      setState(() => _hasNewMessagesBelow = false);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
+      WidgetsBinding.instance.scheduleFrame();
     });
   }
 
@@ -292,34 +356,52 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
-    return ListView.builder(
-      key: const Key('chat-message-list'),
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-      itemCount: _messages.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          if (!_hasMore) return const SizedBox(height: 8);
-          return Center(
-            child: TextButton.icon(
-              key: const Key('load-older-chat-messages'),
-              onPressed: _loadingOlder ? null : _loadOlder,
-              icon: _loadingOlder
-                  ? const SizedBox.square(
-                      dimension: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.history_rounded, size: 18),
-              label: const Text('이전 메시지 더 보기'),
+    return Stack(
+      children: [
+        ListView.builder(
+          key: const Key('chat-message-list'),
+          controller: _scrollController,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          itemCount: _messages.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              if (!_hasMore) return const SizedBox(height: 8);
+              return Center(
+                child: TextButton.icon(
+                  key: const Key('load-older-chat-messages'),
+                  onPressed: _loadingOlder ? null : _loadOlder,
+                  icon: _loadingOlder
+                      ? const SizedBox.square(
+                          dimension: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.history_rounded, size: 18),
+                  label: const Text('이전 메시지 더 보기'),
+                ),
+              );
+            }
+            final message = _messages[index - 1];
+            return _MessageBubble(
+              message: message,
+              isMine: message.senderId == widget.currentMemberId,
+            );
+          },
+        ),
+        if (_hasNewMessagesBelow)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 12,
+            child: Center(
+              child: FilledButton.icon(
+                key: const Key('jump-to-latest-chat-message'),
+                onPressed: _scrollToLatest,
+                icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                label: const Text('새 메시지'),
+              ),
             ),
-          );
-        }
-        final message = _messages[index - 1];
-        return _MessageBubble(
-          message: message,
-          isMine: message.senderId == widget.currentMemberId,
-        );
-      },
+          ),
+      ],
     );
   }
 }
