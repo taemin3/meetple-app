@@ -5,6 +5,8 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/repositories/mock_chat_repository.dart';
+import '../../data/realtime/chat_realtime_client.dart';
+import '../../data/realtime/mock_chat_realtime_client.dart';
 import '../../models/chat_room.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/network_image_with_skeleton.dart';
@@ -14,11 +16,13 @@ class ChatPage extends StatefulWidget {
   const ChatPage({
     super.key,
     this.chatRepository = const MockChatRepository(),
+    this.chatRealtimeClient = const MockChatRealtimeClient(),
     this.currentMemberId = 1,
     this.refreshToken = 0,
   });
 
   final ChatRepository chatRepository;
+  final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
   final int refreshToken;
 
@@ -149,6 +153,7 @@ class _ChatPageState extends State<ChatPage> {
         builder: (_) => ChatRoomPage(
           room: room,
           chatRepository: widget.chatRepository,
+          chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
           onReadStarted: (completion) => readCompletion = completion,
         ),
@@ -265,15 +270,6 @@ class _ChatRoomTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      _formatRoomTime(lastMessage?.createdAt),
-                      style: const TextStyle(
-                        color: AppColors.subtle,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
                     if (room.unreadCount > 0)
                       Container(
                         constraints: const BoxConstraints(minWidth: 20),
@@ -295,6 +291,16 @@ class _ChatRoomTile extends StatelessWidget {
                       )
                     else
                       const SizedBox(height: 20),
+                    const SizedBox(height: 7),
+                    Text(
+                      _formatRoomTime(lastMessage?.createdAt),
+                      key: ValueKey('chat-room-time-${room.roomId}'),
+                      style: const TextStyle(
+                        color: AppColors.subtle,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
               ),

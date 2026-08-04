@@ -22,6 +22,7 @@ Future<void> main() async {
       authRepository: createAuthRepository(),
       meetingRepository: createMeetingRepository(),
       chatRepository: createChatRepository(),
+      chatRealtimeClient: createChatRealtimeClient(),
       categoryRepository: createCategoryRepository(),
       locationRepository: createLocationRepository(),
       imageUploadRepository: createImageUploadRepository(),

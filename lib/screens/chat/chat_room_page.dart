@@ -1,10 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../app/app_route_observer.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../data/realtime/chat_client_message_id.dart';
+import '../../data/realtime/chat_realtime_client.dart';
 import '../../models/chat_message.dart';
 import '../../models/chat_room.dart';
 import '../../widgets/app_page_header.dart';
@@ -15,12 +19,14 @@ class ChatRoomPage extends StatefulWidget {
     super.key,
     required this.room,
     required this.chatRepository,
+    required this.chatRealtimeClient,
     required this.currentMemberId,
     this.onReadStarted,
   });
 
   final ChatRoom room;
   final ChatRepository chatRepository;
+  final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
   final ValueChanged<Future<void>>? onReadStarted;
 
@@ -28,53 +34,334 @@ class ChatRoomPage extends StatefulWidget {
   State<ChatRoomPage> createState() => _ChatRoomPageState();
 }
 
-class _ChatRoomPageState extends State<ChatRoomPage> {
+class _ChatRoomPageState extends State<ChatRoomPage>
+    with WidgetsBindingObserver, RouteAware {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _messageController = TextEditingController();
+  final ChatClientMessageIdGenerator _messageIdGenerator =
+      ChatClientMessageIdGenerator();
   final List<ChatMessage> _messages = [];
+  final List<StreamSubscription<dynamic>> _realtimeSubscriptions = [];
+  late final Future<void> _initialLoadFuture;
+  ChatRealtimeSession? _realtimeSession;
+  ModalRoute<dynamic>? _subscribedRoute;
+  ChatRealtimeConnectionState _connectionState =
+      ChatRealtimeConnectionState.connecting;
   bool _loading = true;
   bool _loadingOlder = false;
   bool _hasMore = false;
-  String? _errorMessage;
+  bool _showJumpToLatest = false;
+  bool _disposing = false;
+  int? _pendingReadSequence;
+  String? _pendingClientMessageId;
+  String? _pendingMessageContent;
+  bool _awaitingSendConfirmation = false;
+  bool _initialHistoryLoaded = false;
+  int _recoveryRequestId = 0;
+  AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
+  String? _historyErrorMessage;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_loadInitial());
+    WidgetsBinding.instance.addObserver(this);
+    _appLifecycleState =
+        WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
+    _scrollController.addListener(_onScrollChanged);
+    _messageController.addListener(_onDraftChanged);
+    _initialLoadFuture = _loadInitial();
+    unawaited(_initialLoadFuture);
+    unawaited(_connectRealtime());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == _subscribedRoute) return;
+    final previousRoute = _subscribedRoute;
+    if (previousRoute != null) appRouteObserver.unsubscribe(this);
+    _subscribedRoute = route;
+    if (route != null) appRouteObserver.subscribe(this, route);
   }
 
   @override
   void dispose() {
+    _disposing = true;
+    WidgetsBinding.instance.removeObserver(this);
+    appRouteObserver.unsubscribe(this);
+    _scrollController.removeListener(_onScrollChanged);
+    _messageController
+      ..removeListener(_onDraftChanged)
+      ..dispose();
+    unawaited(_closeRealtime());
     _scrollController.dispose();
     super.dispose();
   }
 
+  @override
+  void didPopNext() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _flushPendingRead();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appLifecycleState = state;
+    if (state == AppLifecycleState.resumed) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _flushPendingRead();
+      });
+    }
+  }
+
+  void _onDraftChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onScrollChanged() {
+    final shouldShowJumpButton = !_isNearLatest;
+    if (_showJumpToLatest != shouldShowJumpButton && mounted) {
+      setState(() => _showJumpToLatest = shouldShowJumpButton);
+    }
+    if (!shouldShowJumpButton) _flushPendingRead();
+  }
+
+  Future<void> _connectRealtime() async {
+    if (_disposing) return;
+    if (mounted) {
+      setState(() => _connectionState = ChatRealtimeConnectionState.connecting);
+    }
+    await _closeRealtime();
+    if (!mounted || _disposing) return;
+
+    final session = widget.chatRealtimeClient.openRoom(
+      roomId: widget.room.roomId,
+      currentMemberId: widget.currentMemberId,
+    );
+    _realtimeSession = session;
+    _realtimeSubscriptions.addAll([
+      session.connectionStates.listen(
+        (state) => _onConnectionStateChanged(session, state),
+      ),
+      session.messages.listen(_onRealtimeMessage),
+      session.errors.listen(_onRealtimeError),
+    ]);
+    session.activate();
+  }
+
+  Future<void> _closeRealtime() async {
+    final subscriptions = List<StreamSubscription<dynamic>>.of(
+      _realtimeSubscriptions,
+    );
+    _realtimeSubscriptions.clear();
+    final session = _realtimeSession;
+    _realtimeSession = null;
+    await Future.wait([
+      ...subscriptions.map((subscription) => subscription.cancel()),
+      if (session != null) session.close(),
+    ]);
+  }
+
+  void _onConnectionStateChanged(
+    ChatRealtimeSession session,
+    ChatRealtimeConnectionState state,
+  ) {
+    if (!mounted || _disposing || session != _realtimeSession) return;
+    setState(() {
+      _connectionState = state;
+      if (state == ChatRealtimeConnectionState.disconnected) {
+        _awaitingSendConfirmation = false;
+      }
+    });
+    if (state == ChatRealtimeConnectionState.connected) {
+      unawaited(_scheduleMissedMessageRecovery(session));
+    }
+  }
+
+  Future<void> _scheduleMissedMessageRecovery(
+    ChatRealtimeSession session,
+  ) async {
+    final requestId = ++_recoveryRequestId;
+    await _initialLoadFuture;
+    if (!mounted ||
+        _disposing ||
+        requestId != _recoveryRequestId ||
+        session != _realtimeSession ||
+        !session.isConnected ||
+        !_initialHistoryLoaded) {
+      return;
+    }
+    await _recoverMissedMessages(session, requestId);
+  }
+
+  Future<void> _recoverMissedMessages(
+    ChatRealtimeSession session,
+    int requestId,
+  ) async {
+    var afterSequence = _messages.isEmpty ? 0 : _messages.last.sequence;
+    final recoveredMessages = <ChatMessage>[];
+
+    try {
+      while (true) {
+        final page = await widget.chatRepository.getMessages(
+          widget.room.roomId,
+          afterSequence: afterSequence,
+          size: 100,
+        );
+        if (!mounted ||
+            _disposing ||
+            requestId != _recoveryRequestId ||
+            session != _realtimeSession ||
+            !session.isConnected) {
+          return;
+        }
+        if (page.content.isEmpty) break;
+
+        recoveredMessages.addAll(page.content);
+        final nextSequence = page.content
+            .map((message) => message.sequence)
+            .reduce((left, right) => left > right ? left : right);
+        if (nextSequence <= afterSequence) break;
+        afterSequence = nextSequence;
+        if (!page.hasMore) break;
+      }
+
+      recoveredMessages.sort(
+        (left, right) => left.sequence.compareTo(right.sequence),
+      );
+      for (final message in recoveredMessages) {
+        _onRealtimeMessage(message);
+      }
+    } on Exception catch (error) {
+      if (!mounted || session != _realtimeSession) return;
+      final message =
+          error is ApiException ? error.message : '누락된 메시지를 불러오지 못했습니다.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  void _onRealtimeMessage(ChatMessage message) {
+    if (!mounted || _disposing || message.roomId != widget.room.roomId) return;
+    final isDuplicate = _messages.any(
+      (existing) =>
+          existing.id == message.id ||
+          existing.clientMessageId == message.clientMessageId,
+    );
+    final confirmsPendingSend =
+        message.clientMessageId == _pendingClientMessageId;
+    final shouldClearDraft = confirmsPendingSend &&
+        _messageController.text == _pendingMessageContent;
+
+    final isMine = message.senderId == widget.currentMemberId;
+    final shouldScrollToLatest = isMine || _isNearLatest;
+    setState(() {
+      if (confirmsPendingSend) {
+        _pendingClientMessageId = null;
+        _pendingMessageContent = null;
+        _awaitingSendConfirmation = false;
+      }
+      if (!isDuplicate) {
+        _messages.add(message);
+        _messages.sort(
+          (left, right) => left.sequence.compareTo(right.sequence),
+        );
+        _showJumpToLatest = !shouldScrollToLatest;
+      }
+    });
+    if (shouldClearDraft) _messageController.clear();
+    if (isDuplicate) return;
+    if (shouldScrollToLatest) _scrollToLatest();
+    _queueRead(message.sequence);
+  }
+
+  void _onRealtimeError(ChatRealtimeException error) {
+    if (!mounted || _disposing) return;
+    if (_awaitingSendConfirmation) {
+      setState(() => _awaitingSendConfirmation = false);
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(error.message)),
+    );
+  }
+
+  void _sendMessage() {
+    final content = _messageController.text;
+    if (!_canSubmit) return;
+    final clientMessageId =
+        _pendingMessageContent == content && _pendingClientMessageId != null
+            ? _pendingClientMessageId!
+            : _messageIdGenerator.generate();
+
+    try {
+      setState(() {
+        _pendingClientMessageId = clientMessageId;
+        _pendingMessageContent = content;
+        _awaitingSendConfirmation = true;
+      });
+      _realtimeSession!.send(
+        clientMessageId: clientMessageId,
+        content: content,
+      );
+    } on ChatRealtimeException catch (error) {
+      _onRealtimeError(error);
+    } on Exception {
+      _onRealtimeError(
+        const ChatRealtimeException('메시지를 전송하지 못했습니다.'),
+      );
+    }
+  }
+
+  bool get _canSubmit =>
+      widget.room.canSend &&
+      _connectionState == ChatRealtimeConnectionState.connected &&
+      !_awaitingSendConfirmation &&
+      _messageController.text.trim().isNotEmpty;
+
   Future<void> _loadInitial() async {
     setState(() {
       _loading = true;
-      _errorMessage = null;
+      _historyErrorMessage = null;
     });
     try {
       final page = await widget.chatRepository.getMessages(widget.room.roomId);
       if (!mounted) return;
       setState(() {
+        final realtimeMessages = List<ChatMessage>.of(_messages);
         _messages
           ..clear()
           ..addAll(page.content);
+        for (final message in realtimeMessages) {
+          final isDuplicate = _messages.any(
+            (existing) =>
+                existing.id == message.id ||
+                existing.clientMessageId == message.clientMessageId,
+          );
+          if (!isDuplicate) _messages.add(message);
+        }
+        _messages
+            .sort((left, right) => left.sequence.compareTo(right.sequence));
         _hasMore = page.hasMore;
         _loading = false;
+        _initialHistoryLoaded = true;
       });
       _scrollToLatest();
       final latestSequence = page.latestSequence;
       if (latestSequence != null) {
-        final completion = _markRead(latestSequence);
-        widget.onReadStarted?.call(completion);
-        unawaited(completion);
+        _queueRead(latestSequence);
+      }
+      final session = _realtimeSession;
+      if (session != null && session.isConnected) {
+        unawaited(_scheduleMissedMessageRecovery(session));
       }
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _errorMessage =
+        _historyErrorMessage =
             error is ApiException ? error.message : '이전 메시지를 불러오지 못했습니다.';
       });
     }
@@ -117,10 +404,46 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
+  void _queueRead(int latestSequence) {
+    final pending = _pendingReadSequence;
+    if (pending == null || latestSequence > pending) {
+      _pendingReadSequence = latestSequence;
+    }
+    _flushPendingRead();
+  }
+
+  void _flushPendingRead() {
+    final latestSequence = _pendingReadSequence;
+    if (latestSequence == null || !_isRouteVisible || !_isNearLatest) return;
+    _pendingReadSequence = null;
+    final completion = _markRead(latestSequence);
+    widget.onReadStarted?.call(completion);
+    unawaited(completion);
+  }
+
+  bool get _isRouteVisible =>
+      mounted &&
+      _appLifecycleState == AppLifecycleState.resumed &&
+      (ModalRoute.of(context)?.isCurrent ?? false);
+
+  bool get _isNearLatest {
+    if (!_scrollController.hasClients) return true;
+    final position = _scrollController.position;
+    return position.maxScrollExtent - position.pixels <= 120;
+  }
+
   void _scrollToLatest() {
+    if (_showJumpToLatest && mounted) {
+      setState(() => _showJumpToLatest = false);
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      });
+      WidgetsBinding.instance.scheduleFrame();
     });
   }
 
@@ -133,7 +456,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           children: [
             AppPageHeader(title: widget.room.meetingTitle),
             Expanded(child: _buildBody()),
-            _ReadOnlyComposer(canSend: widget.room.canSend),
+            _ChatComposer(
+              controller: _messageController,
+              canSend: widget.room.canSend,
+              connectionState: _connectionState,
+              canSubmit: _canSubmit,
+              onSend: _sendMessage,
+              onReconnect: _connectRealtime,
+            ),
           ],
         ),
       ),
@@ -141,13 +471,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   Widget _buildBody() {
-    if (_loading) {
+    if (_loading && _messages.isEmpty) {
       return const AppLoadingView(
         message: '이전 메시지를 불러오는 중입니다.',
         height: double.infinity,
       );
     }
-    if (_errorMessage case final message?) {
+    if (_historyErrorMessage case final message? when _messages.isEmpty) {
       return AppErrorView(
         message: message,
         height: double.infinity,
@@ -161,43 +491,173 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       );
     }
 
-    return ListView.builder(
-      key: const Key('chat-message-list'),
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-      itemCount: _messages.length + 1,
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          if (!_hasMore) return const SizedBox(height: 8);
-          return Center(
-            child: TextButton.icon(
-              key: const Key('load-older-chat-messages'),
-              onPressed: _loadingOlder ? null : _loadOlder,
-              icon: _loadingOlder
-                  ? const SizedBox.square(
-                      dimension: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.history_rounded, size: 18),
-              label: const Text('이전 메시지 더 보기'),
+    return Stack(
+      children: [
+        ListView.builder(
+          key: const Key('chat-message-list'),
+          controller: _scrollController,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+          itemCount: _messages.length + 1,
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return _buildHistoryHeader();
+            }
+            final messageIndex = index - 1;
+            final message = _messages[messageIndex];
+            final showDateSeparator = messageIndex == 0 ||
+                !_isSameCalendarDay(
+                  _messages[messageIndex - 1].createdAt,
+                  message.createdAt,
+                );
+            final showTime = messageIndex == _messages.length - 1 ||
+                !_isSameMessageGroup(
+                  message,
+                  _messages[messageIndex + 1],
+                );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (showDateSeparator)
+                  _ChatDateSeparator(dateTime: message.createdAt),
+                _MessageBubble(
+                  message: message,
+                  isMine: message.senderId == widget.currentMemberId,
+                  showTime: showTime,
+                ),
+              ],
+            );
+          },
+        ),
+        if (_showJumpToLatest)
+          Positioned(
+            right: 16,
+            bottom: 12,
+            child: IconButton.filled(
+              key: const Key('jump-to-latest-chat-message'),
+              tooltip: '최신 메시지로 이동',
+              onPressed: _scrollToLatest,
+              style: IconButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.square(42),
+                padding: const EdgeInsets.all(9),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              icon: const Icon(Icons.arrow_downward_rounded, size: 22),
             ),
-          );
-        }
-        final message = _messages[index - 1];
-        return _MessageBubble(
-          message: message,
-          isMine: message.senderId == widget.currentMemberId,
-        );
-      },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHistoryHeader() {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(
+          child: SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (_historyErrorMessage case final message?) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              key: const Key('retry-chat-history'),
+              onPressed: _loadInitial,
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (!_hasMore) return const SizedBox(height: 8);
+    return Center(
+      child: TextButton.icon(
+        key: const Key('load-older-chat-messages'),
+        onPressed: _loadingOlder ? null : _loadOlder,
+        icon: _loadingOlder
+            ? const SizedBox.square(
+                dimension: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.history_rounded, size: 18),
+        label: const Text('이전 메시지 더 보기'),
+      ),
     );
   }
 }
 
+class _ChatDateSeparator extends StatelessWidget {
+  const _ChatDateSeparator({required this.dateTime});
+
+  final DateTime dateTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
+      child: Row(
+        children: [
+          const Expanded(child: Divider(color: AppColors.line)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              _formatChatDate(dateTime),
+              style: const TextStyle(
+                color: AppColors.subtle,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const Expanded(child: Divider(color: AppColors.line)),
+        ],
+      ),
+    );
+  }
+}
+
+String _formatChatDate(DateTime dateTime) {
+  final local = dateTime.toLocal();
+  final today = DateTime.now();
+  if (_isSameCalendarDay(local, today)) return '오늘';
+  return '${local.year}년 ${local.month}월 ${local.day}일';
+}
+
+bool _isSameCalendarDay(DateTime left, DateTime right) {
+  final localLeft = left.toLocal();
+  final localRight = right.toLocal();
+  return localLeft.year == localRight.year &&
+      localLeft.month == localRight.month &&
+      localLeft.day == localRight.day;
+}
+
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.isMine});
+  const _MessageBubble({
+    required this.message,
+    required this.isMine,
+    required this.showTime,
+  });
 
   final ChatMessage message;
   final bool isMine;
+  final bool showTime;
 
   @override
   Widget build(BuildContext context) {
@@ -225,7 +685,7 @@ class _MessageBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (isMine) ...[
+                if (isMine && showTime) ...[
                   _MessageTime(dateTime: message.createdAt),
                   const SizedBox(width: 6),
                 ],
@@ -257,7 +717,7 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!isMine) ...[
+                if (!isMine && showTime) ...[
                   const SizedBox(width: 6),
                   _MessageTime(dateTime: message.createdAt),
                 ],
@@ -268,6 +728,17 @@ class _MessageBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _isSameMessageGroup(ChatMessage current, ChatMessage next) {
+  if (current.senderId != next.senderId) return false;
+  final currentTime = current.createdAt.toLocal();
+  final nextTime = next.createdAt.toLocal();
+  return currentTime.year == nextTime.year &&
+      currentTime.month == nextTime.month &&
+      currentTime.day == nextTime.day &&
+      currentTime.hour == nextTime.hour &&
+      currentTime.minute == nextTime.minute;
 }
 
 class _MessageTime extends StatelessWidget {
@@ -291,10 +762,22 @@ class _MessageTime extends StatelessWidget {
   }
 }
 
-class _ReadOnlyComposer extends StatelessWidget {
-  const _ReadOnlyComposer({required this.canSend});
+class _ChatComposer extends StatelessWidget {
+  const _ChatComposer({
+    required this.controller,
+    required this.canSend,
+    required this.connectionState,
+    required this.canSubmit,
+    required this.onSend,
+    required this.onReconnect,
+  });
 
+  final TextEditingController controller;
   final bool canSend;
+  final ChatRealtimeConnectionState connectionState;
+  final bool canSubmit;
+  final VoidCallback onSend;
+  final Future<void> Function() onReconnect;
 
   @override
   Widget build(BuildContext context) {
@@ -305,21 +788,127 @@ class _ReadOnlyComposer extends StatelessWidget {
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.line)),
       ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: const BoxDecoration(
-          color: AppColors.softSurface,
-          borderRadius: BorderRadius.all(Radius.circular(16)),
-        ),
-        child: Text(
-          canSend ? '실시간 연결 후 메시지를 보낼 수 있어요.' : '종료된 모임에서는 메시지를 보낼 수 없어요.',
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+      child: canSend
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (connectionState != ChatRealtimeConnectionState.connected)
+                  _ConnectionNotice(
+                    state: connectionState,
+                    onReconnect: onReconnect,
+                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        key: const Key('chat-message-input'),
+                        controller: controller,
+                        enabled: connectionState ==
+                            ChatRealtimeConnectionState.connected,
+                        keyboardType: TextInputType.multiline,
+                        minLines: 1,
+                        maxLines: 4,
+                        textInputAction: TextInputAction.newline,
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(1000),
+                        ],
+                        decoration: const InputDecoration(
+                          hintText: '메시지를 입력하세요',
+                          filled: true,
+                          fillColor: AppColors.softSurface,
+                          border: OutlineInputBorder(
+                            borderSide: BorderSide.none,
+                            borderRadius: BorderRadius.all(Radius.circular(18)),
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filled(
+                      key: const Key('send-chat-message'),
+                      tooltip: '메시지 전송',
+                      onPressed: canSubmit ? onSend : null,
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        disabledBackgroundColor: AppColors.softSurface,
+                        foregroundColor: Colors.white,
+                        disabledForegroundColor: AppColors.subtle,
+                      ),
+                      icon: const Icon(Icons.arrow_upward_rounded),
+                    ),
+                  ],
+                ),
+              ],
+            )
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: const BoxDecoration(
+                color: AppColors.softSurface,
+                borderRadius: BorderRadius.all(Radius.circular(16)),
+              ),
+              child: const Text(
+                '종료된 모임에서는 메시지를 보낼 수 없어요.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _ConnectionNotice extends StatelessWidget {
+  const _ConnectionNotice({
+    required this.state,
+    required this.onReconnect,
+  });
+
+  final ChatRealtimeConnectionState state;
+  final Future<void> Function() onReconnect;
+
+  @override
+  Widget build(BuildContext context) {
+    final isConnecting = state == ChatRealtimeConnectionState.connecting;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (isConnecting)
+            const SizedBox.square(
+              dimension: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            const Icon(
+              Icons.cloud_off_outlined,
+              color: AppColors.muted,
+              size: 17,
+            ),
+          const SizedBox(width: 7),
+          Text(
+            isConnecting ? '실시간 채팅에 연결하는 중입니다.' : '실시간 연결이 끊어졌습니다.',
+            style: const TextStyle(
+              color: AppColors.muted,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
+          if (!isConnecting)
+            TextButton(
+              key: const Key('reconnect-chat'),
+              onPressed: onReconnect,
+              child: const Text('다시 연결'),
+            ),
+        ],
       ),
     );
   }

@@ -13,6 +13,8 @@ import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_image_upload_repository.dart';
 import 'package:meetple/data/repositories/mock_location_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
+import 'package:meetple/data/realtime/mock_chat_realtime_client.dart';
+import 'package:meetple/data/realtime/stomp_chat_realtime_client.dart';
 
 void main() {
   test('creates mock auth repository by default', () {
@@ -61,6 +63,22 @@ void main() {
     );
 
     expect(repository, isA<ApiChatRepository>());
+  });
+
+  test('creates mock realtime chat client by default', () {
+    final client = createChatRealtimeClient();
+
+    expect(client, isA<MockChatRealtimeClient>());
+  });
+
+  test('creates STOMP chat client when API mode is enabled', () {
+    final client = createChatRealtimeClient(
+      useApiRepository: true,
+      apiBaseUrl: 'http://localhost:8080',
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    expect(client, isA<StompChatRealtimeClient>());
   });
 
   test('creates mock image upload repository by default', () {

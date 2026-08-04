@@ -15,6 +15,8 @@ import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
+import '../data/realtime/chat_realtime_client.dart';
+import '../data/realtime/mock_chat_realtime_client.dart';
 import '../models/meeting.dart';
 import '../screens/chat/chat_page.dart';
 import '../screens/discover/discover_page.dart';
@@ -30,6 +32,7 @@ class AppShell extends StatefulWidget {
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
     this.chatRepository = const MockChatRepository(),
+    this.chatRealtimeClient = const MockChatRealtimeClient(),
     required this.currentMemberId,
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
@@ -40,6 +43,7 @@ class AppShell extends StatefulWidget {
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
   final ChatRepository chatRepository;
+  final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
@@ -287,6 +291,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.chat:
         return ChatPage(
           chatRepository: widget.chatRepository,
+          chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
           refreshToken: _chatRefreshToken,
         );
