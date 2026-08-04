@@ -14,6 +14,7 @@ void main() {
   ) async {
     final repository = _ChatRoomRepository();
     final realtimeClient = _FakeChatRealtimeClient();
+    const draft = '  안녕하세요  ';
 
     await tester.pumpWidget(
       MaterialApp(
@@ -30,13 +31,20 @@ void main() {
     expect(find.byKey(const Key('chat-message-input')), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('chat-message-input')),
-      '  안녕하세요  ',
+      draft,
     );
     await tester.pump();
     await tester.tap(find.byKey(const Key('send-chat-message')));
     await tester.pump();
 
-    expect(realtimeClient.session.sentContent, '  안녕하세요  ');
+    expect(realtimeClient.session.sentContent, draft);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('chat-message-input')))
+          .controller
+          ?.text,
+      draft,
+    );
     expect(
       realtimeClient.session.sentClientMessageId,
       matches(
@@ -44,6 +52,25 @@ void main() {
           r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
         ),
       ),
+    );
+
+    realtimeClient.session.addMessage(
+      _chatMessage(
+        id: 2,
+        sequence: 2,
+        senderId: 1,
+        clientMessageId: realtimeClient.session.sentClientMessageId,
+        content: draft,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('chat-message-input')))
+          .controller
+          ?.text,
+      isEmpty,
     );
 
     realtimeClient.session.addMessage(_receivedMessage);
@@ -61,6 +88,7 @@ void main() {
     WidgetTester tester,
   ) async {
     final realtimeClient = _FakeChatRealtimeClient();
+    const draft = '전송에 실패해도 남아야 하는 메시지';
 
     await tester.pumpWidget(
       MaterialApp(
@@ -74,9 +102,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    final inputFinder = find.byKey(const Key('chat-message-input'));
+    await tester.enterText(inputFinder, draft);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('send-chat-message')));
+    await tester.pump();
+    final firstClientMessageId = realtimeClient.session.sentClientMessageId;
+
     realtimeClient.session.addError('채팅방에 접근할 수 없습니다.');
     await tester.pump();
     expect(find.text('채팅방에 접근할 수 없습니다.'), findsOneWidget);
+    expect(tester.widget<TextField>(inputFinder).controller?.text, draft);
+
+    await tester.tap(find.byKey(const Key('send-chat-message')));
+    await tester.pump();
+    expect(realtimeClient.session.sentContent, draft);
+    expect(realtimeClient.session.sentClientMessageId, firstClientMessageId);
 
     realtimeClient.session.disconnect();
     await tester.pumpAndSettle();
@@ -121,6 +162,7 @@ void main() {
         id: 20,
         sequence: 20,
         senderId: 1,
+        clientMessageId: realtimeClient.session.sentClientMessageId,
         content: multilineMessage,
       ),
     );
@@ -133,12 +175,13 @@ void main() {
     WidgetTester tester,
   ) async {
     final realtimeClient = _FakeChatRealtimeClient();
+    final repository = _ChatRoomRepository(loadError: Exception());
 
     await tester.pumpWidget(
       MaterialApp(
         home: ChatRoomPage(
           room: _room,
-          chatRepository: _ChatRoomRepository(loadError: Exception()),
+          chatRepository: repository,
           chatRealtimeClient: realtimeClient,
           currentMemberId: 1,
         ),
@@ -152,7 +195,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('반가워요.'), findsOneWidget);
+    expect(find.text('이전 메시지를 불러오지 못했습니다.'), findsOneWidget);
+    expect(find.byKey(const Key('retry-chat-history')), findsOneWidget);
+
+    repository.loadError = null;
+    await tester.tap(find.byKey(const Key('retry-chat-history')));
+    await tester.pumpAndSettle();
+
     expect(find.text('이전 메시지를 불러오지 못했습니다.'), findsNothing);
+    expect(find.byKey(const Key('retry-chat-history')), findsNothing);
   });
 
   testWidgets('marks background messages as read only after resuming', (
@@ -200,12 +251,13 @@ void main() {
         content: '이전 메시지 ${index + 1}',
       ),
     );
+    final repository = _ChatRoomRepository(messages: history);
 
     await tester.pumpWidget(
       MaterialApp(
         home: ChatRoomPage(
           room: _room,
-          chatRepository: _ChatRoomRepository(messages: history),
+          chatRepository: repository,
           chatRealtimeClient: realtimeClient,
           currentMemberId: 1,
         ),
@@ -222,6 +274,7 @@ void main() {
     await tester.drag(messageList, const Offset(0, 500));
     await tester.pumpAndSettle();
     final positionBeforeMessage = scrollable.position.pixels;
+    expect(repository.markedSequence, 30);
     expect(
       scrollable.position.maxScrollExtent - positionBeforeMessage,
       greaterThan(120),
@@ -237,6 +290,7 @@ void main() {
       find.byKey(const Key('jump-to-latest-chat-message')),
       findsOneWidget,
     );
+    expect(repository.markedSequence, 30);
     expect(
       tester
           .getSize(find.byKey(const Key('jump-to-latest-chat-message')))
@@ -251,6 +305,7 @@ void main() {
       scrollable.position.maxScrollExtent - scrollable.position.pixels,
       closeTo(0, 1),
     );
+    expect(repository.markedSequence, 31);
 
     await tester.drag(messageList, const Offset(0, 500));
     await tester.pumpAndSettle();
@@ -316,7 +371,7 @@ class _ChatRoomRepository implements ChatRepository {
   });
 
   final List<ChatMessage> messages;
-  final Object? loadError;
+  Object? loadError;
   int? markedSequence;
 
   @override
@@ -441,13 +496,14 @@ ChatMessage _chatMessage({
   required int sequence,
   required String content,
   int senderId = 2,
+  String? clientMessageId,
   DateTime? createdAt,
 }) {
   return ChatMessage(
     id: id,
     roomId: 10,
     sequence: sequence,
-    clientMessageId: 'client-message-$id',
+    clientMessageId: clientMessageId ?? 'client-message-$id',
     senderId: senderId,
     senderNickname: '민준',
     content: content,

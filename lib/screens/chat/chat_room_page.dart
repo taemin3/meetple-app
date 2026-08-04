@@ -50,8 +50,11 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   bool _hasNewMessagesBelow = false;
   bool _disposing = false;
   int? _pendingReadSequence;
+  String? _pendingClientMessageId;
+  String? _pendingMessageContent;
+  bool _awaitingSendConfirmation = false;
   AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
-  String? _errorMessage;
+  String? _historyErrorMessage;
 
   @override
   void initState() {
@@ -93,9 +96,11 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   void _onScrollChanged() {
-    if (_hasNewMessagesBelow && _isNearLatest && mounted) {
+    if (!_isNearLatest) return;
+    if (_hasNewMessagesBelow && mounted) {
       setState(() => _hasNewMessagesBelow = false);
     }
+    _flushPendingRead();
   }
 
   Future<void> _connectRealtime() async {
@@ -134,7 +139,12 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   void _onConnectionStateChanged(ChatRealtimeConnectionState state) {
     if (!mounted || _disposing) return;
-    setState(() => _connectionState = state);
+    setState(() {
+      _connectionState = state;
+      if (state == ChatRealtimeConnectionState.disconnected) {
+        _awaitingSendConfirmation = false;
+      }
+    });
   }
 
   void _onRealtimeMessage(ChatMessage message) {
@@ -144,22 +154,38 @@ class _ChatRoomPageState extends State<ChatRoomPage>
           existing.id == message.id ||
           existing.clientMessageId == message.clientMessageId,
     );
-    if (isDuplicate) return;
+    final confirmsPendingSend =
+        message.clientMessageId == _pendingClientMessageId;
+    final shouldClearDraft = confirmsPendingSend &&
+        _messageController.text == _pendingMessageContent;
 
     final isMine = message.senderId == widget.currentMemberId;
     final shouldScrollToLatest = isMine || _isNearLatest;
     setState(() {
-      _messages.add(message);
-      _messages.sort((left, right) => left.sequence.compareTo(right.sequence));
-      _errorMessage = null;
-      _hasNewMessagesBelow = !shouldScrollToLatest;
+      if (confirmsPendingSend) {
+        _pendingClientMessageId = null;
+        _pendingMessageContent = null;
+        _awaitingSendConfirmation = false;
+      }
+      if (!isDuplicate) {
+        _messages.add(message);
+        _messages.sort(
+          (left, right) => left.sequence.compareTo(right.sequence),
+        );
+        _hasNewMessagesBelow = !shouldScrollToLatest;
+      }
     });
+    if (shouldClearDraft) _messageController.clear();
+    if (isDuplicate) return;
     if (shouldScrollToLatest) _scrollToLatest();
     _queueRead(message.sequence);
   }
 
   void _onRealtimeError(ChatRealtimeException error) {
     if (!mounted || _disposing) return;
+    if (_awaitingSendConfirmation) {
+      setState(() => _awaitingSendConfirmation = false);
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(error.message)),
     );
@@ -168,13 +194,21 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   void _sendMessage() {
     final content = _messageController.text;
     if (!_canSubmit) return;
+    final clientMessageId =
+        _pendingMessageContent == content && _pendingClientMessageId != null
+            ? _pendingClientMessageId!
+            : _messageIdGenerator.generate();
 
     try {
+      setState(() {
+        _pendingClientMessageId = clientMessageId;
+        _pendingMessageContent = content;
+        _awaitingSendConfirmation = true;
+      });
       _realtimeSession!.send(
-        clientMessageId: _messageIdGenerator.generate(),
+        clientMessageId: clientMessageId,
         content: content,
       );
-      _messageController.clear();
     } on ChatRealtimeException catch (error) {
       _onRealtimeError(error);
     } on Exception {
@@ -187,12 +221,13 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   bool get _canSubmit =>
       widget.room.canSend &&
       _connectionState == ChatRealtimeConnectionState.connected &&
+      !_awaitingSendConfirmation &&
       _messageController.text.trim().isNotEmpty;
 
   Future<void> _loadInitial() async {
     setState(() {
       _loading = true;
-      _errorMessage = null;
+      _historyErrorMessage = null;
     });
     try {
       final page = await widget.chatRepository.getMessages(widget.room.roomId);
@@ -224,11 +259,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _errorMessage = _messages.isEmpty
-            ? error is ApiException
-                ? error.message
-                : '이전 메시지를 불러오지 못했습니다.'
-            : null;
+        _historyErrorMessage =
+            error is ApiException ? error.message : '이전 메시지를 불러오지 못했습니다.';
       });
     }
   }
@@ -280,7 +312,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   void _flushPendingRead() {
     final latestSequence = _pendingReadSequence;
-    if (latestSequence == null || !_isRouteVisible) return;
+    if (latestSequence == null || !_isRouteVisible || !_isNearLatest) return;
     _pendingReadSequence = null;
     final completion = _markRead(latestSequence);
     widget.onReadStarted?.call(completion);
@@ -337,13 +369,13 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Widget _buildBody() {
-    if (_loading) {
+    if (_loading && _messages.isEmpty) {
       return const AppLoadingView(
         message: '이전 메시지를 불러오는 중입니다.',
         height: double.infinity,
       );
     }
-    if (_errorMessage case final message?) {
+    if (_historyErrorMessage case final message? when _messages.isEmpty) {
       return AppErrorView(
         message: message,
         height: double.infinity,
@@ -366,20 +398,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
           itemCount: _messages.length + 1,
           itemBuilder: (context, index) {
             if (index == 0) {
-              if (!_hasMore) return const SizedBox(height: 8);
-              return Center(
-                child: TextButton.icon(
-                  key: const Key('load-older-chat-messages'),
-                  onPressed: _loadingOlder ? null : _loadOlder,
-                  icon: _loadingOlder
-                      ? const SizedBox.square(
-                          dimension: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.history_rounded, size: 18),
-                  label: const Text('이전 메시지 더 보기'),
-                ),
-              );
+              return _buildHistoryHeader();
             }
             final messageIndex = index - 1;
             final message = _messages[messageIndex];
@@ -423,6 +442,58 @@ class _ChatRoomPageState extends State<ChatRoomPage>
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildHistoryHeader() {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(
+          child: SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+      );
+    }
+    if (_historyErrorMessage case final message?) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              key: const Key('retry-chat-history'),
+              onPressed: _loadInitial,
+              child: const Text('다시 시도'),
+            ),
+          ],
+        ),
+      );
+    }
+    if (!_hasMore) return const SizedBox(height: 8);
+    return Center(
+      child: TextButton.icon(
+        key: const Key('load-older-chat-messages'),
+        onPressed: _loadingOlder ? null : _loadOlder,
+        icon: _loadingOlder
+            ? const SizedBox.square(
+                dimension: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.history_rounded, size: 18),
+        label: const Text('이전 메시지 더 보기'),
+      ),
     );
   }
 }
