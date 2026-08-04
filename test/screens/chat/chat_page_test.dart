@@ -32,6 +32,10 @@ void main() {
     expect(find.text('한강 러닝 크루'), findsOneWidget);
     expect(find.text('민준: 곧 도착해요.'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
+    expect(
+      tester.getCenter(find.byKey(const Key('chat-room-time-10'))).dy,
+      greaterThan(tester.getCenter(find.text('3')).dy),
+    );
 
     await tester.tap(find.byKey(const Key('chat-room-10')));
     await tester.pumpAndSettle();

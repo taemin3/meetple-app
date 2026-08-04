@@ -270,15 +270,6 @@ class _ChatRoomTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      _formatRoomTime(lastMessage?.createdAt),
-                      style: const TextStyle(
-                        color: AppColors.subtle,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
                     if (room.unreadCount > 0)
                       Container(
                         constraints: const BoxConstraints(minWidth: 20),
@@ -300,6 +291,16 @@ class _ChatRoomTile extends StatelessWidget {
                       )
                     else
                       const SizedBox(height: 20),
+                    const SizedBox(height: 7),
+                    Text(
+                      _formatRoomTime(lastMessage?.createdAt),
+                      key: ValueKey('chat-room-time-${room.roomId}'),
+                      style: const TextStyle(
+                        color: AppColors.subtle,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ],
                 ),
               ),

@@ -231,6 +231,40 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('shows time only on the last message in a same-minute group', (
+    WidgetTester tester,
+  ) async {
+    final sameMinute = DateTime(2026, 8, 4, 10, 15);
+    final history = [
+      _chatMessage(
+        id: 1,
+        sequence: 1,
+        content: '첫 번째 메시지',
+        createdAt: sameMinute,
+      ),
+      _chatMessage(
+        id: 2,
+        sequence: 2,
+        content: '두 번째 메시지',
+        createdAt: sameMinute.add(const Duration(seconds: 30)),
+      ),
+    ];
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(messages: history),
+          chatRealtimeClient: _FakeChatRealtimeClient(),
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('10:15'), findsOneWidget);
+  });
 }
 
 class _ChatRoomRepository implements ChatRepository {
@@ -365,6 +399,7 @@ ChatMessage _chatMessage({
   required int sequence,
   required String content,
   int senderId = 2,
+  DateTime? createdAt,
 }) {
   return ChatMessage(
     id: id,
@@ -374,6 +409,7 @@ ChatMessage _chatMessage({
     senderId: senderId,
     senderNickname: '민준',
     content: content,
-    createdAt: DateTime(2026, 8, 4, 10).add(Duration(minutes: sequence)),
+    createdAt:
+        createdAt ?? DateTime(2026, 8, 4, 10).add(Duration(minutes: sequence)),
   );
 }

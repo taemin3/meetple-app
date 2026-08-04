@@ -381,10 +381,17 @@ class _ChatRoomPageState extends State<ChatRoomPage>
                 ),
               );
             }
-            final message = _messages[index - 1];
+            final messageIndex = index - 1;
+            final message = _messages[messageIndex];
+            final showTime = messageIndex == _messages.length - 1 ||
+                !_isSameMessageGroup(
+                  message,
+                  _messages[messageIndex + 1],
+                );
             return _MessageBubble(
               message: message,
               isMine: message.senderId == widget.currentMemberId,
+              showTime: showTime,
             );
           },
         ),
@@ -421,10 +428,15 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.isMine});
+  const _MessageBubble({
+    required this.message,
+    required this.isMine,
+    required this.showTime,
+  });
 
   final ChatMessage message;
   final bool isMine;
+  final bool showTime;
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +464,7 @@ class _MessageBubble extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                if (isMine) ...[
+                if (isMine && showTime) ...[
                   _MessageTime(dateTime: message.createdAt),
                   const SizedBox(width: 6),
                 ],
@@ -484,7 +496,7 @@ class _MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (!isMine) ...[
+                if (!isMine && showTime) ...[
                   const SizedBox(width: 6),
                   _MessageTime(dateTime: message.createdAt),
                 ],
@@ -495,6 +507,17 @@ class _MessageBubble extends StatelessWidget {
       ),
     );
   }
+}
+
+bool _isSameMessageGroup(ChatMessage current, ChatMessage next) {
+  if (current.senderId != next.senderId) return false;
+  final currentTime = current.createdAt.toLocal();
+  final nextTime = next.createdAt.toLocal();
+  return currentTime.year == nextTime.year &&
+      currentTime.month == nextTime.month &&
+      currentTime.day == nextTime.day &&
+      currentTime.hour == nextTime.hour &&
+      currentTime.minute == nextTime.minute;
 }
 
 class _MessageTime extends StatelessWidget {
