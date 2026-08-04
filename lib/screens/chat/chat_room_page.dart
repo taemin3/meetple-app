@@ -36,6 +36,14 @@ class ChatRoomPage extends StatefulWidget {
 
 class _ChatRoomPageState extends State<ChatRoomPage>
     with WidgetsBindingObserver, RouteAware {
+  static const List<Duration> _reconnectDelays = [
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+    Duration(seconds: 20),
+    Duration(seconds: 30),
+  ];
+
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final ChatClientMessageIdGenerator _messageIdGenerator =
@@ -57,7 +65,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   String? _pendingMessageContent;
   bool _awaitingSendConfirmation = false;
   bool _initialHistoryLoaded = false;
+  int _historySyncSequence = 0;
   int _recoveryRequestId = 0;
+  int _reconnectAttempt = 0;
+  Timer? _reconnectTimer;
   AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
   String? _historyErrorMessage;
 
@@ -88,6 +99,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   @override
   void dispose() {
     _disposing = true;
+    _reconnectTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     appRouteObserver.unsubscribe(this);
     _scrollController.removeListener(_onScrollChanged);
@@ -111,8 +123,15 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     _appLifecycleState = state;
     if (state == AppLifecycleState.resumed) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _flushPendingRead();
+        if (!mounted) return;
+        _flushPendingRead();
+        if (_connectionState == ChatRealtimeConnectionState.disconnected) {
+          _scheduleReconnect(immediate: true);
+        }
       });
+    } else {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
     }
   }
 
@@ -130,6 +149,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   Future<void> _connectRealtime() async {
     if (_disposing) return;
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     if (mounted) {
       setState(() => _connectionState = ChatRealtimeConnectionState.connecting);
     }
@@ -151,17 +172,28 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     session.activate();
   }
 
-  Future<void> _closeRealtime() async {
+  Future<void> _closeRealtime() {
     final subscriptions = List<StreamSubscription<dynamic>>.of(
       _realtimeSubscriptions,
     );
     _realtimeSubscriptions.clear();
     final session = _realtimeSession;
     _realtimeSession = null;
-    await Future.wait([
-      ...subscriptions.map((subscription) => subscription.cancel()),
-      if (session != null) session.close(),
-    ]);
+    if (session != null) {
+      unawaited(_completeRealtimeCleanup(session.close()));
+    }
+    for (final subscription in subscriptions) {
+      unawaited(_completeRealtimeCleanup(subscription.cancel()));
+    }
+    return Future<void>.value();
+  }
+
+  Future<void> _completeRealtimeCleanup(Future<void> cleanup) async {
+    try {
+      await cleanup;
+    } on Exception {
+      // 이전 연결 정리 실패가 새 연결 시도를 막지 않게 한다.
+    }
   }
 
   void _onConnectionStateChanged(
@@ -176,8 +208,43 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       }
     });
     if (state == ChatRealtimeConnectionState.connected) {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      _reconnectAttempt = 0;
       unawaited(_scheduleMissedMessageRecovery(session));
+    } else if (state == ChatRealtimeConnectionState.disconnected) {
+      _scheduleReconnect();
     }
+  }
+
+  void _scheduleReconnect({bool immediate = false}) {
+    if (_disposing ||
+        _reconnectTimer?.isActive == true ||
+        _appLifecycleState != AppLifecycleState.resumed ||
+        _reconnectAttempt >= _reconnectDelays.length) {
+      return;
+    }
+
+    final delay =
+        immediate ? Duration.zero : _reconnectDelays[_reconnectAttempt];
+    _reconnectTimer = Timer(delay, () {
+      _reconnectTimer = null;
+      if (!mounted ||
+          _disposing ||
+          _appLifecycleState != AppLifecycleState.resumed ||
+          _connectionState != ChatRealtimeConnectionState.disconnected) {
+        return;
+      }
+      _reconnectAttempt += 1;
+      unawaited(_connectRealtime());
+    });
+  }
+
+  Future<void> _retryRealtime() async {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
+    _reconnectAttempt = 0;
+    await _connectRealtime();
   }
 
   Future<void> _scheduleMissedMessageRecovery(
@@ -200,7 +267,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     ChatRealtimeSession session,
     int requestId,
   ) async {
-    var afterSequence = _messages.isEmpty ? 0 : _messages.last.sequence;
+    var afterSequence = _historySyncSequence;
     final recoveredMessages = <ChatMessage>[];
 
     try {
@@ -233,6 +300,9 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       );
       for (final message in recoveredMessages) {
         _onRealtimeMessage(message);
+      }
+      if (afterSequence > _historySyncSequence) {
+        _historySyncSequence = afterSequence;
       }
     } on Exception catch (error) {
       if (!mounted || session != _realtimeSession) return;
@@ -347,6 +417,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         _hasMore = page.hasMore;
         _loading = false;
         _initialHistoryLoaded = true;
+        _historySyncSequence = page.latestSequence ?? 0;
       });
       _scrollToLatest();
       final latestSequence = page.latestSequence;
@@ -462,7 +533,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
               connectionState: _connectionState,
               canSubmit: _canSubmit,
               onSend: _sendMessage,
-              onReconnect: _connectRealtime,
+              onReconnect: _retryRealtime,
             ),
           ],
         ),

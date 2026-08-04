@@ -273,6 +273,74 @@ void main() {
     expect(find.text('연결 중 누락된 메시지'), findsOneWidget);
   });
 
+  testWidgets('automatically reconnects after a transport disconnect', (
+    WidgetTester tester,
+  ) async {
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(),
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final firstSession = realtimeClient.session;
+    firstSession.disconnect();
+    await tester.pump();
+
+    expect(realtimeClient.sessions, hasLength(1));
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+
+    expect(firstSession.closed, isTrue);
+    expect(realtimeClient.sessions, hasLength(2));
+    expect(realtimeClient.session.connected, isTrue);
+  });
+
+  testWidgets(
+    'recovers from the persisted cursor when a live message arrives first',
+    (WidgetTester tester) async {
+      final messages = [
+        _chatMessage(id: 1, sequence: 1, content: 'before disconnect'),
+      ];
+      final repository = _ChatRoomRepository(messages: messages);
+      final realtimeClient = _FakeChatRealtimeClient();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatRoomPage(
+            room: _room,
+            chatRepository: repository,
+            chatRealtimeClient: realtimeClient,
+            currentMemberId: 1,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      repository.afterSequenceRequests.clear();
+
+      realtimeClient.session.disconnect();
+      messages.add(
+        _chatMessage(id: 2, sequence: 2, content: 'missed message'),
+      );
+      realtimeClient.session.reconnect();
+      realtimeClient.session.addMessage(
+        _chatMessage(id: 3, sequence: 3, content: 'live message'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repository.afterSequenceRequests, [1]);
+      expect(find.text('missed message'), findsOneWidget);
+      expect(find.text('live message'), findsOneWidget);
+    },
+  );
+
   testWidgets('marks pending messages as read after returning to the route', (
     WidgetTester tester,
   ) async {
@@ -541,13 +609,17 @@ class _ChatRoomRepository implements ChatRepository {
 }
 
 class _FakeChatRealtimeClient implements ChatRealtimeClient {
-  final _FakeChatRealtimeSession session = _FakeChatRealtimeSession();
+  final List<_FakeChatRealtimeSession> sessions = [];
+
+  _FakeChatRealtimeSession get session => sessions.last;
 
   @override
   ChatRealtimeSession openRoom({
     required int roomId,
     required int currentMemberId,
   }) {
+    final session = _FakeChatRealtimeSession();
+    sessions.add(session);
     return session;
   }
 }
