@@ -195,6 +195,12 @@ void main() {
       find.byKey(const Key('jump-to-latest-chat-message')),
       findsOneWidget,
     );
+    expect(
+      tester
+          .getSize(find.byKey(const Key('jump-to-latest-chat-message')))
+          .width,
+      lessThan(120),
+    );
 
     await tester.tap(find.byKey(const Key('jump-to-latest-chat-message')));
     await tester.pumpAndSettle();
@@ -202,6 +208,27 @@ void main() {
     expect(
       scrollable.position.maxScrollExtent - scrollable.position.pixels,
       closeTo(0, 1),
+    );
+
+    await tester.drag(messageList, const Offset(0, 500));
+    await tester.pumpAndSettle();
+    realtimeClient.session.addMessage(
+      _chatMessage(
+        id: 32,
+        sequence: 32,
+        senderId: 1,
+        content: '내가 보낸 메시지',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      scrollable.position.maxScrollExtent - scrollable.position.pixels,
+      closeTo(0, 1),
+    );
+    expect(
+      find.byKey(const Key('jump-to-latest-chat-message')),
+      findsNothing,
     );
   });
 }
@@ -337,13 +364,14 @@ ChatMessage _chatMessage({
   required int id,
   required int sequence,
   required String content,
+  int senderId = 2,
 }) {
   return ChatMessage(
     id: id,
     roomId: 10,
     sequence: sequence,
     clientMessageId: 'client-message-$id',
-    senderId: 2,
+    senderId: senderId,
     senderNickname: '민준',
     content: content,
     createdAt: DateTime(2026, 8, 4, 10).add(Duration(minutes: sequence)),

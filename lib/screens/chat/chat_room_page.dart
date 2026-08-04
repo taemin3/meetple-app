@@ -146,12 +146,13 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     );
     if (isDuplicate) return;
 
-    final shouldScrollToLatest = _isNearLatest;
+    final isMine = message.senderId == widget.currentMemberId;
+    final shouldScrollToLatest = isMine || _isNearLatest;
     setState(() {
       _messages.add(message);
       _messages.sort((left, right) => left.sequence.compareTo(right.sequence));
       _errorMessage = null;
-      if (!shouldScrollToLatest) _hasNewMessagesBelow = true;
+      _hasNewMessagesBelow = !shouldScrollToLatest;
     });
     if (shouldScrollToLatest) _scrollToLatest();
     _queueRead(message.sequence);
@@ -396,7 +397,20 @@ class _ChatRoomPageState extends State<ChatRoomPage>
               child: FilledButton.icon(
                 key: const Key('jump-to-latest-chat-message'),
                 onPressed: _scrollToLatest,
-                icon: const Icon(Icons.arrow_downward_rounded, size: 18),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(0, 32),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                icon: const Icon(Icons.arrow_downward_rounded, size: 15),
                 label: const Text('새 메시지'),
               ),
             ),
