@@ -36,7 +36,7 @@ void main() {
     await tester.tap(find.byKey(const Key('send-chat-message')));
     await tester.pump();
 
-    expect(realtimeClient.session.sentContent, '안녕하세요');
+    expect(realtimeClient.session.sentContent, '  안녕하세요  ');
     expect(
       realtimeClient.session.sentClientMessageId,
       matches(
@@ -90,7 +90,7 @@ void main() {
   testWidgets('preserves line breaks when sending and displaying a message', (
     WidgetTester tester,
   ) async {
-    const multilineMessage = '첫 번째 줄\n두 번째 줄';
+    const multilineMessage = '  첫 번째 줄\n  두 번째 줄  ';
     final realtimeClient = _FakeChatRealtimeClient();
 
     await tester.pumpWidget(
@@ -109,7 +109,7 @@ void main() {
     final input = tester.widget<TextField>(inputFinder);
     expect(input.keyboardType, TextInputType.multiline);
 
-    await tester.enterText(inputFinder, '  $multilineMessage  ');
+    await tester.enterText(inputFinder, multilineMessage);
     await tester.pump();
     await tester.tap(find.byKey(const Key('send-chat-message')));
     await tester.pump();

@@ -166,8 +166,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   void _sendMessage() {
-    final content = _messageController.text.trim();
-    if (!_canSubmit || content.isEmpty) return;
+    final content = _messageController.text;
+    if (!_canSubmit) return;
 
     try {
       _realtimeSession!.send(
