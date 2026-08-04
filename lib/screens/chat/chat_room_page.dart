@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../app/app_route_observer.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/chat_repository.dart';
@@ -34,14 +35,16 @@ class ChatRoomPage extends StatefulWidget {
 }
 
 class _ChatRoomPageState extends State<ChatRoomPage>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, RouteAware {
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
   final ChatClientMessageIdGenerator _messageIdGenerator =
       ChatClientMessageIdGenerator();
   final List<ChatMessage> _messages = [];
   final List<StreamSubscription<dynamic>> _realtimeSubscriptions = [];
+  late final Future<void> _initialLoadFuture;
   ChatRealtimeSession? _realtimeSession;
+  ModalRoute<dynamic>? _subscribedRoute;
   ChatRealtimeConnectionState _connectionState =
       ChatRealtimeConnectionState.connecting;
   bool _loading = true;
@@ -53,6 +56,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   String? _pendingClientMessageId;
   String? _pendingMessageContent;
   bool _awaitingSendConfirmation = false;
+  bool _initialHistoryLoaded = false;
+  int _recoveryRequestId = 0;
   AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
   String? _historyErrorMessage;
 
@@ -64,14 +69,27 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
     _scrollController.addListener(_onScrollChanged);
     _messageController.addListener(_onDraftChanged);
-    unawaited(_loadInitial());
+    _initialLoadFuture = _loadInitial();
+    unawaited(_initialLoadFuture);
     unawaited(_connectRealtime());
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == _subscribedRoute) return;
+    final previousRoute = _subscribedRoute;
+    if (previousRoute != null) appRouteObserver.unsubscribe(this);
+    _subscribedRoute = route;
+    if (route != null) appRouteObserver.subscribe(this, route);
   }
 
   @override
   void dispose() {
     _disposing = true;
     WidgetsBinding.instance.removeObserver(this);
+    appRouteObserver.unsubscribe(this);
     _scrollController.removeListener(_onScrollChanged);
     _messageController
       ..removeListener(_onDraftChanged)
@@ -79,6 +97,13 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     unawaited(_closeRealtime());
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _flushPendingRead();
+    });
   }
 
   @override
@@ -117,7 +142,9 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     );
     _realtimeSession = session;
     _realtimeSubscriptions.addAll([
-      session.connectionStates.listen(_onConnectionStateChanged),
+      session.connectionStates.listen(
+        (state) => _onConnectionStateChanged(session, state),
+      ),
       session.messages.listen(_onRealtimeMessage),
       session.errors.listen(_onRealtimeError),
     ]);
@@ -137,14 +164,84 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     ]);
   }
 
-  void _onConnectionStateChanged(ChatRealtimeConnectionState state) {
-    if (!mounted || _disposing) return;
+  void _onConnectionStateChanged(
+    ChatRealtimeSession session,
+    ChatRealtimeConnectionState state,
+  ) {
+    if (!mounted || _disposing || session != _realtimeSession) return;
     setState(() {
       _connectionState = state;
       if (state == ChatRealtimeConnectionState.disconnected) {
         _awaitingSendConfirmation = false;
       }
     });
+    if (state == ChatRealtimeConnectionState.connected) {
+      unawaited(_scheduleMissedMessageRecovery(session));
+    }
+  }
+
+  Future<void> _scheduleMissedMessageRecovery(
+    ChatRealtimeSession session,
+  ) async {
+    final requestId = ++_recoveryRequestId;
+    await _initialLoadFuture;
+    if (!mounted ||
+        _disposing ||
+        requestId != _recoveryRequestId ||
+        session != _realtimeSession ||
+        !session.isConnected ||
+        !_initialHistoryLoaded) {
+      return;
+    }
+    await _recoverMissedMessages(session, requestId);
+  }
+
+  Future<void> _recoverMissedMessages(
+    ChatRealtimeSession session,
+    int requestId,
+  ) async {
+    var afterSequence = _messages.isEmpty ? 0 : _messages.last.sequence;
+    final recoveredMessages = <ChatMessage>[];
+
+    try {
+      while (true) {
+        final page = await widget.chatRepository.getMessages(
+          widget.room.roomId,
+          afterSequence: afterSequence,
+          size: 100,
+        );
+        if (!mounted ||
+            _disposing ||
+            requestId != _recoveryRequestId ||
+            session != _realtimeSession ||
+            !session.isConnected) {
+          return;
+        }
+        if (page.content.isEmpty) break;
+
+        recoveredMessages.addAll(page.content);
+        final nextSequence = page.content
+            .map((message) => message.sequence)
+            .reduce((left, right) => left > right ? left : right);
+        if (nextSequence <= afterSequence) break;
+        afterSequence = nextSequence;
+        if (!page.hasMore) break;
+      }
+
+      recoveredMessages.sort(
+        (left, right) => left.sequence.compareTo(right.sequence),
+      );
+      for (final message in recoveredMessages) {
+        _onRealtimeMessage(message);
+      }
+    } on Exception catch (error) {
+      if (!mounted || session != _realtimeSession) return;
+      final message =
+          error is ApiException ? error.message : '누락된 메시지를 불러오지 못했습니다.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
   }
 
   void _onRealtimeMessage(ChatMessage message) {
@@ -249,11 +346,16 @@ class _ChatRoomPageState extends State<ChatRoomPage>
             .sort((left, right) => left.sequence.compareTo(right.sequence));
         _hasMore = page.hasMore;
         _loading = false;
+        _initialHistoryLoaded = true;
       });
       _scrollToLatest();
       final latestSequence = page.latestSequence;
       if (latestSequence != null) {
         _queueRead(latestSequence);
+      }
+      final session = _realtimeSession;
+      if (session != null && session.isConnected) {
+        unawaited(_scheduleMissedMessageRecovery(session));
       }
     } on Exception catch (error) {
       if (!mounted) return;

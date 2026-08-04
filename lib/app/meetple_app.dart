@@ -14,6 +14,7 @@ import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
 import '../data/realtime/mock_chat_realtime_client.dart';
+import 'app_route_observer.dart';
 import 'auth_entry_gate.dart';
 
 class MeetpleApp extends StatelessWidget {
@@ -42,6 +43,7 @@ class MeetpleApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: '밋플',
       theme: AppTheme.light(),
+      navigatorObservers: [appRouteObserver],
       home: AuthEntryGate(
         authRepository: authRepository,
         meetingRepository: meetingRepository,

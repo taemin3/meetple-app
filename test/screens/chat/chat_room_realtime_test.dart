@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/app/app_route_observer.dart';
 import 'package:meetple/data/repositories/chat_repository.dart';
 import 'package:meetple/data/realtime/chat_realtime_client.dart';
 import 'package:meetple/models/chat_message.dart';
@@ -239,6 +240,76 @@ void main() {
     expect(repository.markedSequence, 3);
   });
 
+  testWidgets('recovers messages missed while realtime was disconnected', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: '연결 전 메시지'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+
+    realtimeClient.session.disconnect();
+    messages.add(
+      _chatMessage(id: 2, sequence: 2, content: '연결 중 누락된 메시지'),
+    );
+    realtimeClient.session.reconnect();
+    await tester.pumpAndSettle();
+
+    expect(repository.afterSequenceRequests, [1]);
+    expect(find.text('연결 중 누락된 메시지'), findsOneWidget);
+  });
+
+  testWidgets('marks pending messages as read after returning to the route', (
+    WidgetTester tester,
+  ) async {
+    final repository = _ChatRoomRepository();
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorObservers: [appRouteObserver],
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final chatContext = tester.element(find.byType(ChatRoomPage));
+    unawaited(
+      Navigator.of(chatContext).push<void>(
+        MaterialPageRoute<void>(builder: (_) => const Scaffold()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    realtimeClient.session.addMessage(_receivedMessage);
+    await tester.pump();
+    expect(repository.markedSequence, isNull);
+
+    Navigator.of(chatContext).pop();
+    await tester.pumpAndSettle();
+
+    expect(repository.markedSequence, 3);
+  });
+
   testWidgets('keeps scroll position when a message arrives above the bottom', (
     WidgetTester tester,
   ) async {
@@ -428,6 +499,7 @@ class _ChatRoomRepository implements ChatRepository {
   final List<ChatMessage> messages;
   Object? loadError;
   int? markedSequence;
+  final List<int> afterSequenceRequests = [];
 
   @override
   Future<ChatMessagePage> getMessages(
@@ -437,10 +509,23 @@ class _ChatRoomRepository implements ChatRepository {
     int size = 50,
   }) async {
     if (loadError case final error?) throw error;
+    var filtered = messages.where((message) {
+      if (beforeSequence != null) return message.sequence < beforeSequence;
+      if (afterSequence != null) return message.sequence > afterSequence;
+      return true;
+    }).toList()
+      ..sort((left, right) => left.sequence.compareTo(right.sequence));
+    if (afterSequence != null) afterSequenceRequests.add(afterSequence);
+    final hasMore = filtered.length > size;
+    if (hasMore) {
+      filtered = beforeSequence == null
+          ? filtered.take(size).toList()
+          : filtered.skip(filtered.length - size).toList();
+    }
     return ChatMessagePage(
-      content: messages,
-      hasMore: false,
-      latestSequence: messages.isEmpty ? null : messages.last.sequence,
+      content: filtered,
+      hasMore: hasMore,
+      latestSequence: filtered.isEmpty ? null : filtered.last.sequence,
     );
   }
 
@@ -517,6 +602,11 @@ class _FakeChatRealtimeSession implements ChatRealtimeSession {
   void disconnect() {
     connected = false;
     _stateController.add(ChatRealtimeConnectionState.disconnected);
+  }
+
+  void reconnect() {
+    connected = true;
+    _stateController.add(ChatRealtimeConnectionState.connected);
   }
 
   @override
