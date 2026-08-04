@@ -585,6 +585,7 @@ class _ChatComposer extends StatelessWidget {
                         controller: controller,
                         enabled: connectionState ==
                             ChatRealtimeConnectionState.connected,
+                        keyboardType: TextInputType.multiline,
                         minLines: 1,
                         maxLines: 4,
                         textInputAction: TextInputAction.newline,

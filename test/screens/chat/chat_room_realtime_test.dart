@@ -87,6 +87,48 @@ void main() {
     expect(realtimeClient.session.closed, isTrue);
   });
 
+  testWidgets('preserves line breaks when sending and displaying a message', (
+    WidgetTester tester,
+  ) async {
+    const multilineMessage = '첫 번째 줄\n두 번째 줄';
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(),
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final inputFinder = find.byKey(const Key('chat-message-input'));
+    final input = tester.widget<TextField>(inputFinder);
+    expect(input.keyboardType, TextInputType.multiline);
+
+    await tester.enterText(inputFinder, '  $multilineMessage  ');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('send-chat-message')));
+    await tester.pump();
+
+    expect(realtimeClient.session.sentContent, multilineMessage);
+
+    realtimeClient.session.addMessage(
+      _chatMessage(
+        id: 20,
+        sequence: 20,
+        senderId: 1,
+        content: multilineMessage,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(multilineMessage), findsOneWidget);
+  });
+
   testWidgets('shows realtime messages after persisted history fails', (
     WidgetTester tester,
   ) async {
