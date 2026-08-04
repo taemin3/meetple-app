@@ -77,6 +77,26 @@ ChatMessage parseStompChatMessage(String body) {
   );
 }
 
+ChatRealtimeException parseStompChatControl(String body) {
+  final decoded = jsonDecode(body);
+  if (decoded is! Map) {
+    throw const FormatException('STOMP 제어 이벤트가 JSON 객체가 아닙니다.');
+  }
+  final event = decoded.map((key, value) => MapEntry(key.toString(), value));
+  final type = _readString(event['type']);
+  if (type != 'CHAT_ACCESS_REVOKED') {
+    throw const FormatException('지원하지 않는 STOMP 제어 이벤트입니다.');
+  }
+  final reason = _readString(event['reason']);
+  final roomId = _readNullableInt(event['roomId']);
+  return ChatRealtimeException(
+    _accessRevokedMessage(reason),
+    code: type,
+    reason: reason,
+    roomId: roomId,
+  );
+}
+
 class _StompChatRealtimeSession implements ChatRealtimeSession {
   _StompChatRealtimeSession({
     required this.roomId,
@@ -97,6 +117,7 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
   StompClient? _client;
   StompUnsubscribe? _unsubscribeRoom;
   StompUnsubscribe? _unsubscribeErrors;
+  StompUnsubscribe? _unsubscribeControl;
   bool _activating = false;
   bool _connected = false;
   bool _closed = false;
@@ -165,13 +186,17 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
     if (client == null) return;
 
     try {
-      _unsubscribeRoom = client.subscribe(
-        destination: '/topic/chat/rooms/$roomId',
-        callback: _onRoomMessage,
+      _unsubscribeControl = client.subscribe(
+        destination: '/user/queue/chat/control',
+        callback: _onControlMessage,
       );
       _unsubscribeErrors = client.subscribe(
         destination: '/user/queue/chat/errors',
         callback: _onUserError,
+      );
+      _unsubscribeRoom = client.subscribe(
+        destination: '/topic/chat/rooms/$roomId',
+        callback: _onRoomMessage,
       );
       _activating = false;
       _connected = true;
@@ -204,6 +229,23 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
   void _onUserError(StompFrame frame) {
     if (_closed) return;
     _emitError(_errorMessageFrom(frame.body));
+  }
+
+  void _onControlMessage(StompFrame frame) {
+    if (_closed) return;
+    final body = frame.body;
+    if (body == null || body.isEmpty) {
+      _emitError('빈 채팅 제어 이벤트를 수신했습니다.');
+      return;
+    }
+    try {
+      final event = parseStompChatControl(body);
+      if (event.roomId == null || event.roomId == roomId) {
+        _errorController.add(event);
+      }
+    } on FormatException {
+      _emitError('채팅 제어 이벤트 형식을 확인할 수 없습니다.');
+    }
   }
 
   void _onStompError(StompFrame frame) {
@@ -259,6 +301,7 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
     _connected = false;
     _unsubscribeRoom?.call();
     _unsubscribeErrors?.call();
+    _unsubscribeControl?.call();
     _client?.deactivate();
     await Future.wait([
       _stateController.close(),
@@ -302,6 +345,14 @@ int _readInt(Object? value) {
   return 0;
 }
 
+int? _readNullableInt(Object? value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
 String _readString(Object? value, {String fallback = ''}) {
   if (value is String && value.trim().isNotEmpty) return value;
   return fallback;
@@ -318,4 +369,15 @@ DateTime _readDateTime(Object? value) {
     if (parsed != null) return parsed;
   }
   throw const FormatException('올바른 메시지 시간이 아닙니다.');
+}
+
+String _accessRevokedMessage(String reason) {
+  return switch (reason) {
+    'LOGIN_SESSION_LOGOUT' => '로그아웃되어 채팅 연결이 종료되었습니다.',
+    'MEMBER_LOGOUT_ALL' => '전체 로그아웃되어 채팅 연결이 종료되었습니다.',
+    'PARTICIPATION_CANCELED' => '참여가 취소되어 채팅방 접근 권한이 해제되었습니다.',
+    'PARTICIPATION_APPROVAL_REVOKED' => '참여 승인이 취소되어 채팅방 접근 권한이 해제되었습니다.',
+    'MEETING_CANCELED' => '모임이 취소되어 실시간 채팅이 종료되었습니다.',
+    _ => '채팅방 접근 권한이 해제되었습니다.',
+  };
 }

@@ -7,9 +7,19 @@ enum ChatRealtimeConnectionState {
 }
 
 class ChatRealtimeException implements Exception {
-  const ChatRealtimeException(this.message);
+  const ChatRealtimeException(
+    this.message, {
+    this.code,
+    this.reason,
+    this.roomId,
+  });
 
   final String message;
+  final String? code;
+  final String? reason;
+  final int? roomId;
+
+  bool get isAccessRevoked => code == 'CHAT_ACCESS_REVOKED';
 
   @override
   String toString() => message;
