@@ -65,6 +65,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   String? _pendingMessageContent;
   bool _awaitingSendConfirmation = false;
   bool _initialHistoryLoaded = false;
+  bool _accessRevoked = false;
+  String? _accessRevokedMessage;
   int _historySyncSequence = 0;
   int _recoveryRequestId = 0;
   int _reconnectAttempt = 0;
@@ -125,7 +127,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _flushPendingRead();
-        if (_connectionState == ChatRealtimeConnectionState.disconnected) {
+        if (!_accessRevoked &&
+            _connectionState == ChatRealtimeConnectionState.disconnected) {
           _scheduleReconnect(immediate: true);
         }
       });
@@ -148,7 +151,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Future<void> _connectRealtime() async {
-    if (_disposing) return;
+    if (_disposing || _accessRevoked) return;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     if (mounted) {
@@ -219,6 +222,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   void _scheduleReconnect({bool immediate = false}) {
     if (_disposing ||
+        _accessRevoked ||
         _reconnectTimer?.isActive == true ||
         _appLifecycleState != AppLifecycleState.resumed ||
         _reconnectAttempt >= _reconnectDelays.length) {
@@ -241,6 +245,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Future<void> _retryRealtime() async {
+    if (_accessRevoked) return;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
     _reconnectAttempt = 0;
@@ -350,6 +355,19 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   void _onRealtimeError(ChatRealtimeException error) {
     if (!mounted || _disposing) return;
+    if (error.isAccessRevoked) {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = null;
+      _recoveryRequestId += 1;
+      setState(() {
+        _accessRevoked = true;
+        _accessRevokedMessage = error.message;
+        _awaitingSendConfirmation = false;
+        _connectionState = ChatRealtimeConnectionState.disconnected;
+      });
+      scheduleMicrotask(() => unawaited(_closeRealtime()));
+      return;
+    }
     if (_awaitingSendConfirmation) {
       setState(() => _awaitingSendConfirmation = false);
     }
@@ -534,6 +552,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
               canSubmit: _canSubmit,
               onSend: _sendMessage,
               onReconnect: _retryRealtime,
+              accessRevokedMessage: _accessRevokedMessage,
             ),
           ],
         ),
@@ -841,6 +860,7 @@ class _ChatComposer extends StatelessWidget {
     required this.canSubmit,
     required this.onSend,
     required this.onReconnect,
+    required this.accessRevokedMessage,
   });
 
   final TextEditingController controller;
@@ -849,6 +869,7 @@ class _ChatComposer extends StatelessWidget {
   final bool canSubmit;
   final VoidCallback onSend;
   final Future<void> Function() onReconnect;
+  final String? accessRevokedMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -859,79 +880,122 @@ class _ChatComposer extends StatelessWidget {
         color: Colors.white,
         border: Border(top: BorderSide(color: AppColors.line)),
       ),
-      child: canSend
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (connectionState != ChatRealtimeConnectionState.connected)
-                  _ConnectionNotice(
-                    state: connectionState,
-                    onReconnect: onReconnect,
-                  ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+      child: accessRevokedMessage != null
+          ? _AccessRevokedNotice(message: accessRevokedMessage!)
+          : canSend
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Expanded(
-                      child: TextField(
-                        key: const Key('chat-message-input'),
-                        controller: controller,
-                        enabled: connectionState ==
-                            ChatRealtimeConnectionState.connected,
-                        keyboardType: TextInputType.multiline,
-                        minLines: 1,
-                        maxLines: 4,
-                        textInputAction: TextInputAction.newline,
-                        inputFormatters: [
-                          LengthLimitingTextInputFormatter(1000),
-                        ],
-                        decoration: const InputDecoration(
-                          hintText: '메시지를 입력하세요',
-                          filled: true,
-                          fillColor: AppColors.softSurface,
-                          border: OutlineInputBorder(
-                            borderSide: BorderSide.none,
-                            borderRadius: BorderRadius.all(Radius.circular(18)),
-                          ),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                    if (connectionState !=
+                        ChatRealtimeConnectionState.connected)
+                      _ConnectionNotice(
+                        state: connectionState,
+                        onReconnect: onReconnect,
+                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            key: const Key('chat-message-input'),
+                            controller: controller,
+                            enabled: connectionState ==
+                                    ChatRealtimeConnectionState.connected &&
+                                accessRevokedMessage == null,
+                            keyboardType: TextInputType.multiline,
+                            minLines: 1,
+                            maxLines: 4,
+                            textInputAction: TextInputAction.newline,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(1000),
+                            ],
+                            decoration: const InputDecoration(
+                              hintText: '메시지를 입력하세요',
+                              filled: true,
+                              fillColor: AppColors.softSurface,
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide.none,
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(18)),
+                              ),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton.filled(
-                      key: const Key('send-chat-message'),
-                      tooltip: '메시지 전송',
-                      onPressed: canSubmit ? onSend : null,
-                      style: IconButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        disabledBackgroundColor: AppColors.softSurface,
-                        foregroundColor: Colors.white,
-                        disabledForegroundColor: AppColors.subtle,
-                      ),
-                      icon: const Icon(Icons.arrow_upward_rounded),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          key: const Key('send-chat-message'),
+                          tooltip: '메시지 전송',
+                          onPressed: canSubmit ? onSend : null,
+                          style: IconButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            disabledBackgroundColor: AppColors.softSurface,
+                            foregroundColor: Colors.white,
+                            disabledForegroundColor: AppColors.subtle,
+                          ),
+                          icon: const Icon(Icons.arrow_upward_rounded),
+                        ),
+                      ],
                     ),
                   ],
+                )
+              : Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: const BoxDecoration(
+                    color: AppColors.softSurface,
+                    borderRadius: BorderRadius.all(Radius.circular(16)),
+                  ),
+                  child: const Text(
+                    '종료된 모임에서는 메시지를 보낼 수 없어요.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ],
-            )
-          : Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: const BoxDecoration(
-                color: AppColors.softSurface,
-                borderRadius: BorderRadius.all(Radius.circular(16)),
-              ),
-              child: const Text(
-                '종료된 모임에서는 메시지를 보낼 수 없어요.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.muted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
+    );
+  }
+}
+
+class _AccessRevokedNotice extends StatelessWidget {
+  const _AccessRevokedNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('chat-access-revoked-notice'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: const BoxDecoration(
+        color: AppColors.softSurface,
+        borderRadius: BorderRadius.all(Radius.circular(12)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.lock_outline_rounded,
+              color: AppColors.muted, size: 17),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
+          ),
+        ],
+      ),
     );
   }
 }

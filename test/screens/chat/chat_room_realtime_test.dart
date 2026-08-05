@@ -129,6 +129,34 @@ void main() {
     expect(realtimeClient.session.closed, isTrue);
   });
 
+  testWidgets('stops reconnecting after chat access is revoked', (
+    WidgetTester tester,
+  ) async {
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(),
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    realtimeClient.session.revokeAccess();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('chat-access-revoked-notice')), findsOneWidget);
+    expect(find.byKey(const Key('reconnect-chat')), findsNothing);
+    expect(realtimeClient.session.closed, isTrue);
+
+    await tester.pump(const Duration(minutes: 1));
+    expect(realtimeClient.sessions, hasLength(1));
+  });
+
   testWidgets('preserves line breaks when sending and displaying a message', (
     WidgetTester tester,
   ) async {
@@ -669,6 +697,17 @@ class _FakeChatRealtimeSession implements ChatRealtimeSession {
 
   void addError(String message) {
     _errorController.add(ChatRealtimeException(message));
+  }
+
+  void revokeAccess() {
+    _errorController.add(
+      const ChatRealtimeException(
+        '참여 승인이 취소되어 채팅방 접근 권한이 해제되었습니다.',
+        code: 'CHAT_ACCESS_REVOKED',
+        reason: 'PARTICIPATION_APPROVAL_REVOKED',
+        roomId: 10,
+      ),
+    );
   }
 
   void disconnect() {

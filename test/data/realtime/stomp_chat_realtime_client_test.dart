@@ -41,6 +41,21 @@ void main() {
     expect(message.content, '곧 도착해요.');
   });
 
+  test('parses CHAT_ACCESS_REVOKED as a terminal realtime error', () {
+    final error = parseStompChatControl('''
+      {
+        "type": "CHAT_ACCESS_REVOKED",
+        "reason": "PARTICIPATION_APPROVAL_REVOKED",
+        "roomId": 10
+      }
+    ''');
+
+    expect(error.isAccessRevoked, isTrue);
+    expect(error.reason, 'PARTICIPATION_APPROVAL_REVOKED');
+    expect(error.roomId, 10);
+    expect(error.message, contains('참여 승인'));
+  });
+
   test('generates a valid UUID v4 client message id', () {
     final generator = ChatClientMessageIdGenerator(random: Random(7));
 
