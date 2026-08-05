@@ -13,6 +13,7 @@ import '../../models/chat_message.dart';
 import '../../models/chat_room.dart';
 import '../../widgets/app_page_header.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/network_image_with_skeleton.dart';
 
 class ChatRoomPage extends StatefulWidget {
   const ChatRoomPage({
@@ -604,6 +605,11 @@ class _ChatRoomPageState extends State<ChatRoomPage>
                   message,
                   _messages[messageIndex + 1],
                 );
+            final showSender = messageIndex == 0 ||
+                !_isSameMessageGroup(
+                  _messages[messageIndex - 1],
+                  message,
+                );
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -612,6 +618,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
                 _MessageBubble(
                   message: message,
                   isMine: message.senderId == widget.currentMemberId,
+                  showSender: showSender,
                   showTime: showTime,
                 ),
               ],
@@ -742,79 +749,143 @@ class _MessageBubble extends StatelessWidget {
   const _MessageBubble({
     required this.message,
     required this.isMine,
+    required this.showSender,
     required this.showTime,
   });
 
   final ChatMessage message;
   final bool isMine;
+  final bool showSender;
   final bool showTime;
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Column(
-          crossAxisAlignment:
-              isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+    final content = Column(
+      crossAxisAlignment:
+          isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        if (!isMine && showSender)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 5),
+            child: Text(
+              key: Key('chat-message-sender-${message.id}'),
+              message.senderNickname,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            if (!isMine)
-              Padding(
-                padding: const EdgeInsets.only(left: 4, bottom: 5),
+            if (isMine && showTime) ...[
+              _MessageTime(dateTime: message.createdAt),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 300),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 11,
+                ),
+                decoration: BoxDecoration(
+                  color: isMine ? AppColors.primary : Colors.white,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(16),
+                    topRight: const Radius.circular(16),
+                    bottomLeft: Radius.circular(isMine ? 16 : 4),
+                    bottomRight: Radius.circular(isMine ? 4 : 16),
+                  ),
+                  border: isMine ? null : Border.all(color: AppColors.line),
+                ),
                 child: Text(
-                  message.senderNickname,
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+                  message.content,
+                  style: TextStyle(
+                    color: isMine ? Colors.white : AppColors.ink,
+                    fontSize: 14,
+                    height: 1.45,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (isMine && showTime) ...[
-                  _MessageTime(dateTime: message.createdAt),
-                  const SizedBox(width: 6),
-                ],
-                Flexible(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 300),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 11,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isMine ? AppColors.primary : Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: Radius.circular(isMine ? 16 : 4),
-                        bottomRight: Radius.circular(isMine ? 4 : 16),
-                      ),
-                      border: isMine ? null : Border.all(color: AppColors.line),
-                    ),
-                    child: Text(
-                      message.content,
-                      style: TextStyle(
-                        color: isMine ? Colors.white : AppColors.ink,
-                        fontSize: 14,
-                        height: 1.45,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                if (!isMine && showTime) ...[
-                  const SizedBox(width: 6),
-                  _MessageTime(dateTime: message.createdAt),
-                ],
-              ],
             ),
+            if (!isMine && showTime) ...[
+              const SizedBox(width: 6),
+              _MessageTime(dateTime: message.createdAt),
+            ],
           ],
         ),
+      ],
+    );
+
+    final bottomPadding = EdgeInsets.only(bottom: showTime ? 12 : 4);
+    if (isMine) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Padding(padding: bottomPadding, child: content),
+      );
+    }
+
+    return Padding(
+      padding: bottomPadding,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (showSender)
+            _ChatSenderAvatar(message: message)
+          else
+            const SizedBox(width: 36),
+          const SizedBox(width: 8),
+          Expanded(child: content),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatSenderAvatar extends StatelessWidget {
+  const _ChatSenderAvatar({required this.message});
+
+  final ChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = Container(
+      key: Key('chat-message-avatar-fallback-${message.id}'),
+      color: AppColors.softSurface,
+      alignment: Alignment.center,
+      child: Text(
+        message.senderNickname.isEmpty
+            ? 'M'
+            : message.senderNickname.characters.first,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 14,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+    final imageUrl = message.senderProfileImageUrl;
+
+    return ClipOval(
+      key: Key('chat-message-avatar-${message.id}'),
+      child: SizedBox.square(
+        dimension: 36,
+        child: imageUrl == null || imageUrl.trim().isEmpty
+            ? fallback
+            : NetworkImageWithSkeleton(
+                key: Key('chat-message-avatar-image-${message.id}'),
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                cacheWidth: 72,
+                cacheHeight: 72,
+                skeleton: fallback,
+                errorWidget: fallback,
+              ),
       ),
     );
   }

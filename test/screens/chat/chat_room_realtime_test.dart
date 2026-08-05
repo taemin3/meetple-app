@@ -8,6 +8,7 @@ import 'package:meetple/data/realtime/chat_realtime_client.dart';
 import 'package:meetple/models/chat_message.dart';
 import 'package:meetple/models/chat_room.dart';
 import 'package:meetple/screens/chat/chat_room_page.dart';
+import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
 void main() {
   testWidgets('sends and receives messages through the realtime session', (
@@ -503,22 +504,32 @@ void main() {
     );
   });
 
-  testWidgets('shows time only on the last message in a same-minute group', (
+  testWidgets('groups consecutive messages from the same sender in a minute', (
     WidgetTester tester,
   ) async {
     final sameMinute = DateTime(2026, 8, 4, 10, 15);
+    const profileImageUrl = 'https://example.com/profile.png';
     final history = [
       _chatMessage(
         id: 1,
         sequence: 1,
         content: '첫 번째 메시지',
         createdAt: sameMinute,
+        senderProfileImageUrl: profileImageUrl,
       ),
       _chatMessage(
         id: 2,
         sequence: 2,
         content: '두 번째 메시지',
         createdAt: sameMinute.add(const Duration(seconds: 30)),
+        senderProfileImageUrl: profileImageUrl,
+      ),
+      _chatMessage(
+        id: 3,
+        sequence: 3,
+        content: '다음 분 메시지',
+        createdAt: sameMinute.add(const Duration(minutes: 1)),
+        senderProfileImageUrl: profileImageUrl,
       ),
     ];
 
@@ -535,6 +546,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('10:15'), findsOneWidget);
+    expect(find.text('10:16'), findsOneWidget);
+    expect(find.byKey(const Key('chat-message-sender-1')), findsOneWidget);
+    expect(find.byKey(const Key('chat-message-sender-2')), findsNothing);
+    expect(find.byKey(const Key('chat-message-sender-3')), findsOneWidget);
+    expect(find.byKey(const Key('chat-message-avatar-1')), findsOneWidget);
+    expect(find.byKey(const Key('chat-message-avatar-2')), findsNothing);
+    expect(find.byKey(const Key('chat-message-avatar-3')), findsOneWidget);
+    final avatarImage = tester.widget<NetworkImageWithSkeleton>(
+      find.byKey(const Key('chat-message-avatar-image-1')),
+    );
+    expect(avatarImage.imageUrl, profileImageUrl);
+    expect(find.text(history.first.senderNickname), findsNWidgets(2));
   });
 
   testWidgets('shows date separators and labels the current date as today', (
@@ -754,6 +777,7 @@ ChatMessage _chatMessage({
   int senderId = 2,
   String? clientMessageId,
   DateTime? createdAt,
+  String? senderProfileImageUrl,
 }) {
   return ChatMessage(
     id: id,
@@ -762,6 +786,7 @@ ChatMessage _chatMessage({
     clientMessageId: clientMessageId ?? 'client-message-$id',
     senderId: senderId,
     senderNickname: '민준',
+    senderProfileImageUrl: senderProfileImageUrl,
     content: content,
     createdAt:
         createdAt ?? DateTime(2026, 8, 4, 10).add(Duration(minutes: sequence)),
