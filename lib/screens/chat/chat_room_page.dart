@@ -305,11 +305,12 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         (left, right) => left.sequence.compareTo(right.sequence),
       );
       for (final message in recoveredMessages) {
-        _onRealtimeMessage(message);
+        _onRealtimeMessage(message, recoverSequenceGap: false);
       }
       if (afterSequence > _historySyncSequence) {
         _historySyncSequence = afterSequence;
       }
+      _advanceHistorySyncSequenceThroughLoadedMessages();
     } on Exception catch (error) {
       if (!mounted || session != _realtimeSession) return;
       final message =
@@ -320,7 +321,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     }
   }
 
-  void _onRealtimeMessage(ChatMessage message) {
+  void _onRealtimeMessage(
+    ChatMessage message, {
+    bool recoverSequenceGap = true,
+  }) {
     if (!mounted || _disposing || message.roomId != widget.room.roomId) return;
     final isDuplicate = _messages.any(
       (existing) =>
@@ -348,10 +352,35 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         _showJumpToLatest = !shouldScrollToLatest;
       }
     });
+    if (recoverSequenceGap) {
+      _recoverSequenceGapIfNeeded(message.sequence);
+    }
     if (shouldClearDraft) _messageController.clear();
     if (isDuplicate) return;
     if (shouldScrollToLatest) _scrollToLatest();
     _queueRead(message.sequence);
+  }
+
+  void _recoverSequenceGapIfNeeded(int receivedSequence) {
+    if (!_initialHistoryLoaded || receivedSequence <= _historySyncSequence) {
+      return;
+    }
+
+    _advanceHistorySyncSequenceThroughLoadedMessages();
+    if (receivedSequence <= _historySyncSequence) return;
+
+    final session = _realtimeSession;
+    if (session != null && session.isConnected) {
+      unawaited(_scheduleMissedMessageRecovery(session));
+    }
+  }
+
+  void _advanceHistorySyncSequenceThroughLoadedMessages() {
+    final loadedSequences =
+        _messages.map((message) => message.sequence).toSet();
+    while (loadedSequences.contains(_historySyncSequence + 1)) {
+      _historySyncSequence += 1;
+    }
   }
 
   void _onRealtimeError(ChatRealtimeException error) {
@@ -437,6 +466,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         _loading = false;
         _initialHistoryLoaded = true;
         _historySyncSequence = page.latestSequence ?? 0;
+        _advanceHistorySyncSequenceThroughLoadedMessages();
       });
       _scrollToLatest();
       final latestSequence = page.latestSequence;

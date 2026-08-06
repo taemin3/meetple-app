@@ -370,6 +370,83 @@ void main() {
     },
   );
 
+  testWidgets('recovers a live sequence gap without reconnecting', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: 'first message'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+
+    final missedMessage = _chatMessage(
+      id: 2,
+      sequence: 2,
+      content: 'missed live message',
+    );
+    final receivedMessage = _chatMessage(
+      id: 3,
+      sequence: 3,
+      content: 'received live message',
+    );
+    messages.addAll([missedMessage, receivedMessage]);
+    realtimeClient.session.addMessage(receivedMessage);
+    await tester.pumpAndSettle();
+
+    expect(realtimeClient.sessions, hasLength(1));
+    expect(repository.afterSequenceRequests, [1]);
+    expect(find.text('missed live message'), findsOneWidget);
+    expect(find.text('received live message'), findsOneWidget);
+  });
+
+  testWidgets('does not recover when live sequences are contiguous', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: 'first message'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+
+    final nextMessage = _chatMessage(
+      id: 2,
+      sequence: 2,
+      content: 'next live message',
+    );
+    messages.add(nextMessage);
+    realtimeClient.session.addMessage(nextMessage);
+    await tester.pumpAndSettle();
+
+    expect(repository.afterSequenceRequests, isEmpty);
+    expect(find.text('next live message'), findsOneWidget);
+  });
+
   testWidgets('marks pending messages as read after returning to the route', (
     WidgetTester tester,
   ) async {
