@@ -44,6 +44,13 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     Duration(seconds: 20),
     Duration(seconds: 30),
   ];
+  static const List<Duration> _recoveryRetryDelays = [
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 5),
+    Duration(seconds: 10),
+    Duration(seconds: 30),
+  ];
 
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _messageController = TextEditingController();
@@ -69,8 +76,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   bool _accessRevoked = false;
   String? _accessRevokedMessage;
   int _historySyncSequence = 0;
-  int _recoveryRequestId = 0;
+  bool _recoveryInProgress = false;
+  int _recoveryRetryAttempt = 0;
   int _reconnectAttempt = 0;
+  Timer? _recoveryRetryTimer;
   Timer? _reconnectTimer;
   AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
   String? _historyErrorMessage;
@@ -103,6 +112,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   void dispose() {
     _disposing = true;
     _reconnectTimer?.cancel();
+    _recoveryRetryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     appRouteObserver.unsubscribe(this);
     _scrollController.removeListener(_onScrollChanged);
@@ -215,8 +225,12 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
       _reconnectAttempt = 0;
-      unawaited(_scheduleMissedMessageRecovery(session));
+      unawaited(
+        _scheduleMissedMessageRecovery(session, resetRetryAttempt: true),
+      );
     } else if (state == ChatRealtimeConnectionState.disconnected) {
+      _recoveryRetryTimer?.cancel();
+      _recoveryRetryTimer = null;
       _scheduleReconnect();
     }
   }
@@ -254,25 +268,55 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Future<void> _scheduleMissedMessageRecovery(
-    ChatRealtimeSession session,
-  ) async {
-    final requestId = ++_recoveryRequestId;
-    await _initialLoadFuture;
-    if (!mounted ||
-        _disposing ||
-        requestId != _recoveryRequestId ||
-        session != _realtimeSession ||
-        !session.isConnected ||
-        !_initialHistoryLoaded) {
-      return;
+    ChatRealtimeSession session, {
+    bool resetRetryAttempt = false,
+  }) async {
+    if (resetRetryAttempt) {
+      _recoveryRetryTimer?.cancel();
+      _recoveryRetryTimer = null;
+      _recoveryRetryAttempt = 0;
     }
-    await _recoverMissedMessages(session, requestId);
+    if (_recoveryInProgress || _recoveryRetryTimer?.isActive == true) return;
+
+    _recoveryInProgress = true;
+    try {
+      await _initialLoadFuture;
+      if (!_isRecoverySessionActive(session) || !_initialHistoryLoaded) {
+        return;
+      }
+
+      final recovered = await _recoverMissedMessages(
+        session,
+        showError: _recoveryRetryAttempt == 0,
+      );
+      if (!_isRecoverySessionActive(session) || recovered == null) return;
+
+      _advanceHistorySyncSequenceThroughLoadedMessages();
+      if (!recovered || _hasSequenceGap) {
+        _scheduleRecoveryRetry(session);
+      } else {
+        _recoveryRetryAttempt = 0;
+      }
+    } finally {
+      _recoveryInProgress = false;
+      final currentSession = _realtimeSession;
+      if (currentSession != null &&
+          currentSession != session &&
+          _isRecoverySessionActive(currentSession)) {
+        unawaited(
+          _scheduleMissedMessageRecovery(
+            currentSession,
+            resetRetryAttempt: true,
+          ),
+        );
+      }
+    }
   }
 
-  Future<void> _recoverMissedMessages(
-    ChatRealtimeSession session,
-    int requestId,
-  ) async {
+  Future<bool?> _recoverMissedMessages(
+    ChatRealtimeSession session, {
+    required bool showError,
+  }) async {
     var afterSequence = _historySyncSequence;
     final recoveredMessages = <ChatMessage>[];
 
@@ -283,12 +327,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
           afterSequence: afterSequence,
           size: 100,
         );
-        if (!mounted ||
-            _disposing ||
-            requestId != _recoveryRequestId ||
-            session != _realtimeSession ||
-            !session.isConnected) {
-          return;
+        if (!_isRecoverySessionActive(session)) {
+          return null;
         }
         if (page.content.isEmpty) break;
 
@@ -305,22 +345,57 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         (left, right) => left.sequence.compareTo(right.sequence),
       );
       for (final message in recoveredMessages) {
-        _onRealtimeMessage(message);
+        _onRealtimeMessage(message, recoverSequenceGap: false);
       }
       if (afterSequence > _historySyncSequence) {
         _historySyncSequence = afterSequence;
       }
+      _advanceHistorySyncSequenceThroughLoadedMessages();
+      return true;
     } on Exception catch (error) {
-      if (!mounted || session != _realtimeSession) return;
+      if (!mounted || !_isRecoverySessionActive(session)) return null;
+      if (!showError) return false;
       final message =
           error is ApiException ? error.message : '누락된 메시지를 불러오지 못했습니다.';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
+      return false;
     }
   }
 
-  void _onRealtimeMessage(ChatMessage message) {
+  void _scheduleRecoveryRetry(ChatRealtimeSession session) {
+    if (!_isRecoverySessionActive(session) ||
+        _recoveryRetryTimer?.isActive == true) {
+      return;
+    }
+
+    final delay = _recoveryRetryDelays[_recoveryRetryAttempt];
+    if (_recoveryRetryAttempt < _recoveryRetryDelays.length - 1) {
+      _recoveryRetryAttempt += 1;
+    }
+    _recoveryRetryTimer = Timer(delay, () {
+      _recoveryRetryTimer = null;
+      if (_isRecoverySessionActive(session)) {
+        unawaited(_scheduleMissedMessageRecovery(session));
+      }
+    });
+  }
+
+  bool _isRecoverySessionActive(ChatRealtimeSession session) =>
+      mounted &&
+      !_disposing &&
+      !_accessRevoked &&
+      session == _realtimeSession &&
+      session.isConnected;
+
+  bool get _hasSequenceGap =>
+      _messages.any((message) => message.sequence > _historySyncSequence);
+
+  void _onRealtimeMessage(
+    ChatMessage message, {
+    bool recoverSequenceGap = true,
+  }) {
     if (!mounted || _disposing || message.roomId != widget.room.roomId) return;
     final isDuplicate = _messages.any(
       (existing) =>
@@ -348,10 +423,35 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         _showJumpToLatest = !shouldScrollToLatest;
       }
     });
+    if (recoverSequenceGap) {
+      _recoverSequenceGapIfNeeded(message.sequence);
+    }
     if (shouldClearDraft) _messageController.clear();
     if (isDuplicate) return;
     if (shouldScrollToLatest) _scrollToLatest();
     _queueRead(message.sequence);
+  }
+
+  void _recoverSequenceGapIfNeeded(int receivedSequence) {
+    if (!_initialHistoryLoaded || receivedSequence <= _historySyncSequence) {
+      return;
+    }
+
+    _advanceHistorySyncSequenceThroughLoadedMessages();
+    if (receivedSequence <= _historySyncSequence) return;
+
+    final session = _realtimeSession;
+    if (session != null && session.isConnected) {
+      unawaited(_scheduleMissedMessageRecovery(session));
+    }
+  }
+
+  void _advanceHistorySyncSequenceThroughLoadedMessages() {
+    final loadedSequences =
+        _messages.map((message) => message.sequence).toSet();
+    while (loadedSequences.contains(_historySyncSequence + 1)) {
+      _historySyncSequence += 1;
+    }
   }
 
   void _onRealtimeError(ChatRealtimeException error) {
@@ -359,7 +459,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     if (error.isAccessRevoked) {
       _reconnectTimer?.cancel();
       _reconnectTimer = null;
-      _recoveryRequestId += 1;
+      _recoveryRetryTimer?.cancel();
+      _recoveryRetryTimer = null;
       setState(() {
         _accessRevoked = true;
         _accessRevokedMessage = error.message;
@@ -437,6 +538,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         _loading = false;
         _initialHistoryLoaded = true;
         _historySyncSequence = page.latestSequence ?? 0;
+        _advanceHistorySyncSequenceThroughLoadedMessages();
       });
       _scrollToLatest();
       final latestSequence = page.latestSequence;

@@ -370,6 +370,236 @@ void main() {
     },
   );
 
+  testWidgets('recovers a live sequence gap without reconnecting', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: 'first message'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+
+    final missedMessage = _chatMessage(
+      id: 2,
+      sequence: 2,
+      content: 'missed live message',
+    );
+    final receivedMessage = _chatMessage(
+      id: 3,
+      sequence: 3,
+      content: 'received live message',
+    );
+    messages.addAll([missedMessage, receivedMessage]);
+    realtimeClient.session.addMessage(receivedMessage);
+    await tester.pumpAndSettle();
+
+    expect(realtimeClient.sessions, hasLength(1));
+    expect(repository.afterSequenceRequests, [1]);
+    expect(find.text('missed live message'), findsOneWidget);
+    expect(find.text('received live message'), findsOneWidget);
+  });
+
+  testWidgets('coalesces live gap recovery while a request is in progress', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: 'first message'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+    repository.afterSequenceGate = Completer<void>();
+
+    final missedMessage = _chatMessage(
+      id: 2,
+      sequence: 2,
+      content: 'missed message',
+    );
+    final firstLiveMessage = _chatMessage(
+      id: 3,
+      sequence: 3,
+      content: 'first live message',
+    );
+    final secondLiveMessage = _chatMessage(
+      id: 4,
+      sequence: 4,
+      content: 'second live message',
+    );
+    messages.addAll([missedMessage, firstLiveMessage, secondLiveMessage]);
+
+    realtimeClient.session.addMessage(firstLiveMessage);
+    await tester.pump();
+    expect(repository.afterSequenceRequests, [1]);
+
+    realtimeClient.session.addMessage(secondLiveMessage);
+    await tester.pump();
+    expect(repository.afterSequenceRequests, [1]);
+
+    repository.afterSequenceGate!.complete();
+    await tester.pumpAndSettle();
+
+    expect(repository.afterSequenceRequests, [1]);
+    expect(find.text('missed message'), findsOneWidget);
+    expect(find.text('first live message'), findsOneWidget);
+    expect(find.text('second live message'), findsOneWidget);
+  });
+
+  testWidgets('retries live gap recovery after a request failure', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: 'first message'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+    repository.afterSequenceFailuresRemaining = 1;
+
+    final missedMessage = _chatMessage(
+      id: 2,
+      sequence: 2,
+      content: 'retried missed message',
+    );
+    final receivedMessage = _chatMessage(
+      id: 3,
+      sequence: 3,
+      content: 'retry trigger message',
+    );
+    messages.addAll([missedMessage, receivedMessage]);
+    realtimeClient.session.addMessage(receivedMessage);
+    await tester.pump();
+
+    expect(repository.afterSequenceRequests, [1]);
+    expect(find.text('retried missed message'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(repository.afterSequenceRequests, [1, 1]);
+    expect(find.text('retried missed message'), findsOneWidget);
+    expect(find.text('retry trigger message'), findsOneWidget);
+  });
+
+  testWidgets('retries live gap recovery after an empty response', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: 'first message'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+    repository.emptyAfterSequenceResponsesRemaining = 1;
+
+    final missedMessage = _chatMessage(
+      id: 2,
+      sequence: 2,
+      content: 'eventually visible message',
+    );
+    final receivedMessage = _chatMessage(
+      id: 3,
+      sequence: 3,
+      content: 'later live message',
+    );
+    messages.addAll([missedMessage, receivedMessage]);
+    realtimeClient.session.addMessage(receivedMessage);
+    await tester.pump();
+
+    expect(repository.afterSequenceRequests, [1]);
+    expect(find.text('eventually visible message'), findsNothing);
+
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(repository.afterSequenceRequests, [1, 1]);
+    expect(find.text('eventually visible message'), findsOneWidget);
+    expect(find.text('later live message'), findsOneWidget);
+  });
+
+  testWidgets('does not recover when live sequences are contiguous', (
+    WidgetTester tester,
+  ) async {
+    final messages = [
+      _chatMessage(id: 1, sequence: 1, content: 'first message'),
+    ];
+    final repository = _ChatRoomRepository(messages: messages);
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    repository.afterSequenceRequests.clear();
+
+    final nextMessage = _chatMessage(
+      id: 2,
+      sequence: 2,
+      content: 'next live message',
+    );
+    messages.add(nextMessage);
+    realtimeClient.session.addMessage(nextMessage);
+    await tester.pumpAndSettle();
+
+    expect(repository.afterSequenceRequests, isEmpty);
+    expect(find.text('next live message'), findsOneWidget);
+  });
+
   testWidgets('marks pending messages as read after returning to the route', (
     WidgetTester tester,
   ) async {
@@ -619,6 +849,9 @@ class _ChatRoomRepository implements ChatRepository {
   Object? loadError;
   int? markedSequence;
   final List<int> afterSequenceRequests = [];
+  Completer<void>? afterSequenceGate;
+  int afterSequenceFailuresRemaining = 0;
+  int emptyAfterSequenceResponsesRemaining = 0;
 
   @override
   Future<ChatMessagePage> getMessages(
@@ -628,13 +861,25 @@ class _ChatRoomRepository implements ChatRepository {
     int size = 50,
   }) async {
     if (loadError case final error?) throw error;
+    if (afterSequence != null) {
+      afterSequenceRequests.add(afterSequence);
+      final gate = afterSequenceGate;
+      if (gate != null) await gate.future;
+      if (afterSequenceFailuresRemaining > 0) {
+        afterSequenceFailuresRemaining -= 1;
+        throw Exception('temporary recovery failure');
+      }
+      if (emptyAfterSequenceResponsesRemaining > 0) {
+        emptyAfterSequenceResponsesRemaining -= 1;
+        return const ChatMessagePage(content: [], hasMore: false);
+      }
+    }
     var filtered = messages.where((message) {
       if (beforeSequence != null) return message.sequence < beforeSequence;
       if (afterSequence != null) return message.sequence > afterSequence;
       return true;
     }).toList()
       ..sort((left, right) => left.sequence.compareTo(right.sequence));
-    if (afterSequence != null) afterSequenceRequests.add(afterSequence);
     final hasMore = filtered.length > size;
     if (hasMore) {
       filtered = beforeSequence == null
