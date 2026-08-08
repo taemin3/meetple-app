@@ -360,6 +360,49 @@ void main() {
     expect(await tokenStore.read(), isNull);
   });
 
+  test('includes the installation ID when signing out', () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(responses: [_apiResponse(data: null)]);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+      logoutDeviceIdProvider: () async => 'installation-1',
+    );
+
+    await repository.signOut();
+
+    expect(apiClient.requests.single.body, {
+      'refreshToken': 'refresh-token',
+      'deviceId': 'installation-1',
+    });
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('still signs out when the installation ID cannot be read', () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(responses: [_apiResponse(data: null)]);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+      logoutDeviceIdProvider: () async => throw Exception('storage failure'),
+    );
+
+    await repository.signOut();
+
+    expect(apiClient.requests.single.body, {'refreshToken': 'refresh-token'});
+    expect(await tokenStore.read(), isNull);
+  });
+
   test('checks logout API envelope before completing sign out', () async {
     final tokenStore = MemoryAuthTokenStore(
       initialTokens: const AuthTokenPair(

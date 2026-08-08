@@ -5,16 +5,21 @@ import '../../models/auth_user.dart';
 import 'auth_repository.dart';
 import 'auth_token_store.dart';
 
+typedef LogoutDeviceIdProvider = Future<String?> Function();
+
 class ApiAuthRepository implements AuthRepository {
   ApiAuthRepository({
     required ApiClient apiClient,
     required AuthTokenStore tokenStore,
+    LogoutDeviceIdProvider? logoutDeviceIdProvider,
   })  : _apiClient = apiClient,
-        _tokenStore = tokenStore;
+        _tokenStore = tokenStore,
+        _logoutDeviceIdProvider = logoutDeviceIdProvider;
 
   factory ApiAuthRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     AuthTokenStore? tokenStore,
+    LogoutDeviceIdProvider? logoutDeviceIdProvider,
   }) {
     final resolvedTokenStore =
         tokenStore ?? const FlutterSecureAuthTokenStore();
@@ -28,11 +33,13 @@ class ApiAuthRepository implements AuthRepository {
         },
       ),
       tokenStore: resolvedTokenStore,
+      logoutDeviceIdProvider: logoutDeviceIdProvider,
     );
   }
 
   final ApiClient _apiClient;
   final AuthTokenStore _tokenStore;
+  final LogoutDeviceIdProvider? _logoutDeviceIdProvider;
 
   AuthSession? _session;
 
@@ -169,14 +176,26 @@ class ApiAuthRepository implements AuthRepository {
 
     try {
       if (tokens != null && tokens.refreshToken.isNotEmpty) {
+        final deviceId = await _readLogoutDeviceId();
         final response = await _apiClient.postJson(
           '/api/v1/auth/logout',
-          body: {'refreshToken': tokens.refreshToken},
+          body: {
+            'refreshToken': tokens.refreshToken,
+            if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+          },
         );
         _ensureSuccess(response);
       }
     } finally {
       await _clearSession();
+    }
+  }
+
+  Future<String?> _readLogoutDeviceId() async {
+    try {
+      return await _logoutDeviceIdProvider?.call();
+    } on Exception {
+      return null;
     }
   }
 

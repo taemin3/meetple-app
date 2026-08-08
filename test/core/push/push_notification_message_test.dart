@@ -1,0 +1,44 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/core/push/push_notification_message.dart';
+
+void main() {
+  test('parses meeting detail notification data', () {
+    const message = PushNotificationMessage({
+      'route': 'MEETING_DETAIL',
+      'meetingId': '42',
+    });
+
+    expect(message.route, PushNotificationRoute.meetingDetail);
+    expect(message.meetingId, 42);
+    expect(message.roomId, isNull);
+  });
+
+  test('parses chat room notification data', () {
+    const message = PushNotificationMessage({
+      'route': 'CHAT_ROOM',
+      'roomId': '17',
+    });
+
+    expect(message.route, PushNotificationRoute.chatRoom);
+    expect(message.roomId, 17);
+    expect(message.meetingId, isNull);
+  });
+
+  test('round trips a local notification payload', () {
+    const original = PushNotificationMessage({
+      'route': 'CHAT_ROOM',
+      'roomId': '17',
+      'eventId': 'event-1',
+    });
+
+    final restored = PushNotificationMessage.fromPayload(original.toPayload());
+
+    expect(restored?.data, original.data);
+  });
+
+  test('returns null for an invalid local notification payload', () {
+    expect(PushNotificationMessage.fromPayload(null), isNull);
+    expect(PushNotificationMessage.fromPayload('not-json'), isNull);
+    expect(PushNotificationMessage.fromPayload('[1, 2]'), isNull);
+  });
+}

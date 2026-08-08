@@ -8,6 +8,9 @@ import 'core/map/naver_map_initializer.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final pushNotificationService = createPushNotificationService();
+  await pushNotificationService.initialize();
+
   if (AppConfig.hasNaverMapClientId) {
     await initializeNaverMap(
       clientId: AppConfig.naverMapClientId,
@@ -19,7 +22,10 @@ Future<void> main() async {
 
   runApp(
     MeetpleApp(
-      authRepository: createAuthRepository(),
+      authRepository: createAuthRepository(
+        logoutDeviceIdProvider: pushNotificationService.deviceId,
+      ),
+      pushNotificationService: pushNotificationService,
       meetingRepository: createMeetingRepository(),
       chatRepository: createChatRepository(),
       chatRealtimeClient: createChatRealtimeClient(),
