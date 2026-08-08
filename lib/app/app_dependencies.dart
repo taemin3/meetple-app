@@ -32,12 +32,14 @@ AuthRepository createAuthRepository({
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
   LogoutDeviceIdProvider? logoutDeviceIdProvider,
+  BeforeSignOut? beforeSignOut,
 }) {
   if (useApiRepository) {
     return ApiAuthRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
       tokenStore: tokenStore ?? _apiAuthTokenStore,
       logoutDeviceIdProvider: logoutDeviceIdProvider,
+      beforeSignOut: beforeSignOut,
     );
   }
 

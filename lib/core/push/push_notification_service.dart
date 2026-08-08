@@ -9,6 +9,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../data/repositories/push_device_token_repository.dart';
 import 'push_installation_id_store.dart';
 import 'push_notification_message.dart';
+import 'push_token_registration_coordinator.dart';
 
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -22,7 +23,7 @@ abstract interface class PushNotificationService {
 
   Future<void> activate();
 
-  void deactivate();
+  Future<void> deactivate();
 
   Future<String?> deviceId();
 
@@ -34,8 +35,13 @@ class FirebasePushNotificationService implements PushNotificationService {
     required PushDeviceTokenRepository tokenRepository,
     required PushInstallationIdStore installationIdStore,
     FlutterLocalNotificationsPlugin? localNotifications,
-  })  : _tokenRepository = tokenRepository,
-        _installationIdStore = installationIdStore,
+  })  : _installationIdStore = installationIdStore,
+        _tokenRegistration = PushTokenRegistrationCoordinator(
+          tokenRepository: tokenRepository,
+          installationIdStore: installationIdStore,
+          platform:
+              defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID',
+        ),
         _localNotifications =
             localNotifications ?? FlutterLocalNotificationsPlugin();
 
@@ -46,8 +52,8 @@ class FirebasePushNotificationService implements PushNotificationService {
     importance: Importance.high,
   );
 
-  final PushDeviceTokenRepository _tokenRepository;
   final PushInstallationIdStore _installationIdStore;
+  final PushTokenRegistrationCoordinator _tokenRegistration;
   final FlutterLocalNotificationsPlugin _localNotifications;
   final StreamController<PushNotificationMessage> _openedController =
       StreamController<PushNotificationMessage>.broadcast(sync: true);
@@ -55,7 +61,7 @@ class FirebasePushNotificationService implements PushNotificationService {
   FirebaseMessaging? _messaging;
   PushNotificationMessage? _pendingOpenedNotification;
   bool _initialized = false;
-  bool _active = false;
+  bool _localTokenDeleted = false;
 
   @override
   Stream<PushNotificationMessage> get openedNotifications =>
@@ -70,7 +76,7 @@ class FirebasePushNotificationService implements PushNotificationService {
     _messaging = FirebaseMessaging.instance;
 
     const initializationSettings = InitializationSettings(
-      android: AndroidInitializationSettings('ic_launcher'),
+      android: AndroidInitializationSettings('ic_stat_meetple_notification'),
       iOS: DarwinInitializationSettings(
         requestAlertPermission: false,
         requestBadgePermission: false,
@@ -102,9 +108,7 @@ class FirebasePushNotificationService implements PushNotificationService {
       (message) => _emitOpened(_fromRemoteMessage(message)),
     );
     _messaging!.onTokenRefresh.listen((token) {
-      if (_active) {
-        unawaited(_registerToken(token));
-      }
+      unawaited(_tokenRegistration.register(token));
     });
 
     final initialRemoteMessage = await _messaging!.getInitialMessage();
@@ -127,7 +131,8 @@ class FirebasePushNotificationService implements PushNotificationService {
 
   @override
   Future<void> activate() async {
-    _active = true;
+    _tokenRegistration.activate();
+    _localTokenDeleted = false;
     if (!_initialized) {
       await initialize();
     }
@@ -144,21 +149,7 @@ class FirebasePushNotificationService implements PushNotificationService {
 
     final token = await _messaging!.getToken();
     if (token != null && token.isNotEmpty) {
-      await _registerToken(token);
-    }
-  }
-
-  Future<void> _registerToken(String token) async {
-    if (!_active) return;
-    try {
-      await _tokenRepository.register(
-        deviceId: await _installationIdStore.readOrCreate(),
-        token: token,
-        platform:
-            defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID',
-      );
-    } on Exception catch (error) {
-      debugPrint('FCM token registration failed: $error');
+      await _tokenRegistration.register(token);
     }
   }
 
@@ -210,8 +201,25 @@ class FirebasePushNotificationService implements PushNotificationService {
   }
 
   @override
-  void deactivate() {
-    _active = false;
+  Future<void> deactivate() async {
+    await _tokenRegistration.deactivate();
+    if (!_initialized || _localTokenDeleted) {
+      return;
+    }
+
+    for (var attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await _messaging!.deleteToken();
+        _localTokenDeleted = true;
+        return;
+      } on Exception catch (error) {
+        if (attempt == 2) {
+          debugPrint('FCM token deletion failed: $error');
+          return;
+        }
+        await Future<void>.delayed(Duration(seconds: 1 << attempt));
+      }
+    }
   }
 
   @override
@@ -239,7 +247,7 @@ class NoopPushNotificationService implements PushNotificationService {
   Future<void> activate() async {}
 
   @override
-  void deactivate() {}
+  Future<void> deactivate() async {}
 
   @override
   Future<String?> deviceId() async => null;

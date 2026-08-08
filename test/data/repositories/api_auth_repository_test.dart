@@ -383,6 +383,50 @@ void main() {
     expect(await tokenStore.read(), isNull);
   });
 
+  test('deactivates local push before signing out', () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(responses: [_apiResponse(data: null)]);
+    var pushDeactivated = false;
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+      beforeSignOut: () async {
+        expect(apiClient.requests, isEmpty);
+        pushDeactivated = true;
+      },
+    );
+
+    await repository.signOut();
+
+    expect(pushDeactivated, isTrue);
+    expect(apiClient.requests.single.path, '/api/v1/auth/logout');
+  });
+
+  test('continues server logout when local push deactivation fails', () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(responses: [_apiResponse(data: null)]);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+      beforeSignOut: () async => throw Exception('FCM cleanup failure'),
+    );
+
+    await repository.signOut();
+
+    expect(apiClient.requests.single.path, '/api/v1/auth/logout');
+    expect(await tokenStore.read(), isNull);
+  });
+
   test('still signs out when the installation ID cannot be read', () async {
     final tokenStore = MemoryAuthTokenStore(
       initialTokens: const AuthTokenPair(

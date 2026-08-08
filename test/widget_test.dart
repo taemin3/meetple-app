@@ -674,7 +674,7 @@ class _RecordingPushNotificationService implements PushNotificationService {
   }
 
   @override
-  void deactivate() {
+  Future<void> deactivate() async {
     deactivateCount += 1;
   }
 

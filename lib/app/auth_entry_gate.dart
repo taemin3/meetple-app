@@ -121,7 +121,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           : _AuthEntryState.signedIn;
     });
     if (session == null) {
-      widget.pushNotificationService.deactivate();
+      unawaited(_deactivatePushNotifications());
     } else {
       unawaited(_activatePushNotifications());
     }
@@ -136,7 +136,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   }
 
   void _showSignedOut() {
-    widget.pushNotificationService.deactivate();
+    unawaited(_deactivatePushNotifications());
     setState(() {
       _session = null;
       _state = _AuthEntryState.signedOut;
@@ -148,6 +148,14 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       await widget.pushNotificationService.activate();
     } on Exception catch (error) {
       debugPrint('Push notification activation failed: $error');
+    }
+  }
+
+  Future<void> _deactivatePushNotifications() async {
+    try {
+      await widget.pushNotificationService.deactivate();
+    } on Exception catch (error) {
+      debugPrint('Push notification deactivation failed: $error');
     }
   }
 }
