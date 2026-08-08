@@ -1,4 +1,6 @@
 import '../core/config/app_config.dart';
+import '../core/push/push_installation_id_store.dart';
+import '../core/push/push_notification_service.dart';
 import '../data/repositories/api_auth_repository.dart';
 import '../data/repositories/api_category_repository.dart';
 import '../data/repositories/api_chat_repository.dart';
@@ -18,6 +20,7 @@ import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
+import '../data/repositories/push_device_token_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
 import '../data/realtime/mock_chat_realtime_client.dart';
 import '../data/realtime/stomp_chat_realtime_client.dart';
@@ -28,15 +31,43 @@ AuthRepository createAuthRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  LogoutDeviceIdProvider? logoutDeviceIdProvider,
+  BeforeSignOut? beforeSignOut,
 }) {
   if (useApiRepository) {
     return ApiAuthRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
       tokenStore: tokenStore ?? _apiAuthTokenStore,
+      logoutDeviceIdProvider: logoutDeviceIdProvider,
+      beforeSignOut: beforeSignOut,
     );
   }
 
   return MockAuthRepository();
+}
+
+PushNotificationService createPushNotificationService({
+  bool useApiRepository = AppConfig.useApiRepository,
+  String apiBaseUrl = AppConfig.apiBaseUrl,
+  AuthTokenStore? tokenStore,
+  PushInstallationIdStore? installationIdStore,
+}) {
+  if (!useApiRepository || !supportsFirebasePush) {
+    return const NoopPushNotificationService();
+  }
+
+  final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+  return FirebasePushNotificationService(
+    tokenRepository: ApiPushDeviceTokenRepository.withBaseUrl(
+      baseUrl: apiBaseUrl,
+      accessTokenProvider: () async {
+        final tokens = await resolvedTokenStore.read();
+        return tokens?.accessToken;
+      },
+    ),
+    installationIdStore:
+        installationIdStore ?? const SecurePushInstallationIdStore(),
+  );
 }
 
 MeetingRepository createMeetingRepository({

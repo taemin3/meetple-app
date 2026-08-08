@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../core/push/push_notification_service.dart';
 import '../core/theme/app_colors.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/category_repository.dart';
@@ -23,6 +26,7 @@ class AuthEntryGate extends StatefulWidget {
   const AuthEntryGate({
     super.key,
     this.authRepository,
+    this.pushNotificationService = const NoopPushNotificationService(),
     required this.meetingRepository,
     required this.chatRepository,
     required this.chatRealtimeClient,
@@ -32,6 +36,7 @@ class AuthEntryGate extends StatefulWidget {
   });
 
   final AuthRepository? authRepository;
+  final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
@@ -115,6 +120,11 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           ? _AuthEntryState.signedOut
           : _AuthEntryState.signedIn;
     });
+    if (session == null) {
+      unawaited(_deactivatePushNotifications());
+    } else {
+      unawaited(_activatePushNotifications());
+    }
   }
 
   void _showSignedIn(AuthSession session) {
@@ -122,13 +132,31 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       _session = session;
       _state = _AuthEntryState.signedIn;
     });
+    unawaited(_activatePushNotifications());
   }
 
   void _showSignedOut() {
+    unawaited(_deactivatePushNotifications());
     setState(() {
       _session = null;
       _state = _AuthEntryState.signedOut;
     });
+  }
+
+  Future<void> _activatePushNotifications() async {
+    try {
+      await widget.pushNotificationService.activate();
+    } on Exception catch (error) {
+      debugPrint('Push notification activation failed: $error');
+    }
+  }
+
+  Future<void> _deactivatePushNotifications() async {
+    try {
+      await widget.pushNotificationService.deactivate();
+    } on Exception catch (error) {
+      debugPrint('Push notification deactivation failed: $error');
+    }
   }
 }
 

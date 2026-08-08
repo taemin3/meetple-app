@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/push/push_notification_service.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/category_repository.dart';
 import '../data/repositories/chat_repository.dart';
@@ -21,6 +22,7 @@ class MeetpleApp extends StatelessWidget {
   const MeetpleApp({
     super.key,
     this.authRepository,
+    this.pushNotificationService = const NoopPushNotificationService(),
     this.meetingRepository = const MockMeetingRepository(),
     this.chatRepository = const MockChatRepository(),
     this.chatRealtimeClient = const MockChatRealtimeClient(),
@@ -30,6 +32,7 @@ class MeetpleApp extends StatelessWidget {
   });
 
   final AuthRepository? authRepository;
+  final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
@@ -46,6 +49,7 @@ class MeetpleApp extends StatelessWidget {
       navigatorObservers: [appRouteObserver],
       home: AuthEntryGate(
         authRepository: authRepository,
+        pushNotificationService: pushNotificationService,
         meetingRepository: meetingRepository,
         chatRepository: chatRepository,
         chatRealtimeClient: chatRealtimeClient,

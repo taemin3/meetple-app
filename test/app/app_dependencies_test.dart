@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/app_dependencies.dart';
+import 'package:meetple/core/push/push_notification_service.dart';
 import 'package:meetple/data/repositories/api_auth_repository.dart';
 import 'package:meetple/data/repositories/api_category_repository.dart';
 import 'package:meetple/data/repositories/api_chat_repository.dart';
@@ -31,6 +32,14 @@ void main() {
     );
 
     expect(repository, isA<ApiAuthRepository>());
+  });
+
+  test('creates no-op push service when API mode is disabled', () {
+    final service = createPushNotificationService(
+      useApiRepository: false,
+    );
+
+    expect(service, isA<NoopPushNotificationService>());
   });
 
   test('creates mock meeting repository by default', () {

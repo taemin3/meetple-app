@@ -5,16 +5,25 @@ import '../../models/auth_user.dart';
 import 'auth_repository.dart';
 import 'auth_token_store.dart';
 
+typedef LogoutDeviceIdProvider = Future<String?> Function();
+typedef BeforeSignOut = Future<void> Function();
+
 class ApiAuthRepository implements AuthRepository {
   ApiAuthRepository({
     required ApiClient apiClient,
     required AuthTokenStore tokenStore,
+    LogoutDeviceIdProvider? logoutDeviceIdProvider,
+    BeforeSignOut? beforeSignOut,
   })  : _apiClient = apiClient,
-        _tokenStore = tokenStore;
+        _tokenStore = tokenStore,
+        _logoutDeviceIdProvider = logoutDeviceIdProvider,
+        _beforeSignOut = beforeSignOut;
 
   factory ApiAuthRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     AuthTokenStore? tokenStore,
+    LogoutDeviceIdProvider? logoutDeviceIdProvider,
+    BeforeSignOut? beforeSignOut,
   }) {
     final resolvedTokenStore =
         tokenStore ?? const FlutterSecureAuthTokenStore();
@@ -28,11 +37,15 @@ class ApiAuthRepository implements AuthRepository {
         },
       ),
       tokenStore: resolvedTokenStore,
+      logoutDeviceIdProvider: logoutDeviceIdProvider,
+      beforeSignOut: beforeSignOut,
     );
   }
 
   final ApiClient _apiClient;
   final AuthTokenStore _tokenStore;
+  final LogoutDeviceIdProvider? _logoutDeviceIdProvider;
+  final BeforeSignOut? _beforeSignOut;
 
   AuthSession? _session;
 
@@ -165,18 +178,39 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    await _deactivatePushBeforeSignOut();
     final tokens = await _tokenStore.read();
 
     try {
       if (tokens != null && tokens.refreshToken.isNotEmpty) {
+        final deviceId = await _readLogoutDeviceId();
         final response = await _apiClient.postJson(
           '/api/v1/auth/logout',
-          body: {'refreshToken': tokens.refreshToken},
+          body: {
+            'refreshToken': tokens.refreshToken,
+            if (deviceId != null && deviceId.isNotEmpty) 'deviceId': deviceId,
+          },
         );
         _ensureSuccess(response);
       }
     } finally {
       await _clearSession();
+    }
+  }
+
+  Future<void> _deactivatePushBeforeSignOut() async {
+    try {
+      await _beforeSignOut?.call();
+    } on Exception {
+      // Server-side logout must continue even if local push cleanup fails.
+    }
+  }
+
+  Future<String?> _readLogoutDeviceId() async {
+    try {
+      return await _logoutDeviceIdProvider?.call();
+    } on Exception {
+      return null;
     }
   }
 

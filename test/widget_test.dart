@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/meetple_app.dart';
+import 'package:meetple/core/push/push_notification_message.dart';
+import 'package:meetple/core/push/push_notification_service.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/category_repository.dart';
@@ -535,8 +537,12 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(540, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    final pushNotificationService = _RecordingPushNotificationService();
     await tester.pumpWidget(
-      MeetpleApp(authRepository: MockAuthRepository(session: null)),
+      MeetpleApp(
+        authRepository: MockAuthRepository(session: null),
+        pushNotificationService: pushNotificationService,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -546,6 +552,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LoginPage), findsNothing);
+    expect(pushNotificationService.activateCount, 1);
 
     await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();
@@ -567,8 +574,16 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final authRepository = MockAuthRepository();
-    await tester.pumpWidget(MeetpleApp(authRepository: authRepository));
+    final pushNotificationService = _RecordingPushNotificationService();
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: authRepository,
+        pushNotificationService: pushNotificationService,
+      ),
+    );
     await tester.pumpAndSettle();
+
+    expect(pushNotificationService.activateCount, 1);
 
     await tester.tap(find.byIcon(Icons.person_outline));
     await tester.pumpAndSettle();
@@ -579,6 +594,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(await authRepository.restoreSession(), isNull);
+    expect(pushNotificationService.deactivateCount, 1);
     expect(find.byKey(const Key('profile_sign_out')), findsNothing);
     expect(find.byType(LoginPage), findsOneWidget);
   });
@@ -639,6 +655,34 @@ void main() {
 
     expect(find.text('\uAC00\uC785 \uC644\uB8CC'), findsOneWidget);
   });
+}
+
+class _RecordingPushNotificationService implements PushNotificationService {
+  int activateCount = 0;
+  int deactivateCount = 0;
+
+  @override
+  Stream<PushNotificationMessage> get openedNotifications =>
+      const Stream<PushNotificationMessage>.empty();
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> activate() async {
+    activateCount += 1;
+  }
+
+  @override
+  Future<void> deactivate() async {
+    deactivateCount += 1;
+  }
+
+  @override
+  Future<String?> deviceId() async => 'installation-1';
+
+  @override
+  PushNotificationMessage? takePendingOpenedNotification() => null;
 }
 
 class _StaticLocationRepository implements LocationRepository {
