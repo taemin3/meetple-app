@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -26,6 +25,17 @@ abstract interface class PushNotificationService {
   Future<void> deactivate();
 
   Future<String?> deviceId();
+
+  bool isChatRoomActive(int roomId);
+
+  void enterChatRoom(int roomId);
+
+  void leaveChatRoom(int roomId);
+
+  void updateChatRoomRealtimeConnection(
+    int roomId, {
+    required bool connected,
+  });
 
   PushNotificationMessage? takePendingOpenedNotification();
 }
@@ -62,6 +72,8 @@ class FirebasePushNotificationService implements PushNotificationService {
   PushNotificationMessage? _pendingOpenedNotification;
   bool _initialized = false;
   bool _localTokenDeleted = false;
+  int? _activeChatRoomId;
+  bool _activeChatRoomRealtimeConnected = false;
 
   @override
   Stream<PushNotificationMessage> get openedNotifications =>
@@ -154,6 +166,11 @@ class FirebasePushNotificationService implements PushNotificationService {
   }
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
+    final pushMessage = _fromRemoteMessage(message);
+    if (!shouldShowForeground(pushMessage)) {
+      return;
+    }
+
     final notification = message.notification;
     final title = notification?.title ?? message.data['title'];
     final body = notification?.body ?? message.data['body'];
@@ -180,8 +197,15 @@ class FirebasePushNotificationService implements PushNotificationService {
       title,
       body,
       details,
-      payload: jsonEncode(message.data),
+      payload: pushMessage.toPayload(),
     );
+  }
+
+  @visibleForTesting
+  bool shouldShowForeground(PushNotificationMessage message) {
+    return message.route != PushNotificationRoute.chatRoom ||
+        message.roomId != _activeChatRoomId ||
+        !_activeChatRoomRealtimeConnected;
   }
 
   void _emitOpened(PushNotificationMessage notification) {
@@ -226,6 +250,35 @@ class FirebasePushNotificationService implements PushNotificationService {
   Future<String?> deviceId() => _installationIdStore.readOrCreate();
 
   @override
+  bool isChatRoomActive(int roomId) => _activeChatRoomId == roomId;
+
+  @override
+  void enterChatRoom(int roomId) {
+    if (_activeChatRoomId != roomId) {
+      _activeChatRoomRealtimeConnected = false;
+    }
+    _activeChatRoomId = roomId;
+  }
+
+  @override
+  void leaveChatRoom(int roomId) {
+    if (_activeChatRoomId == roomId) {
+      _activeChatRoomId = null;
+      _activeChatRoomRealtimeConnected = false;
+    }
+  }
+
+  @override
+  void updateChatRoomRealtimeConnection(
+    int roomId, {
+    required bool connected,
+  }) {
+    if (_activeChatRoomId == roomId) {
+      _activeChatRoomRealtimeConnected = connected;
+    }
+  }
+
+  @override
   PushNotificationMessage? takePendingOpenedNotification() {
     final pending = _pendingOpenedNotification;
     _pendingOpenedNotification = null;
@@ -251,6 +304,21 @@ class NoopPushNotificationService implements PushNotificationService {
 
   @override
   Future<String?> deviceId() async => null;
+
+  @override
+  bool isChatRoomActive(int roomId) => false;
+
+  @override
+  void enterChatRoom(int roomId) {}
+
+  @override
+  void leaveChatRoom(int roomId) {}
+
+  @override
+  void updateChatRoomRealtimeConnection(
+    int roomId, {
+    required bool connected,
+  }) {}
 
   @override
   PushNotificationMessage? takePendingOpenedNotification() => null;

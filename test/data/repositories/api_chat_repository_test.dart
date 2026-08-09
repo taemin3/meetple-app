@@ -106,6 +106,33 @@ void main() {
     expect(apiClient.lastPatchBody, {'lastReadSequence': 8});
   });
 
+  test('loads a single chat room for push navigation', () async {
+    final apiClient = _FakeApiClient(
+      getResponse: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'roomId': 10,
+          'meetingId': 10,
+          'meetingTitle': '한강 러닝',
+          'meetingStatus': 'RECRUITING',
+          'thumbnailImageUrl': null,
+          'lastMessage': null,
+          'unreadCount': 1,
+          'canSend': true,
+        },
+      },
+    );
+    final repository = ApiChatRepository(apiClient: apiClient);
+
+    final room = await repository.getRoom(10);
+
+    expect(apiClient.lastGetPath, '/api/v1/chat/rooms/10');
+    expect(room.roomId, 10);
+    expect(room.meetingTitle, '한강 러닝');
+    expect(room.unreadCount, 1);
+  });
+
   test('throws ApiException for an unsuccessful chat response', () async {
     final repository = ApiChatRepository(
       apiClient: _FakeApiClient(

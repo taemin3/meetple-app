@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/network/api_client.dart';
+import '../../core/push/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/repositories/chat_repository.dart';
@@ -19,12 +20,14 @@ class ChatPage extends StatefulWidget {
     this.chatRealtimeClient = const MockChatRealtimeClient(),
     this.currentMemberId = 1,
     this.refreshToken = 0,
+    this.pushNotificationService = const NoopPushNotificationService(),
   });
 
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
   final int refreshToken;
+  final PushNotificationService pushNotificationService;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -155,6 +158,7 @@ class _ChatPageState extends State<ChatPage> {
           chatRepository: widget.chatRepository,
           chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
+          pushNotificationService: widget.pushNotificationService,
           onReadStarted: (completion) => readCompletion = completion,
         ),
       ),

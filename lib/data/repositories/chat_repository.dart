@@ -7,6 +7,8 @@ abstract interface class ChatRepository {
     int size = 20,
   });
 
+  Future<ChatRoom> getRoom(int roomId);
+
   Future<ChatMessagePage> getMessages(
     int roomId, {
     int? beforeSequence,

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../app/app_route_observer.dart';
 import '../../core/network/api_client.dart';
+import '../../core/push/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/realtime/chat_client_message_id.dart';
@@ -22,6 +23,7 @@ class ChatRoomPage extends StatefulWidget {
     required this.chatRepository,
     required this.chatRealtimeClient,
     required this.currentMemberId,
+    this.pushNotificationService = const NoopPushNotificationService(),
     this.onReadStarted,
   });
 
@@ -29,6 +31,7 @@ class ChatRoomPage extends StatefulWidget {
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
+  final PushNotificationService pushNotificationService;
   final ValueChanged<Future<void>>? onReadStarted;
 
   @override
@@ -88,6 +91,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _activatePushRoomState();
     _appLifecycleState =
         WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
     _scrollController.addListener(_onScrollChanged);
@@ -111,6 +115,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   @override
   void dispose() {
     _disposing = true;
+    widget.pushNotificationService.leaveChatRoom(widget.room.roomId);
     _reconnectTimer?.cancel();
     _recoveryRetryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -126,9 +131,24 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   @override
   void didPopNext() {
+    _activatePushRoomState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _flushPendingRead();
     });
+  }
+
+  @override
+  void didPushNext() {
+    widget.pushNotificationService.leaveChatRoom(widget.room.roomId);
+  }
+
+  void _activatePushRoomState() {
+    final roomId = widget.room.roomId;
+    widget.pushNotificationService.enterChatRoom(roomId);
+    widget.pushNotificationService.updateChatRoomRealtimeConnection(
+      roomId,
+      connected: _realtimeSession?.isConnected == true,
+    );
   }
 
   @override
@@ -187,6 +207,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Future<void> _closeRealtime() {
+    widget.pushNotificationService.updateChatRoomRealtimeConnection(
+      widget.room.roomId,
+      connected: false,
+    );
     final subscriptions = List<StreamSubscription<dynamic>>.of(
       _realtimeSubscriptions,
     );
@@ -215,6 +239,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     ChatRealtimeConnectionState state,
   ) {
     if (!mounted || _disposing || session != _realtimeSession) return;
+    widget.pushNotificationService.updateChatRoomRealtimeConnection(
+      widget.room.roomId,
+      connected: state == ChatRealtimeConnectionState.connected,
+    );
     setState(() {
       _connectionState = state;
       if (state == ChatRealtimeConnectionState.disconnected) {
