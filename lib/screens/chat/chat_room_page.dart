@@ -87,6 +87,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
   String? _historyErrorMessage;
   bool _notificationEnabled = true;
+  bool _notificationSettingLoaded = false;
   bool _updatingNotificationSetting = false;
 
   ChatNotificationSettingsRepository? get _notificationSettingsRepository {
@@ -166,7 +167,12 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       final enabled = await repository.getChatNotificationEnabled(
         widget.room.roomId,
       );
-      if (mounted) setState(() => _notificationEnabled = enabled);
+      if (mounted) {
+        setState(() {
+          _notificationEnabled = enabled;
+          _notificationSettingLoaded = true;
+        });
+      }
     } on Exception catch (error) {
       if (!mounted) return;
       final message =
@@ -179,7 +185,11 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   Future<void> _toggleNotificationSetting() async {
     final repository = _notificationSettingsRepository;
-    if (repository == null || _updatingNotificationSetting) return;
+    if (repository == null ||
+        !_notificationSettingLoaded ||
+        _updatingNotificationSetting) {
+      return;
+    }
     final nextEnabled = !_notificationEnabled;
     setState(() => _updatingNotificationSetting = true);
     try {
@@ -736,7 +746,8 @@ class _ChatRoomPageState extends State<ChatRoomPage>
                   : IconButton(
                       key: const Key('chat-notification-toggle'),
                       tooltip: _notificationEnabled ? '채팅방 알림 끄기' : '채팅방 알림 켜기',
-                      onPressed: _updatingNotificationSetting
+                      onPressed: !_notificationSettingLoaded ||
+                              _updatingNotificationSetting
                           ? null
                           : _toggleNotificationSetting,
                       icon: Icon(
