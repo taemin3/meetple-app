@@ -15,6 +15,79 @@ import 'package:meetple/screens/chat/chat_room_page.dart';
 import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
 void main() {
+  testWidgets('disables notification toggle until initial setting loads', (
+    WidgetTester tester,
+  ) async {
+    final loadGate = Completer<bool>();
+    final repository = _ChatNotificationSettingRepository(
+      enabled: false,
+      loadGate: loadGate,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: _FakeChatRealtimeClient(),
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const Key('chat-notification-toggle')),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(repository.updatedValues, isEmpty);
+
+    loadGate.complete(false);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<IconButton>(
+            find.byKey(const Key('chat-notification-toggle')),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    await tester.tap(find.byKey(const Key('chat-notification-toggle')));
+    await tester.pumpAndSettle();
+    expect(repository.updatedValues, [true]);
+  });
+
+  testWidgets('loads and toggles the chat room notification setting', (
+    WidgetTester tester,
+  ) async {
+    final repository = _ChatNotificationSettingRepository(enabled: false);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: repository,
+          chatRealtimeClient: _FakeChatRealtimeClient(),
+          currentMemberId: 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.notifications_off_outlined), findsOneWidget);
+    await tester.tap(find.byKey(const Key('chat-notification-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(repository.updatedValues, [true]);
+    expect(find.byIcon(Icons.notifications_active_outlined), findsOneWidget);
+    expect(find.text('채팅방 알림을 켰습니다.'), findsOneWidget);
+  });
+
   testWidgets(
     'suppresses active-room push only while realtime is connected',
     (WidgetTester tester) async {
@@ -954,6 +1027,29 @@ class _ChatRoomRepository implements ChatRepository {
   @override
   Future<void> markRead(int roomId, int lastReadSequence) async {
     markedSequence = lastReadSequence;
+  }
+}
+
+class _ChatNotificationSettingRepository extends _ChatRoomRepository
+    implements ChatNotificationSettingsRepository {
+  _ChatNotificationSettingRepository({required this.enabled, this.loadGate});
+
+  bool enabled;
+  final Completer<bool>? loadGate;
+  final List<bool> updatedValues = [];
+
+  @override
+  Future<bool> getChatNotificationEnabled(int roomId) async {
+    final gate = loadGate;
+    if (gate != null) return gate.future;
+    return enabled;
+  }
+
+  @override
+  Future<bool> updateChatNotificationEnabled(int roomId, bool enabled) async {
+    updatedValues.add(enabled);
+    this.enabled = enabled;
+    return enabled;
   }
 }
 

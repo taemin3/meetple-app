@@ -86,6 +86,14 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   Timer? _reconnectTimer;
   AppLifecycleState _appLifecycleState = AppLifecycleState.resumed;
   String? _historyErrorMessage;
+  bool _notificationEnabled = true;
+  bool _notificationSettingLoaded = false;
+  bool _updatingNotificationSetting = false;
+
+  ChatNotificationSettingsRepository? get _notificationSettingsRepository {
+    final Object repository = widget.chatRepository;
+    return repository is ChatNotificationSettingsRepository ? repository : null;
+  }
 
   @override
   void initState() {
@@ -99,6 +107,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     _initialLoadFuture = _loadInitial();
     unawaited(_initialLoadFuture);
     unawaited(_connectRealtime());
+    unawaited(_loadNotificationSetting());
   }
 
   @override
@@ -149,6 +158,62 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       roomId,
       connected: _realtimeSession?.isConnected == true,
     );
+  }
+
+  Future<void> _loadNotificationSetting() async {
+    final repository = _notificationSettingsRepository;
+    if (repository == null) return;
+    try {
+      final enabled = await repository.getChatNotificationEnabled(
+        widget.room.roomId,
+      );
+      if (mounted) {
+        setState(() {
+          _notificationEnabled = enabled;
+          _notificationSettingLoaded = true;
+        });
+      }
+    } on Exception catch (error) {
+      if (!mounted) return;
+      final message =
+          error is ApiException ? error.message : '채팅방 알림 설정을 불러오지 못했습니다.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
+  Future<void> _toggleNotificationSetting() async {
+    final repository = _notificationSettingsRepository;
+    if (repository == null ||
+        !_notificationSettingLoaded ||
+        _updatingNotificationSetting) {
+      return;
+    }
+    final nextEnabled = !_notificationEnabled;
+    setState(() => _updatingNotificationSetting = true);
+    try {
+      final enabled = await repository.updateChatNotificationEnabled(
+        widget.room.roomId,
+        nextEnabled,
+      );
+      if (!mounted) return;
+      setState(() => _notificationEnabled = enabled);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(enabled ? '채팅방 알림을 켰습니다.' : '채팅방 알림을 껐습니다.'),
+        ),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      final message =
+          error is ApiException ? error.message : '채팅방 알림 설정을 변경하지 못했습니다.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      if (mounted) setState(() => _updatingNotificationSetting = false);
+    }
   }
 
   @override
@@ -674,7 +739,24 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       body: SafeArea(
         child: Column(
           children: [
-            AppPageHeader(title: widget.room.meetingTitle),
+            AppPageHeader(
+              title: widget.room.meetingTitle,
+              trailing: _notificationSettingsRepository == null
+                  ? null
+                  : IconButton(
+                      key: const Key('chat-notification-toggle'),
+                      tooltip: _notificationEnabled ? '채팅방 알림 끄기' : '채팅방 알림 켜기',
+                      onPressed: !_notificationSettingLoaded ||
+                              _updatingNotificationSetting
+                          ? null
+                          : _toggleNotificationSetting,
+                      icon: Icon(
+                        _notificationEnabled
+                            ? Icons.notifications_active_outlined
+                            : Icons.notifications_off_outlined,
+                      ),
+                    ),
+            ),
             Expanded(child: _buildBody()),
             _ChatComposer(
               controller: _messageController,

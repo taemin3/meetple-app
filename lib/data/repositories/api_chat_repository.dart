@@ -4,7 +4,8 @@ import '../../models/chat_message.dart';
 import '../../models/chat_room.dart';
 import 'chat_repository.dart';
 
-class ApiChatRepository implements ChatRepository {
+class ApiChatRepository
+    implements ChatRepository, ChatNotificationSettingsRepository {
   ApiChatRepository({required ApiClient apiClient}) : _apiClient = apiClient;
 
   ApiChatRepository.withBaseUrl({
@@ -84,6 +85,23 @@ class ApiChatRepository implements ChatRepository {
         body: {'lastReadSequence': lastReadSequence},
       ),
     );
+  }
+
+  @override
+  Future<bool> getChatNotificationEnabled(int roomId) async {
+    final response = await _apiClient.getJson(
+      '/api/v1/chat/rooms/$roomId/notification-setting',
+    );
+    return _readEnabled(_readData(response));
+  }
+
+  @override
+  Future<bool> updateChatNotificationEnabled(int roomId, bool enabled) async {
+    final response = await _apiClient.patchJson(
+      '/api/v1/chat/rooms/$roomId/notification-setting',
+      body: {'enabled': enabled},
+    );
+    return _readEnabled(_readData(response));
   }
 
   ChatRoom _roomFromJson(Map<String, dynamic> json) {
@@ -171,6 +189,12 @@ class ApiChatRepository implements ChatRepository {
   String? _readNullableString(Object? value) {
     if (value is String && value.trim().isNotEmpty) return value;
     return null;
+  }
+
+  bool _readEnabled(Map<String, dynamic> data) {
+    final enabled = data['enabled'];
+    if (enabled is bool) return enabled;
+    throw const FormatException('Expected data.enabled to be a boolean.');
   }
 
   DateTime _readDateTime(Object? value) {
