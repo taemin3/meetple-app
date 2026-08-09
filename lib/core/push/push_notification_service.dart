@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../data/repositories/push_device_token_repository.dart';
 import 'push_installation_id_store.dart';
+import 'push_notification_dedup_store.dart';
 import 'push_notification_message.dart';
 import 'push_token_registration_coordinator.dart';
 
@@ -45,6 +46,7 @@ class FirebasePushNotificationService implements PushNotificationService {
     required PushDeviceTokenRepository tokenRepository,
     required PushInstallationIdStore installationIdStore,
     FlutterLocalNotificationsPlugin? localNotifications,
+    PushNotificationDedupStore? notificationDedupStore,
   })  : _installationIdStore = installationIdStore,
         _tokenRegistration = PushTokenRegistrationCoordinator(
           tokenRepository: tokenRepository,
@@ -52,6 +54,8 @@ class FirebasePushNotificationService implements PushNotificationService {
           platform:
               defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID',
         ),
+        _notificationDedupStore =
+            notificationDedupStore ?? SecurePushNotificationDedupStore(),
         _localNotifications =
             localNotifications ?? FlutterLocalNotificationsPlugin();
 
@@ -64,6 +68,7 @@ class FirebasePushNotificationService implements PushNotificationService {
 
   final PushInstallationIdStore _installationIdStore;
   final PushTokenRegistrationCoordinator _tokenRegistration;
+  final PushNotificationDedupStore _notificationDedupStore;
   final FlutterLocalNotificationsPlugin _localNotifications;
   final StreamController<PushNotificationMessage> _openedController =
       StreamController<PushNotificationMessage>.broadcast(sync: true);
@@ -167,17 +172,12 @@ class FirebasePushNotificationService implements PushNotificationService {
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final pushMessage = _fromRemoteMessage(message);
-    if (!shouldShowForeground(pushMessage)) {
-      return;
-    }
-
     final notification = message.notification;
     final title = notification?.title ?? message.data['title'];
     final body = notification?.body ?? message.data['body'];
     if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
       return;
     }
-
     final groupKey = message.data['route'] == 'CHAT_ROOM'
         ? 'chat-room-${message.data['roomId']}'
         : null;
@@ -192,12 +192,17 @@ class FirebasePushNotificationService implements PushNotificationService {
       ),
       iOS: DarwinNotificationDetails(threadIdentifier: groupKey),
     );
-    await _localNotifications.show(
-      message.messageId?.hashCode ?? message.data.hashCode,
-      title,
-      body,
-      details,
-      payload: pushMessage.toPayload(),
+    await displayForeground(
+      pushMessage,
+      () => _localNotifications.show(
+        pushMessage.eventId?.hashCode ??
+            message.messageId?.hashCode ??
+            message.data.hashCode,
+        title,
+        body,
+        details,
+        payload: pushMessage.toPayload(),
+      ),
     );
   }
 
@@ -206,6 +211,49 @@ class FirebasePushNotificationService implements PushNotificationService {
     return message.route != PushNotificationRoute.chatRoom ||
         message.roomId != _activeChatRoomId ||
         !_activeChatRoomRealtimeConnected;
+  }
+
+  @visibleForTesting
+  Future<bool> displayForeground(
+    PushNotificationMessage message,
+    Future<void> Function() display,
+  ) async {
+    PushNotificationDedupReservation? reservation;
+    final eventId = message.eventId;
+    if (eventId != null) {
+      try {
+        reservation = await _notificationDedupStore.reserveIfNew(eventId);
+        if (reservation == null) {
+          return false;
+        }
+      } on Exception catch (error) {
+        debugPrint('Push notification deduplication failed: $error');
+      }
+    }
+
+    if (!shouldShowForeground(message)) {
+      await _commitReservation(reservation);
+      return false;
+    }
+
+    try {
+      await display();
+    } on Exception {
+      await reservation?.rollback();
+      rethrow;
+    }
+    await _commitReservation(reservation);
+    return true;
+  }
+
+  Future<void> _commitReservation(
+    PushNotificationDedupReservation? reservation,
+  ) async {
+    try {
+      await reservation?.commit();
+    } on Exception catch (error) {
+      debugPrint('Push notification deduplication commit failed: $error');
+    }
   }
 
   void _emitOpened(PushNotificationMessage notification) {
