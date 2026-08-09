@@ -26,11 +26,19 @@ void main() {
     expect(service.shouldShowForeground(activeRoomMessage), isTrue);
     service.enterChatRoom(10);
 
+    expect(service.isChatRoomActive(10), isTrue);
+    expect(service.shouldShowForeground(activeRoomMessage), isTrue);
+
+    service.updateChatRoomRealtimeConnection(10, connected: true);
     expect(service.shouldShowForeground(activeRoomMessage), isFalse);
     expect(service.shouldShowForeground(otherRoomMessage), isTrue);
     expect(service.shouldShowForeground(meetingMessage), isTrue);
 
+    service.updateChatRoomRealtimeConnection(10, connected: false);
+    expect(service.shouldShowForeground(activeRoomMessage), isTrue);
+
     service.leaveChatRoom(10);
+    expect(service.isChatRoomActive(10), isFalse);
     expect(service.shouldShowForeground(activeRoomMessage), isTrue);
   });
 
@@ -46,8 +54,10 @@ void main() {
 
     service.enterChatRoom(10);
     service.enterChatRoom(11);
+    service.updateChatRoomRealtimeConnection(11, connected: true);
     service.leaveChatRoom(10);
 
+    expect(service.isChatRoomActive(11), isTrue);
     expect(service.shouldShowForeground(newerRoomMessage), isFalse);
   });
 }

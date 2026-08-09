@@ -669,6 +669,42 @@ void main() {
     expect(pushNotificationService.leftChatRoomIds, [10]);
   });
 
+  testWidgets('does not stack the already active chat room from a push', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final pushNotificationService = _RecordingPushNotificationService();
+    addTearDown(pushNotificationService.dispose);
+    final chatRepository = _PushNavigationChatRepository();
+
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: MockAuthRepository(),
+        pushNotificationService: pushNotificationService,
+        chatRepository: chatRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    const notification = PushNotificationMessage({
+      'route': 'CHAT_ROOM',
+      'roomId': '10',
+    });
+    pushNotificationService.emit(notification);
+    await tester.pumpAndSettle();
+    pushNotificationService.emit(notification);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byType(ChatRoomPage, skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(chatRepository.requestedRoomIds, [10]);
+    expect(pushNotificationService.enteredChatRoomIds, [10]);
+  });
+
   testWidgets('opens meeting detail from an opened push notification stream', (
     WidgetTester tester,
   ) async {
@@ -844,6 +880,8 @@ class _RecordingPushNotificationService implements PushNotificationService {
   PushNotificationMessage? _pendingNotification;
   final enteredChatRoomIds = <int>[];
   final leftChatRoomIds = <int>[];
+  int? _activeChatRoomId;
+  bool activeChatRoomRealtimeConnected = false;
 
   @override
   Stream<PushNotificationMessage> get openedNotifications =>
@@ -866,13 +904,34 @@ class _RecordingPushNotificationService implements PushNotificationService {
   Future<String?> deviceId() async => 'installation-1';
 
   @override
+  bool isChatRoomActive(int roomId) => _activeChatRoomId == roomId;
+
+  @override
   void enterChatRoom(int roomId) {
     enteredChatRoomIds.add(roomId);
+    if (_activeChatRoomId != roomId) {
+      activeChatRoomRealtimeConnected = false;
+    }
+    _activeChatRoomId = roomId;
   }
 
   @override
   void leaveChatRoom(int roomId) {
     leftChatRoomIds.add(roomId);
+    if (_activeChatRoomId == roomId) {
+      _activeChatRoomId = null;
+      activeChatRoomRealtimeConnected = false;
+    }
+  }
+
+  @override
+  void updateChatRoomRealtimeConnection(
+    int roomId, {
+    required bool connected,
+  }) {
+    if (_activeChatRoomId == roomId) {
+      activeChatRoomRealtimeConnected = connected;
+    }
   }
 
   @override

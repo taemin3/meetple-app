@@ -295,6 +295,9 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   ) async {
     final roomId = notification.roomId;
     if (roomId == null) return;
+    if (widget.pushNotificationService.isChatRoomActive(roomId)) {
+      return;
+    }
 
     final room = await widget.chatRepository.getRoom(roomId);
     if (!mounted || _state != _AuthEntryState.signedIn) {

@@ -3,7 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/app_route_observer.dart';
+import 'package:meetple/core/push/push_installation_id_store.dart';
+import 'package:meetple/core/push/push_notification_message.dart';
+import 'package:meetple/core/push/push_notification_service.dart';
 import 'package:meetple/data/repositories/chat_repository.dart';
+import 'package:meetple/data/repositories/push_device_token_repository.dart';
 import 'package:meetple/data/realtime/chat_realtime_client.dart';
 import 'package:meetple/models/chat_message.dart';
 import 'package:meetple/models/chat_room.dart';
@@ -11,6 +15,50 @@ import 'package:meetple/screens/chat/chat_room_page.dart';
 import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
 void main() {
+  testWidgets(
+    'suppresses active-room push only while realtime is connected',
+    (WidgetTester tester) async {
+      final realtimeClient = _FakeChatRealtimeClient();
+      final pushNotificationService = FirebasePushNotificationService(
+        tokenRepository: _NoopPushDeviceTokenRepository(),
+        installationIdStore: MemoryPushInstallationIdStore(),
+      );
+      const activeRoomMessage = PushNotificationMessage({
+        'route': 'CHAT_ROOM',
+        'roomId': '10',
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ChatRoomPage(
+            room: _room,
+            chatRepository: _ChatRoomRepository(),
+            chatRealtimeClient: realtimeClient,
+            currentMemberId: 1,
+            pushNotificationService: pushNotificationService,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        pushNotificationService.shouldShowForeground(activeRoomMessage),
+        isFalse,
+      );
+
+      realtimeClient.session.disconnect();
+      await tester.pump();
+
+      expect(
+        pushNotificationService.shouldShowForeground(activeRoomMessage),
+        isTrue,
+      );
+
+      await tester.pumpWidget(const MaterialApp(home: SizedBox.shrink()));
+      await tester.pump();
+    },
+  );
+
   testWidgets('sends and receives messages through the realtime session', (
     WidgetTester tester,
   ) async {
@@ -1003,6 +1051,15 @@ class _FakeChatRealtimeSession implements ChatRealtimeSession {
       _errorController.close(),
     ]);
   }
+}
+
+class _NoopPushDeviceTokenRepository implements PushDeviceTokenRepository {
+  @override
+  Future<void> register({
+    required String deviceId,
+    required String token,
+    required String platform,
+  }) async {}
 }
 
 const _room = ChatRoom(

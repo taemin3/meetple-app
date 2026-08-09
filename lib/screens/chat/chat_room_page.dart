@@ -91,7 +91,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    widget.pushNotificationService.enterChatRoom(widget.room.roomId);
+    _activatePushRoomState();
     _appLifecycleState =
         WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
     _scrollController.addListener(_onScrollChanged);
@@ -131,7 +131,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   @override
   void didPopNext() {
-    widget.pushNotificationService.enterChatRoom(widget.room.roomId);
+    _activatePushRoomState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _flushPendingRead();
     });
@@ -140,6 +140,15 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   @override
   void didPushNext() {
     widget.pushNotificationService.leaveChatRoom(widget.room.roomId);
+  }
+
+  void _activatePushRoomState() {
+    final roomId = widget.room.roomId;
+    widget.pushNotificationService.enterChatRoom(roomId);
+    widget.pushNotificationService.updateChatRoomRealtimeConnection(
+      roomId,
+      connected: _realtimeSession?.isConnected == true,
+    );
   }
 
   @override
@@ -198,6 +207,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Future<void> _closeRealtime() {
+    widget.pushNotificationService.updateChatRoomRealtimeConnection(
+      widget.room.roomId,
+      connected: false,
+    );
     final subscriptions = List<StreamSubscription<dynamic>>.of(
       _realtimeSubscriptions,
     );
@@ -226,6 +239,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     ChatRealtimeConnectionState state,
   ) {
     if (!mounted || _disposing || session != _realtimeSession) return;
+    widget.pushNotificationService.updateChatRoomRealtimeConnection(
+      widget.room.roomId,
+      connected: state == ChatRealtimeConnectionState.connected,
+    );
     setState(() {
       _connectionState = state;
       if (state == ChatRealtimeConnectionState.disconnected) {
