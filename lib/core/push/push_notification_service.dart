@@ -178,10 +178,6 @@ class FirebasePushNotificationService implements PushNotificationService {
     if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
       return;
     }
-    if (!await shouldDisplayForeground(pushMessage)) {
-      return;
-    }
-
     final groupKey = message.data['route'] == 'CHAT_ROOM'
         ? 'chat-room-${message.data['roomId']}'
         : null;
@@ -196,14 +192,17 @@ class FirebasePushNotificationService implements PushNotificationService {
       ),
       iOS: DarwinNotificationDetails(threadIdentifier: groupKey),
     );
-    await _localNotifications.show(
-      pushMessage.eventId?.hashCode ??
-          message.messageId?.hashCode ??
-          message.data.hashCode,
-      title,
-      body,
-      details,
-      payload: pushMessage.toPayload(),
+    await displayForeground(
+      pushMessage,
+      () => _localNotifications.show(
+        pushMessage.eventId?.hashCode ??
+            message.messageId?.hashCode ??
+            message.data.hashCode,
+        title,
+        body,
+        details,
+        payload: pushMessage.toPayload(),
+      ),
     );
   }
 
@@ -215,18 +214,46 @@ class FirebasePushNotificationService implements PushNotificationService {
   }
 
   @visibleForTesting
-  Future<bool> shouldDisplayForeground(PushNotificationMessage message) async {
+  Future<bool> displayForeground(
+    PushNotificationMessage message,
+    Future<void> Function() display,
+  ) async {
+    PushNotificationDedupReservation? reservation;
     final eventId = message.eventId;
     if (eventId != null) {
       try {
-        if (!await _notificationDedupStore.markIfNew(eventId)) {
+        reservation = await _notificationDedupStore.reserveIfNew(eventId);
+        if (reservation == null) {
           return false;
         }
       } on Exception catch (error) {
         debugPrint('Push notification deduplication failed: $error');
       }
     }
-    return shouldShowForeground(message);
+
+    if (!shouldShowForeground(message)) {
+      await _commitReservation(reservation);
+      return false;
+    }
+
+    try {
+      await display();
+    } on Exception {
+      await reservation?.rollback();
+      rethrow;
+    }
+    await _commitReservation(reservation);
+    return true;
+  }
+
+  Future<void> _commitReservation(
+    PushNotificationDedupReservation? reservation,
+  ) async {
+    try {
+      await reservation?.commit();
+    } on Exception catch (error) {
+      debugPrint('Push notification deduplication commit failed: $error');
+    }
   }
 
   void _emitOpened(PushNotificationMessage notification) {

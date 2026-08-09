@@ -74,8 +74,14 @@ void main() {
       'meetingId': '1',
     });
 
-    expect(await service.shouldDisplayForeground(message), isTrue);
-    expect(await service.shouldDisplayForeground(message), isFalse);
+    var displayCount = 0;
+    Future<void> display() async {
+      displayCount += 1;
+    }
+
+    expect(await service.displayForeground(message, display), isTrue);
+    expect(await service.displayForeground(message, display), isFalse);
+    expect(displayCount, 1);
   });
 
   test('keeps messages without an event id backward compatible', () async {
@@ -89,8 +95,14 @@ void main() {
       'meetingId': '1',
     });
 
-    expect(await service.shouldDisplayForeground(message), isTrue);
-    expect(await service.shouldDisplayForeground(message), isTrue);
+    var displayCount = 0;
+    Future<void> display() async {
+      displayCount += 1;
+    }
+
+    expect(await service.displayForeground(message, display), isTrue);
+    expect(await service.displayForeground(message, display), isTrue);
+    expect(displayCount, 2);
   });
 
   test('does not show a duplicate after active chat suppression', () async {
@@ -107,9 +119,15 @@ void main() {
     service.enterChatRoom(10);
     service.updateChatRoomRealtimeConnection(10, connected: true);
 
-    expect(await service.shouldDisplayForeground(message), isFalse);
+    var displayCount = 0;
+    Future<void> display() async {
+      displayCount += 1;
+    }
+
+    expect(await service.displayForeground(message, display), isFalse);
     service.leaveChatRoom(10);
-    expect(await service.shouldDisplayForeground(message), isFalse);
+    expect(await service.displayForeground(message, display), isFalse);
+    expect(displayCount, 0);
   });
 
   test('shows the notification when dedup storage fails', () async {
@@ -124,7 +142,45 @@ void main() {
       'meetingId': '1',
     });
 
-    expect(await service.shouldDisplayForeground(message), isTrue);
+    var displayCount = 0;
+    expect(
+      await service.displayForeground(message, () async {
+        displayCount += 1;
+      }),
+      isTrue,
+    );
+    expect(displayCount, 1);
+  });
+
+  test('rolls back the event reservation when notification display fails',
+      () async {
+    final service = FirebasePushNotificationService(
+      tokenRepository: _NoopPushDeviceTokenRepository(),
+      installationIdStore: MemoryPushInstallationIdStore(),
+      notificationDedupStore: MemoryPushNotificationDedupStore(),
+    );
+    const message = PushNotificationMessage({
+      'eventId': 'event-1',
+      'route': 'MEETING_DETAIL',
+      'meetingId': '1',
+    });
+
+    await expectLater(
+      service.displayForeground(
+        message,
+        () async => throw Exception('notification plugin failed'),
+      ),
+      throwsException,
+    );
+
+    var displayCount = 0;
+    expect(
+      await service.displayForeground(message, () async {
+        displayCount += 1;
+      }),
+      isTrue,
+    );
+    expect(displayCount, 1);
   });
 }
 
@@ -139,7 +195,7 @@ class _NoopPushDeviceTokenRepository implements PushDeviceTokenRepository {
 
 class _FailingPushNotificationDedupStore implements PushNotificationDedupStore {
   @override
-  Future<bool> markIfNew(String eventId) {
+  Future<PushNotificationDedupReservation?> reserveIfNew(String eventId) {
     throw Exception('storage unavailable');
   }
 }
