@@ -59,6 +59,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   PushNotificationMessage? _pendingOpenedNotification;
   bool _notificationNavigationScheduled = false;
   bool _openingNotification = false;
+  int _meetingRefreshToken = 0;
 
   @override
   void initState() {
@@ -107,6 +108,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,
           imageUploadRepository: widget.imageUploadRepository,
+          meetingRefreshToken: _meetingRefreshToken,
           onSignedOut: _showSignedOut,
         );
     }
@@ -242,7 +244,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       if (!mounted || _state != _AuthEntryState.signedIn) {
         return;
       }
-      await AppRoutes.openMeetingDetail<void>(
+      final detailResult = AppRoutes.openMeetingDetail<Object>(
         context,
         meeting,
         meetingRepository: widget.meetingRepository,
@@ -250,6 +252,9 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
         locationRepository: widget.locationRepository,
         imageUploadRepository: widget.imageUploadRepository,
       );
+      _openingNotification = false;
+      _schedulePendingNotificationNavigation();
+      unawaited(_handleMeetingDetailResult(detailResult));
     } on Exception catch (error) {
       debugPrint('Push notification navigation failed: $error');
       if (mounted && _state == _AuthEntryState.signedIn) {
@@ -261,6 +266,15 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       _openingNotification = false;
       _schedulePendingNotificationNavigation();
     }
+  }
+
+  Future<void> _handleMeetingDetailResult(Future<Object?> resultFuture) async {
+    final result = await resultFuture;
+    if (result == null || !mounted || _state != _AuthEntryState.signedIn) {
+      return;
+    }
+
+    setState(() => _meetingRefreshToken++);
   }
 
   Future<void> _markNotificationRead(int notificationId) async {

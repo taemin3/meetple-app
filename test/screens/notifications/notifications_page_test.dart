@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
@@ -14,9 +16,13 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final repository = _NotificationMeetingRepository();
+    var meetingChangedCount = 0;
     await tester.pumpWidget(
       MaterialApp(
-        home: NotificationsPage(meetingRepository: repository),
+        home: NotificationsPage(
+          meetingRepository: repository,
+          onMeetingChanged: () => meetingChangedCount++,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -26,6 +32,38 @@ void main() {
 
     expect(repository.readNotificationIds, [501]);
     expect(repository.requestedMeetingIds, [1]);
+    expect(find.byType(MeetingDetailPage), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(MeetingDetailPage))).pop(true);
+    await tester.pumpAndSettle();
+
+    expect(meetingChangedCount, 1);
+  });
+
+  testWidgets('blocks duplicate taps while opening a meeting detail', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final repository = _DeferredNotificationMeetingRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationsPage(meetingRepository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('참여 승인'));
+    await tester.tap(find.text('참여 승인'));
+    await tester.pump();
+
+    expect(repository.requestedMeetingIds, [1]);
+
+    final meeting = await const MockMeetingRepository().findById(1);
+    repository.complete(meeting);
+    await tester.pumpAndSettle();
+
     expect(find.byType(MeetingDetailPage), findsOneWidget);
   });
 }
@@ -56,5 +94,20 @@ class _NotificationMeetingRepository extends MockMeetingRepository {
   Future<Meeting> findById(int meetingId) {
     requestedMeetingIds.add(meetingId);
     return super.findById(meetingId);
+  }
+}
+
+class _DeferredNotificationMeetingRepository
+    extends _NotificationMeetingRepository {
+  final _meetingCompleter = Completer<Meeting>();
+
+  @override
+  Future<Meeting> findById(int meetingId) {
+    requestedMeetingIds.add(meetingId);
+    return _meetingCompleter.future;
+  }
+
+  void complete(Meeting meeting) {
+    _meetingCompleter.complete(meeting);
   }
 }

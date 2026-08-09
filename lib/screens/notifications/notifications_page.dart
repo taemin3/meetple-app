@@ -12,9 +12,11 @@ class NotificationsPage extends StatefulWidget {
   const NotificationsPage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
+    this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<NotificationsPage> createState() => _NotificationsPageState();
@@ -23,6 +25,7 @@ class NotificationsPage extends StatefulWidget {
 class _NotificationsPageState extends State<NotificationsPage> {
   late Future<List<AppNotification>> _future;
   final Set<int> _readingIds = {};
+  final Set<int> _openingIds = {};
 
   @override
   void initState() {
@@ -55,26 +58,38 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   Future<void> _open(AppNotification item) async {
-    await _read(item);
-    final meetingId = item.meetingId;
-    if (meetingId == null || !mounted) {
+    if (_openingIds.contains(item.id)) {
       return;
     }
 
+    setState(() => _openingIds.add(item.id));
     try {
+      await _read(item);
+      final meetingId = item.meetingId;
+      if (meetingId == null || !mounted) {
+        return;
+      }
+
       final meeting = await widget.meetingRepository.findById(meetingId);
       if (!mounted) return;
-      await AppRoutes.openMeetingDetail<void>(
+      final result = await AppRoutes.openMeetingDetail<Object>(
         context,
         meeting,
         meetingRepository: widget.meetingRepository,
       );
+      if (result != null && mounted) {
+        widget.onMeetingChanged?.call();
+      }
     } on Exception catch (error) {
       if (!mounted) return;
       final message =
           error is ApiException ? error.message : '모임 정보를 불러오지 못했습니다.';
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) {
+        setState(() => _openingIds.remove(item.id));
+      }
     }
   }
 
@@ -107,11 +122,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     itemBuilder: (context, index) {
                       final item = items[index];
                       final isReading = _readingIds.contains(item.id);
+                      final isOpening = _openingIds.contains(item.id);
+                      final isBusy = isReading || isOpening;
                       return Card(
                         color:
                             item.isRead ? Colors.white : AppColors.softSurface,
                         child: ListTile(
-                          onTap: isReading ? null : () => _open(item),
+                          onTap: isBusy ? null : () => _open(item),
                           leading: CircleAvatar(
                             backgroundColor:
                                 AppColors.primary.withOpacity(0.12),
@@ -125,7 +142,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             ),
                           ),
                           subtitle: Text(item.message),
-                          trailing: isReading
+                          trailing: isBusy
                               ? const SizedBox.square(
                                   dimension: 16,
                                   child: CircularProgressIndicator(

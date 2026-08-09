@@ -80,7 +80,10 @@ class _HomePageState extends State<HomePage> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
       children: [
-        HomeGreeting(meetingRepository: widget.meetingRepository),
+        HomeGreeting(
+          meetingRepository: widget.meetingRepository,
+          onMeetingChanged: widget.onMeetingChanged ?? _reloadMeetings,
+        ),
         const SizedBox(height: 24),
         const HomeSearchField(),
         const SizedBox(height: 24),
@@ -140,9 +143,11 @@ class HomeGreeting extends StatelessWidget {
   const HomeGreeting({
     super.key,
     required this.meetingRepository,
+    this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
+  final VoidCallback? onMeetingChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -180,6 +185,7 @@ class HomeGreeting extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => NotificationsPage(
                 meetingRepository: meetingRepository,
+                onMeetingChanged: onMeetingChanged,
               ),
             ),
           ),

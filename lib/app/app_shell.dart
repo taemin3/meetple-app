@@ -37,6 +37,7 @@ class AppShell extends StatefulWidget {
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.imageUploadRepository = const MockImageUploadRepository(),
+    this.meetingRefreshToken = 0,
     this.onSignedOut,
   });
 
@@ -48,6 +49,7 @@ class AppShell extends StatefulWidget {
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
+  final int meetingRefreshToken;
   final VoidCallback? onSignedOut;
 
   @override
@@ -75,6 +77,9 @@ class _AppShellState extends State<AppShell> {
     if (oldWidget.authRepository != widget.authRepository &&
         widget.authRepository != null) {
       _authRepository = widget.authRepository!;
+    }
+    if (oldWidget.meetingRefreshToken != widget.meetingRefreshToken) {
+      _applyMeetingTabsInvalidation();
     }
   }
 
@@ -200,18 +205,20 @@ class _AppShellState extends State<AppShell> {
       return;
     }
 
-    setState(() {
-      for (final tab in const [AppTab.home, AppTab.discover]) {
-        if (!_visitedTabs.contains(tab)) {
-          continue;
-        }
-        if (tab == currentTab) {
-          _refreshTab(tab);
-        } else {
-          _staleTabs.add(tab);
-        }
+    setState(_applyMeetingTabsInvalidation);
+  }
+
+  void _applyMeetingTabsInvalidation() {
+    for (final tab in const [AppTab.home, AppTab.discover]) {
+      if (!_visitedTabs.contains(tab)) {
+        continue;
       }
-    });
+      if (tab == currentTab) {
+        _refreshTab(tab);
+      } else {
+        _staleTabs.add(tab);
+      }
+    }
   }
 
   Widget _buildTabSlot(AppTab tab) {
@@ -301,6 +308,7 @@ class _AppShellState extends State<AppShell> {
           meetingRepository: widget.meetingRepository,
           isActive: currentTab == AppTab.profile,
           onSignedOut: widget.onSignedOut,
+          onMeetingChanged: _invalidateMeetingTabs,
         );
     }
   }
