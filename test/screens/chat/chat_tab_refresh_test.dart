@@ -33,6 +33,11 @@ class _CountingChatRepository implements ChatRepository {
   int getRoomsCount = 0;
 
   @override
+  Future<ChatRoom> getRoom(int roomId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ChatRoomListPage> getRooms({int page = 0, int size = 20}) async {
     getRoomsCount++;
     return ChatRoomListPage(

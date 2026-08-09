@@ -25,6 +25,11 @@ class MockChatRepository implements ChatRepository {
   }
 
   @override
+  Future<ChatRoom> getRoom(int roomId) async {
+    return _rooms().firstWhere((room) => room.roomId == roomId);
+  }
+
+  @override
   Future<ChatMessagePage> getMessages(
     int roomId, {
     int? beforeSequence,

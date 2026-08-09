@@ -854,6 +854,11 @@ class _ChatRoomRepository implements ChatRepository {
   int emptyAfterSequenceResponsesRemaining = 0;
 
   @override
+  Future<ChatRoom> getRoom(int roomId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ChatMessagePage> getMessages(
     int roomId, {
     int? beforeSequence,

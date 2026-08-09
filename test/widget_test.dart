@@ -11,12 +11,15 @@ import 'package:meetple/data/repositories/category_repository.dart';
 import 'package:meetple/data/repositories/location_repository.dart';
 import 'package:meetple/data/repositories/meeting_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
+import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/auth_session.dart';
+import 'package:meetple/models/chat_room.dart';
 import 'package:meetple/models/location_search_result.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/auth/login_page.dart';
+import 'package:meetple/screens/chat/chat_room_page.dart';
 import 'package:meetple/screens/home/home_page.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
 
@@ -632,6 +635,40 @@ void main() {
     expect(meetingRepository.readNotificationIds, [501]);
   });
 
+  testWidgets('opens a chat room from a terminated push notification', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final pushNotificationService = _RecordingPushNotificationService(
+      pendingNotification: const PushNotificationMessage({
+        'route': 'CHAT_ROOM',
+        'roomId': '10',
+      }),
+    );
+    addTearDown(pushNotificationService.dispose);
+    final chatRepository = _PushNavigationChatRepository();
+
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: MockAuthRepository(),
+        pushNotificationService: pushNotificationService,
+        chatRepository: chatRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ChatRoomPage), findsOneWidget);
+    expect(chatRepository.requestedRoomIds, [10]);
+    expect(pushNotificationService.enteredChatRoomIds, [10]);
+
+    Navigator.of(tester.element(find.byType(ChatRoomPage))).pop();
+    await tester.pumpAndSettle();
+
+    expect(pushNotificationService.leftChatRoomIds, [10]);
+  });
+
   testWidgets('opens meeting detail from an opened push notification stream', (
     WidgetTester tester,
   ) async {
@@ -805,6 +842,8 @@ class _RecordingPushNotificationService implements PushNotificationService {
   final StreamController<PushNotificationMessage> _openedController =
       StreamController<PushNotificationMessage>.broadcast(sync: true);
   PushNotificationMessage? _pendingNotification;
+  final enteredChatRoomIds = <int>[];
+  final leftChatRoomIds = <int>[];
 
   @override
   Stream<PushNotificationMessage> get openedNotifications =>
@@ -827,6 +866,16 @@ class _RecordingPushNotificationService implements PushNotificationService {
   Future<String?> deviceId() async => 'installation-1';
 
   @override
+  void enterChatRoom(int roomId) {
+    enteredChatRoomIds.add(roomId);
+  }
+
+  @override
+  void leaveChatRoom(int roomId) {
+    leftChatRoomIds.add(roomId);
+  }
+
+  @override
   PushNotificationMessage? takePendingOpenedNotification() {
     final pending = _pendingNotification;
     _pendingNotification = null;
@@ -838,6 +887,16 @@ class _RecordingPushNotificationService implements PushNotificationService {
   }
 
   Future<void> dispose() => _openedController.close();
+}
+
+class _PushNavigationChatRepository extends MockChatRepository {
+  final requestedRoomIds = <int>[];
+
+  @override
+  Future<ChatRoom> getRoom(int roomId) {
+    requestedRoomIds.add(roomId);
+    return super.getRoom(roomId);
+  }
 }
 
 class _PushNavigationMeetingRepository extends MockMeetingRepository {

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../app/app_route_observer.dart';
 import '../../core/network/api_client.dart';
+import '../../core/push/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/realtime/chat_client_message_id.dart';
@@ -22,6 +23,7 @@ class ChatRoomPage extends StatefulWidget {
     required this.chatRepository,
     required this.chatRealtimeClient,
     required this.currentMemberId,
+    this.pushNotificationService = const NoopPushNotificationService(),
     this.onReadStarted,
   });
 
@@ -29,6 +31,7 @@ class ChatRoomPage extends StatefulWidget {
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
+  final PushNotificationService pushNotificationService;
   final ValueChanged<Future<void>>? onReadStarted;
 
   @override
@@ -88,6 +91,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.pushNotificationService.enterChatRoom(widget.room.roomId);
     _appLifecycleState =
         WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
     _scrollController.addListener(_onScrollChanged);
@@ -111,6 +115,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   @override
   void dispose() {
     _disposing = true;
+    widget.pushNotificationService.leaveChatRoom(widget.room.roomId);
     _reconnectTimer?.cancel();
     _recoveryRetryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
@@ -126,9 +131,15 @@ class _ChatRoomPageState extends State<ChatRoomPage>
 
   @override
   void didPopNext() {
+    widget.pushNotificationService.enterChatRoom(widget.room.roomId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _flushPendingRead();
     });
+  }
+
+  @override
+  void didPushNext() {
+    widget.pushNotificationService.leaveChatRoom(widget.room.roomId);
   }
 
   @override

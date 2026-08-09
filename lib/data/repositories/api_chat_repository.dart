@@ -43,6 +43,12 @@ class ApiChatRepository implements ChatRepository {
   }
 
   @override
+  Future<ChatRoom> getRoom(int roomId) async {
+    final response = await _apiClient.getJson('/api/v1/chat/rooms/$roomId');
+    return _roomFromJson(_readData(response));
+  }
+
+  @override
   Future<ChatMessagePage> getMessages(
     int roomId, {
     int? beforeSequence,

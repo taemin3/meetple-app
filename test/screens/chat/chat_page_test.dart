@@ -118,6 +118,13 @@ class _StaticChatRepository implements ChatRepository {
   int getRoomsCount = 0;
 
   @override
+  Future<ChatRoom> getRoom(int roomId) async {
+    return (await getRooms()).content.firstWhere(
+          (room) => room.roomId == roomId,
+        );
+  }
+
+  @override
   Future<ChatRoomListPage> getRooms({int page = 0, int size = 20}) async {
     getRoomsCount++;
     return ChatRoomListPage(
@@ -180,6 +187,11 @@ class _PagedChatRepository implements ChatRepository {
   final List<int> requestedPages = [];
 
   @override
+  Future<ChatRoom> getRoom(int roomId) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<ChatRoomListPage> getRooms({int page = 0, int size = 20}) async {
     requestedPages.add(page);
     return ChatRoomListPage(
@@ -217,6 +229,14 @@ class _PagedChatRepository implements ChatRepository {
 }
 
 class _FailingChatRepository implements ChatRepository {
+  @override
+  Future<ChatRoom> getRoom(int roomId) {
+    throw const ApiException(
+      statusCode: 500,
+      message: '채팅방을 불러오지 못했습니다.',
+    );
+  }
+
   @override
   Future<ChatRoomListPage> getRooms({int page = 0, int size = 20}) {
     throw const ApiException(

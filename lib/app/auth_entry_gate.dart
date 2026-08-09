@@ -15,6 +15,7 @@ import '../data/repositories/mock_auth_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
 import '../models/auth_session.dart';
 import '../screens/auth/login_page.dart';
+import '../screens/chat/chat_room_page.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 
@@ -60,6 +61,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   bool _notificationNavigationScheduled = false;
   bool _openingNotification = false;
   int _meetingRefreshToken = 0;
+  int _chatRefreshToken = 0;
 
   @override
   void initState() {
@@ -109,6 +111,8 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           locationRepository: widget.locationRepository,
           imageUploadRepository: widget.imageUploadRepository,
           meetingRefreshToken: _meetingRefreshToken,
+          externalChatRefreshToken: _chatRefreshToken,
+          pushNotificationService: widget.pushNotificationService,
           onSignedOut: _showSignedOut,
         );
     }
@@ -194,9 +198,12 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   }
 
   void _handleOpenedNotification(PushNotificationMessage notification) {
-    if (notification.route != PushNotificationRoute.meetingDetail ||
-        notification.meetingId == null ||
-        _state == _AuthEntryState.signedOut) {
+    final hasTarget = switch (notification.route) {
+      PushNotificationRoute.meetingDetail => notification.meetingId != null,
+      PushNotificationRoute.chatRoom => notification.roomId != null,
+      PushNotificationRoute.unknown => false,
+    };
+    if (!hasTarget || _state == _AuthEntryState.signedOut) {
       return;
     }
 
@@ -225,9 +232,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
 
   Future<void> _openPendingNotification() async {
     final notification = _pendingOpenedNotification;
-    final meetingId = notification?.meetingId;
     if (notification == null ||
-        meetingId == null ||
         _state != _AuthEntryState.signedIn ||
         _openingNotification) {
       return;
@@ -236,36 +241,89 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
     _pendingOpenedNotification = null;
     _openingNotification = true;
     try {
-      final notificationId = notification.notificationId;
-      if (notificationId != null) {
-        unawaited(_markNotificationRead(notificationId));
+      switch (notification.route) {
+        case PushNotificationRoute.meetingDetail:
+          await _openMeetingNotification(notification);
+          break;
+        case PushNotificationRoute.chatRoom:
+          await _openChatNotification(notification);
+          break;
+        case PushNotificationRoute.unknown:
+          return;
       }
-      final meeting = await widget.meetingRepository.findById(meetingId);
-      if (!mounted || _state != _AuthEntryState.signedIn) {
-        return;
-      }
-      final detailResult = AppRoutes.openMeetingDetail<Object>(
-        context,
-        meeting,
-        meetingRepository: widget.meetingRepository,
-        categoryRepository: widget.categoryRepository,
-        locationRepository: widget.locationRepository,
-        imageUploadRepository: widget.imageUploadRepository,
-      );
-      _openingNotification = false;
-      _schedulePendingNotificationNavigation();
-      unawaited(_handleMeetingDetailResult(detailResult));
     } on Exception catch (error) {
       debugPrint('Push notification navigation failed: $error');
       if (mounted && _state == _AuthEntryState.signedIn) {
         ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          const SnackBar(content: Text('모임 정보를 불러오지 못했습니다.')),
+          SnackBar(content: Text(_navigationErrorMessage(notification.route))),
         );
       }
     } finally {
       _openingNotification = false;
       _schedulePendingNotificationNavigation();
     }
+  }
+
+  Future<void> _openMeetingNotification(
+    PushNotificationMessage notification,
+  ) async {
+    final meetingId = notification.meetingId;
+    if (meetingId == null) return;
+
+    final notificationId = notification.notificationId;
+    if (notificationId != null) {
+      unawaited(_markNotificationRead(notificationId));
+    }
+    final meeting = await widget.meetingRepository.findById(meetingId);
+    if (!mounted || _state != _AuthEntryState.signedIn) {
+      return;
+    }
+    final detailResult = AppRoutes.openMeetingDetail<Object>(
+      context,
+      meeting,
+      meetingRepository: widget.meetingRepository,
+      categoryRepository: widget.categoryRepository,
+      locationRepository: widget.locationRepository,
+      imageUploadRepository: widget.imageUploadRepository,
+    );
+    _releaseNotificationNavigation();
+    unawaited(_handleMeetingDetailResult(detailResult));
+  }
+
+  Future<void> _openChatNotification(
+    PushNotificationMessage notification,
+  ) async {
+    final roomId = notification.roomId;
+    if (roomId == null) return;
+
+    final room = await widget.chatRepository.getRoom(roomId);
+    if (!mounted || _state != _AuthEntryState.signedIn) {
+      return;
+    }
+    final roomResult = Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ChatRoomPage(
+          room: room,
+          chatRepository: widget.chatRepository,
+          chatRealtimeClient: widget.chatRealtimeClient,
+          currentMemberId: _session!.user.id,
+          pushNotificationService: widget.pushNotificationService,
+        ),
+      ),
+    );
+    _releaseNotificationNavigation();
+    unawaited(_handleChatRoomClosed(roomResult));
+  }
+
+  void _releaseNotificationNavigation() {
+    _openingNotification = false;
+    _schedulePendingNotificationNavigation();
+  }
+
+  String _navigationErrorMessage(PushNotificationRoute route) {
+    return route == PushNotificationRoute.chatRoom
+        ? '채팅방을 불러오지 못했습니다.'
+        : '모임 정보를 불러오지 못했습니다.';
   }
 
   Future<void> _handleMeetingDetailResult(Future<Object?> resultFuture) async {
@@ -275,6 +333,15 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
     }
 
     setState(() => _meetingRefreshToken++);
+  }
+
+  Future<void> _handleChatRoomClosed(Future<void> roomFuture) async {
+    await roomFuture;
+    if (!mounted || _state != _AuthEntryState.signedIn) {
+      return;
+    }
+
+    setState(() => _chatRefreshToken++);
   }
 
   Future<void> _markNotificationRead(int notificationId) async {

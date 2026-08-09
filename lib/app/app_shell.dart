@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/push/push_notification_service.dart';
 import '../core/theme/app_colors.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/category_repository.dart';
@@ -38,6 +39,8 @@ class AppShell extends StatefulWidget {
     this.locationRepository = const MockLocationRepository(),
     this.imageUploadRepository = const MockImageUploadRepository(),
     this.meetingRefreshToken = 0,
+    this.externalChatRefreshToken = 0,
+    this.pushNotificationService = const NoopPushNotificationService(),
     this.onSignedOut,
   });
 
@@ -50,6 +53,8 @@ class AppShell extends StatefulWidget {
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
   final int meetingRefreshToken;
+  final int externalChatRefreshToken;
+  final PushNotificationService pushNotificationService;
   final VoidCallback? onSignedOut;
 
   @override
@@ -80,6 +85,10 @@ class _AppShellState extends State<AppShell> {
     }
     if (oldWidget.meetingRefreshToken != widget.meetingRefreshToken) {
       _applyMeetingTabsInvalidation();
+    }
+    if (oldWidget.externalChatRefreshToken != widget.externalChatRefreshToken &&
+        _visitedTabs.contains(AppTab.chat)) {
+      _refreshTab(AppTab.chat);
     }
   }
 
@@ -301,6 +310,7 @@ class _AppShellState extends State<AppShell> {
           chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
           refreshToken: _chatRefreshToken,
+          pushNotificationService: widget.pushNotificationService,
         );
       case AppTab.profile:
         return ProfilePage(
