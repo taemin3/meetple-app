@@ -25,6 +25,11 @@ class PushNotificationMessage {
 
   int? get roomId => int.tryParse(data['roomId'] ?? '');
 
+  String? get eventId {
+    final value = data['eventId']?.trim();
+    return value == null || value.isEmpty ? null : value;
+  }
+
   String toPayload() => jsonEncode(data);
 
   static PushNotificationMessage? fromPayload(String? payload) {

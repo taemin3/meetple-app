@@ -36,6 +36,17 @@ void main() {
     final restored = PushNotificationMessage.fromPayload(original.toPayload());
 
     expect(restored?.data, original.data);
+    expect(restored?.eventId, 'event-1');
+  });
+
+  test('normalizes a present event id and rejects a blank one', () {
+    const present = PushNotificationMessage({'eventId': ' event-1 '});
+    const blank = PushNotificationMessage({'eventId': '  '});
+    const missing = PushNotificationMessage({});
+
+    expect(present.eventId, 'event-1');
+    expect(blank.eventId, isNull);
+    expect(missing.eventId, isNull);
   });
 
   test('returns null for an invalid local notification payload', () {

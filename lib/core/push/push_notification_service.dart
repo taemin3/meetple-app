@@ -7,6 +7,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../../data/repositories/push_device_token_repository.dart';
 import 'push_installation_id_store.dart';
+import 'push_notification_dedup_store.dart';
 import 'push_notification_message.dart';
 import 'push_token_registration_coordinator.dart';
 
@@ -45,6 +46,7 @@ class FirebasePushNotificationService implements PushNotificationService {
     required PushDeviceTokenRepository tokenRepository,
     required PushInstallationIdStore installationIdStore,
     FlutterLocalNotificationsPlugin? localNotifications,
+    PushNotificationDedupStore? notificationDedupStore,
   })  : _installationIdStore = installationIdStore,
         _tokenRegistration = PushTokenRegistrationCoordinator(
           tokenRepository: tokenRepository,
@@ -52,6 +54,8 @@ class FirebasePushNotificationService implements PushNotificationService {
           platform:
               defaultTargetPlatform == TargetPlatform.iOS ? 'IOS' : 'ANDROID',
         ),
+        _notificationDedupStore =
+            notificationDedupStore ?? SecurePushNotificationDedupStore(),
         _localNotifications =
             localNotifications ?? FlutterLocalNotificationsPlugin();
 
@@ -64,6 +68,7 @@ class FirebasePushNotificationService implements PushNotificationService {
 
   final PushInstallationIdStore _installationIdStore;
   final PushTokenRegistrationCoordinator _tokenRegistration;
+  final PushNotificationDedupStore _notificationDedupStore;
   final FlutterLocalNotificationsPlugin _localNotifications;
   final StreamController<PushNotificationMessage> _openedController =
       StreamController<PushNotificationMessage>.broadcast(sync: true);
@@ -167,14 +172,13 @@ class FirebasePushNotificationService implements PushNotificationService {
 
   Future<void> _showForegroundNotification(RemoteMessage message) async {
     final pushMessage = _fromRemoteMessage(message);
-    if (!shouldShowForeground(pushMessage)) {
-      return;
-    }
-
     final notification = message.notification;
     final title = notification?.title ?? message.data['title'];
     final body = notification?.body ?? message.data['body'];
     if ((title == null || title.isEmpty) && (body == null || body.isEmpty)) {
+      return;
+    }
+    if (!await shouldDisplayForeground(pushMessage)) {
       return;
     }
 
@@ -193,7 +197,9 @@ class FirebasePushNotificationService implements PushNotificationService {
       iOS: DarwinNotificationDetails(threadIdentifier: groupKey),
     );
     await _localNotifications.show(
-      message.messageId?.hashCode ?? message.data.hashCode,
+      pushMessage.eventId?.hashCode ??
+          message.messageId?.hashCode ??
+          message.data.hashCode,
       title,
       body,
       details,
@@ -206,6 +212,21 @@ class FirebasePushNotificationService implements PushNotificationService {
     return message.route != PushNotificationRoute.chatRoom ||
         message.roomId != _activeChatRoomId ||
         !_activeChatRoomRealtimeConnected;
+  }
+
+  @visibleForTesting
+  Future<bool> shouldDisplayForeground(PushNotificationMessage message) async {
+    final eventId = message.eventId;
+    if (eventId != null) {
+      try {
+        if (!await _notificationDedupStore.markIfNew(eventId)) {
+          return false;
+        }
+      } on Exception catch (error) {
+        debugPrint('Push notification deduplication failed: $error');
+      }
+    }
+    return shouldShowForeground(message);
   }
 
   void _emitOpened(PushNotificationMessage notification) {
