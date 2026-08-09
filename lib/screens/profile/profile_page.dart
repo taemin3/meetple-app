@@ -26,12 +26,14 @@ class ProfilePage extends StatefulWidget {
     this.meetingRepository = const MockMeetingRepository(),
     this.isActive = true,
     this.onSignedOut,
+    this.onMeetingChanged,
   });
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
   final bool isActive;
   final VoidCallback? onSignedOut;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -99,6 +101,7 @@ class _ProfilePageState extends State<ProfilePage> {
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
           onSignedOut: _showSignedOut,
+          onMeetingChanged: widget.onMeetingChanged,
         );
       },
     );
@@ -125,12 +128,14 @@ class ProfileContent extends StatefulWidget {
     required this.authRepository,
     required this.meetingRepository,
     required this.onSignedOut,
+    this.onMeetingChanged,
   });
 
   final AuthUser user;
   final AuthRepository authRepository;
   final MeetingRepository meetingRepository;
   final VoidCallback onSignedOut;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<ProfileContent> createState() => _ProfileContentState();
@@ -212,6 +217,7 @@ class _ProfileContentState extends State<ProfileContent> {
                     MaterialPageRoute(
                       builder: (_) => NotificationsPage(
                         meetingRepository: widget.meetingRepository,
+                        onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),
                   ),

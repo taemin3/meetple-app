@@ -6,10 +6,12 @@ void main() {
     const message = PushNotificationMessage({
       'route': 'MEETING_DETAIL',
       'meetingId': '42',
+      'notificationId': '501',
     });
 
     expect(message.route, PushNotificationRoute.meetingDetail);
     expect(message.meetingId, 42);
+    expect(message.notificationId, 501);
     expect(message.roomId, isNull);
   });
 

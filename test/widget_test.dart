@@ -18,6 +18,7 @@ import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 import 'package:meetple/screens/home/home_page.dart';
+import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
 
 void main() {
   testWidgets('shows meeting card skeletons during the first home load', (
@@ -538,6 +539,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final pushNotificationService = _RecordingPushNotificationService();
+    addTearDown(pushNotificationService.dispose);
     await tester.pumpWidget(
       MeetpleApp(
         authRepository: MockAuthRepository(session: null),
@@ -575,6 +577,7 @@ void main() {
 
     final authRepository = MockAuthRepository();
     final pushNotificationService = _RecordingPushNotificationService();
+    addTearDown(pushNotificationService.dispose);
     await tester.pumpWidget(
       MeetpleApp(
         authRepository: authRepository,
@@ -597,6 +600,141 @@ void main() {
     expect(pushNotificationService.deactivateCount, 1);
     expect(find.byKey(const Key('profile_sign_out')), findsNothing);
     expect(find.byType(LoginPage), findsOneWidget);
+  });
+
+  testWidgets('opens meeting detail from a terminated push notification', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final pushNotificationService = _RecordingPushNotificationService(
+      pendingNotification: const PushNotificationMessage({
+        'route': 'MEETING_DETAIL',
+        'meetingId': '1',
+        'notificationId': '501',
+      }),
+    );
+    addTearDown(pushNotificationService.dispose);
+    final meetingRepository = _PushNavigationMeetingRepository();
+
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: MockAuthRepository(),
+        pushNotificationService: pushNotificationService,
+        meetingRepository: meetingRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MeetingDetailPage), findsOneWidget);
+    expect(meetingRepository.requestedMeetingIds, [1]);
+    expect(meetingRepository.readNotificationIds, [501]);
+  });
+
+  testWidgets('opens meeting detail from an opened push notification stream', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final pushNotificationService = _RecordingPushNotificationService();
+    addTearDown(pushNotificationService.dispose);
+    final meetingRepository = _PushNavigationMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: MockAuthRepository(),
+        pushNotificationService: pushNotificationService,
+        meetingRepository: meetingRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    pushNotificationService.emit(
+      const PushNotificationMessage({
+        'route': 'MEETING_DETAIL',
+        'meetingId': '2',
+        'notificationId': '502',
+      }),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(MeetingDetailPage), findsOneWidget);
+    expect(meetingRepository.requestedMeetingIds, [2]);
+    expect(meetingRepository.readNotificationIds, [502]);
+  });
+
+  testWidgets('opens a later push while the current detail remains visible', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final pushNotificationService = _RecordingPushNotificationService();
+    addTearDown(pushNotificationService.dispose);
+    final meetingRepository = _PushNavigationMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: MockAuthRepository(),
+        pushNotificationService: pushNotificationService,
+        meetingRepository: meetingRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    pushNotificationService.emit(
+      const PushNotificationMessage({
+        'route': 'MEETING_DETAIL',
+        'meetingId': '1',
+      }),
+    );
+    await tester.pumpAndSettle();
+    pushNotificationService.emit(
+      const PushNotificationMessage({
+        'route': 'MEETING_DETAIL',
+        'meetingId': '2',
+      }),
+    );
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.requestedMeetingIds, [1, 2]);
+    expect(
+      find.byType(MeetingDetailPage, skipOffstage: false),
+      findsNWidgets(2),
+    );
+  });
+
+  testWidgets('refreshes meeting tabs after a push detail reports a change', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final pushNotificationService = _RecordingPushNotificationService();
+    addTearDown(pushNotificationService.dispose);
+    final meetingRepository = _PushNavigationMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: MockAuthRepository(),
+        pushNotificationService: pushNotificationService,
+        meetingRepository: meetingRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+    final initialLoadCount = meetingRepository.findAllCount;
+
+    pushNotificationService.emit(
+      const PushNotificationMessage({
+        'route': 'MEETING_DETAIL',
+        'meetingId': '1',
+      }),
+    );
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(find.byType(MeetingDetailPage)))
+        .pop(_createdMeeting);
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, initialLoadCount + 1);
   });
 
   testWidgets('ignores stale restore result after auth repository changes', (
@@ -658,12 +796,19 @@ void main() {
 }
 
 class _RecordingPushNotificationService implements PushNotificationService {
+  _RecordingPushNotificationService({
+    PushNotificationMessage? pendingNotification,
+  }) : _pendingNotification = pendingNotification;
+
   int activateCount = 0;
   int deactivateCount = 0;
+  final StreamController<PushNotificationMessage> _openedController =
+      StreamController<PushNotificationMessage>.broadcast(sync: true);
+  PushNotificationMessage? _pendingNotification;
 
   @override
   Stream<PushNotificationMessage> get openedNotifications =>
-      const Stream<PushNotificationMessage>.empty();
+      _openedController.stream;
 
   @override
   Future<void> initialize() async {}
@@ -682,7 +827,40 @@ class _RecordingPushNotificationService implements PushNotificationService {
   Future<String?> deviceId() async => 'installation-1';
 
   @override
-  PushNotificationMessage? takePendingOpenedNotification() => null;
+  PushNotificationMessage? takePendingOpenedNotification() {
+    final pending = _pendingNotification;
+    _pendingNotification = null;
+    return pending;
+  }
+
+  void emit(PushNotificationMessage notification) {
+    _openedController.add(notification);
+  }
+
+  Future<void> dispose() => _openedController.close();
+}
+
+class _PushNavigationMeetingRepository extends MockMeetingRepository {
+  final requestedMeetingIds = <int>[];
+  final readNotificationIds = <int>[];
+  int findAllCount = 0;
+
+  @override
+  Future<List<Meeting>> findAll() {
+    findAllCount++;
+    return super.findAll();
+  }
+
+  @override
+  Future<Meeting> findById(int meetingId) {
+    requestedMeetingIds.add(meetingId);
+    return super.findById(meetingId);
+  }
+
+  @override
+  Future<void> markNotificationRead(int notificationId) async {
+    readNotificationIds.add(notificationId);
+  }
 }
 
 class _StaticLocationRepository implements LocationRepository {
