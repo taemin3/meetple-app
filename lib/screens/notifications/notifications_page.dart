@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_routes.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
@@ -53,6 +54,30 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
+  Future<void> _open(AppNotification item) async {
+    await _read(item);
+    final meetingId = item.meetingId;
+    if (meetingId == null || !mounted) {
+      return;
+    }
+
+    try {
+      final meeting = await widget.meetingRepository.findById(meetingId);
+      if (!mounted) return;
+      await AppRoutes.openMeetingDetail<void>(
+        context,
+        meeting,
+        meetingRepository: widget.meetingRepository,
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      final message =
+          error is ApiException ? error.message : '모임 정보를 불러오지 못했습니다.';
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,7 +111,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         color:
                             item.isRead ? Colors.white : AppColors.softSurface,
                         child: ListTile(
-                          onTap: isReading ? null : () => _read(item),
+                          onTap: isReading ? null : () => _open(item),
                           leading: CircleAvatar(
                             backgroundColor:
                                 AppColors.primary.withOpacity(0.12),

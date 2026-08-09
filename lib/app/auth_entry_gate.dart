@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../core/push/push_notification_message.dart';
 import '../core/push/push_notification_service.dart';
 import '../core/theme/app_colors.dart';
 import '../data/repositories/auth_repository.dart';
@@ -14,6 +15,7 @@ import '../data/repositories/mock_auth_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
 import '../models/auth_session.dart';
 import '../screens/auth/login_page.dart';
+import 'app_routes.dart';
 import 'app_shell.dart';
 
 enum _AuthEntryState {
@@ -53,11 +55,16 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   _AuthEntryState _state = _AuthEntryState.checking;
   AuthSession? _session;
   int _restoreGeneration = 0;
+  StreamSubscription<PushNotificationMessage>? _openedNotificationSubscription;
+  PushNotificationMessage? _pendingOpenedNotification;
+  bool _notificationNavigationScheduled = false;
+  bool _openingNotification = false;
 
   @override
   void initState() {
     super.initState();
     _authRepository = widget.authRepository ?? MockAuthRepository();
+    _subscribeToOpenedNotifications();
     _restoreSession();
   }
 
@@ -68,6 +75,16 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       _authRepository = widget.authRepository ?? MockAuthRepository();
       _restoreSession();
     }
+    if (oldWidget.pushNotificationService != widget.pushNotificationService) {
+      unawaited(_openedNotificationSubscription?.cancel());
+      _subscribeToOpenedNotifications();
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_openedNotificationSubscription?.cancel());
+    super.dispose();
   }
 
   @override
@@ -121,9 +138,11 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           : _AuthEntryState.signedIn;
     });
     if (session == null) {
+      _pendingOpenedNotification = null;
       unawaited(_deactivatePushNotifications());
     } else {
       unawaited(_activatePushNotifications());
+      _schedulePendingNotificationNavigation();
     }
   }
 
@@ -133,9 +152,11 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       _state = _AuthEntryState.signedIn;
     });
     unawaited(_activatePushNotifications());
+    _schedulePendingNotificationNavigation();
   }
 
   void _showSignedOut() {
+    _pendingOpenedNotification = null;
     unawaited(_deactivatePushNotifications());
     setState(() {
       _session = null;
@@ -156,6 +177,97 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       await widget.pushNotificationService.deactivate();
     } on Exception catch (error) {
       debugPrint('Push notification deactivation failed: $error');
+    }
+  }
+
+  void _subscribeToOpenedNotifications() {
+    _openedNotificationSubscription = widget
+        .pushNotificationService.openedNotifications
+        .listen(_handleOpenedNotification);
+    final pending =
+        widget.pushNotificationService.takePendingOpenedNotification();
+    if (pending != null) {
+      _handleOpenedNotification(pending);
+    }
+  }
+
+  void _handleOpenedNotification(PushNotificationMessage notification) {
+    if (notification.route != PushNotificationRoute.meetingDetail ||
+        notification.meetingId == null ||
+        _state == _AuthEntryState.signedOut) {
+      return;
+    }
+
+    _pendingOpenedNotification = notification;
+    _schedulePendingNotificationNavigation();
+  }
+
+  void _schedulePendingNotificationNavigation() {
+    if (!mounted ||
+        _state != _AuthEntryState.signedIn ||
+        _pendingOpenedNotification == null ||
+        _openingNotification ||
+        _notificationNavigationScheduled) {
+      return;
+    }
+
+    _notificationNavigationScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificationNavigationScheduled = false;
+      if (mounted) {
+        unawaited(_openPendingNotification());
+      }
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
+
+  Future<void> _openPendingNotification() async {
+    final notification = _pendingOpenedNotification;
+    final meetingId = notification?.meetingId;
+    if (notification == null ||
+        meetingId == null ||
+        _state != _AuthEntryState.signedIn ||
+        _openingNotification) {
+      return;
+    }
+
+    _pendingOpenedNotification = null;
+    _openingNotification = true;
+    try {
+      final notificationId = notification.notificationId;
+      if (notificationId != null) {
+        unawaited(_markNotificationRead(notificationId));
+      }
+      final meeting = await widget.meetingRepository.findById(meetingId);
+      if (!mounted || _state != _AuthEntryState.signedIn) {
+        return;
+      }
+      await AppRoutes.openMeetingDetail<void>(
+        context,
+        meeting,
+        meetingRepository: widget.meetingRepository,
+        categoryRepository: widget.categoryRepository,
+        locationRepository: widget.locationRepository,
+        imageUploadRepository: widget.imageUploadRepository,
+      );
+    } on Exception catch (error) {
+      debugPrint('Push notification navigation failed: $error');
+      if (mounted && _state == _AuthEntryState.signedIn) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(content: Text('모임 정보를 불러오지 못했습니다.')),
+        );
+      }
+    } finally {
+      _openingNotification = false;
+      _schedulePendingNotificationNavigation();
+    }
+  }
+
+  Future<void> _markNotificationRead(int notificationId) async {
+    try {
+      await widget.meetingRepository.markNotificationRead(notificationId);
+    } on Exception catch (error) {
+      debugPrint('Push notification read update failed: $error');
     }
   }
 }

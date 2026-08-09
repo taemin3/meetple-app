@@ -21,6 +21,8 @@ class PushNotificationMessage {
 
   int? get meetingId => int.tryParse(data['meetingId'] ?? '');
 
+  int? get notificationId => int.tryParse(data['notificationId'] ?? '');
+
   int? get roomId => int.tryParse(data['roomId'] ?? '');
 
   String toPayload() => jsonEncode(data);
