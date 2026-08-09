@@ -133,6 +133,33 @@ void main() {
     expect(room.unreadCount, 1);
   });
 
+  test('loads and updates a chat notification setting', () async {
+    final apiClient = _FakeApiClient(
+      getResponse: {
+        'status': 200,
+        'success': true,
+        'data': {'roomId': 10, 'enabled': false},
+      },
+      patchResponse: {
+        'status': 200,
+        'success': true,
+        'data': {'roomId': 10, 'enabled': true},
+      },
+    );
+    final repository = ApiChatRepository(apiClient: apiClient);
+
+    final initialEnabled = await repository.getChatNotificationEnabled(10);
+    final updatedEnabled =
+        await repository.updateChatNotificationEnabled(10, true);
+
+    expect(initialEnabled, isFalse);
+    expect(apiClient.lastGetPath, '/api/v1/chat/rooms/10/notification-setting');
+    expect(updatedEnabled, isTrue);
+    expect(
+        apiClient.lastPatchPath, '/api/v1/chat/rooms/10/notification-setting');
+    expect(apiClient.lastPatchBody, {'enabled': true});
+  });
+
   test('throws ApiException for an unsuccessful chat response', () async {
     final repository = ApiChatRepository(
       apiClient: _FakeApiClient(

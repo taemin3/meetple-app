@@ -18,3 +18,9 @@ abstract interface class ChatRepository {
 
   Future<void> markRead(int roomId, int lastReadSequence);
 }
+
+abstract interface class ChatNotificationSettingsRepository {
+  Future<bool> getChatNotificationEnabled(int roomId);
+
+  Future<bool> updateChatNotificationEnabled(int roomId, bool enabled);
+}

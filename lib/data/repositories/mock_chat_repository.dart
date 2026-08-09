@@ -4,7 +4,8 @@ import '../../models/chat_message.dart';
 import '../../models/chat_room.dart';
 import 'chat_repository.dart';
 
-class MockChatRepository implements ChatRepository {
+class MockChatRepository
+    implements ChatRepository, ChatNotificationSettingsRepository {
   const MockChatRepository();
 
   @override
@@ -58,6 +59,13 @@ class MockChatRepository implements ChatRepository {
 
   @override
   Future<void> markRead(int roomId, int lastReadSequence) async {}
+
+  @override
+  Future<bool> getChatNotificationEnabled(int roomId) async => true;
+
+  @override
+  Future<bool> updateChatNotificationEnabled(int roomId, bool enabled) async =>
+      enabled;
 
   List<ChatRoom> _rooms() {
     final messages = _messages();

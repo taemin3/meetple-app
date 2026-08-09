@@ -8,10 +8,12 @@ class AppPageHeader extends StatelessWidget {
     super.key,
     required this.title,
     this.onBack,
+    this.trailing,
   });
 
   final String title;
   final VoidCallback? onBack;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +42,7 @@ class AppPageHeader extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 48),
+          SizedBox(width: 48, child: trailing),
         ],
       ),
     );
