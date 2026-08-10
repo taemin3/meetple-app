@@ -61,8 +61,9 @@ class DetailBottomBar extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: PrimaryButton(
-                label: isBusy ? '처리 중...' : participationLabel,
+                label: participationLabel,
                 onPressed: onParticipationPressed,
+                loading: isBusy,
               ),
             ),
           ],

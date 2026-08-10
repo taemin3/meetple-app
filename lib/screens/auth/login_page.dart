@@ -163,8 +163,9 @@ class _LoginPageState extends State<LoginPage> {
                         SizedBox(height: buttonSpacing),
                         PrimaryButton(
                           height: buttonHeight,
-                          label: _isSubmitting ? '로그인 중...' : '로그인',
-                          onPressed: _isSubmitting ? null : _submit,
+                          label: '로그인',
+                          onPressed: _submit,
+                          loading: _isSubmitting,
                           borderRadius: isCompact ? 16 : 18,
                           fontSize: isCompact ? 15 : 17,
                         ),

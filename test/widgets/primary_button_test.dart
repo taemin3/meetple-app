@@ -24,4 +24,25 @@ void main() {
       AppColors.primary,
     );
   });
+
+  testWidgets('replaces its label with a loader while loading', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PrimaryButton(
+            label: 'Submit',
+            onPressed: () {},
+            loading: true,
+          ),
+        ),
+      ),
+    );
+
+    final button = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(button.onPressed, isNull);
+    expect(find.text('Submit'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
 }

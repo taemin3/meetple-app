@@ -255,14 +255,9 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
                 child: PrimaryButton(
                   key: const Key('create_meeting_submit'),
-                  label: _isSubmitting
-                      ? widget.isEditing
-                          ? '수정하는 중...'
-                          : '만드는 중...'
-                      : widget.isEditing
-                          ? '수정 완료'
-                          : '모임 만들기',
+                  label: widget.isEditing ? '수정 완료' : '모임 만들기',
                   onPressed: _submit,
+                  loading: _isSubmitting,
                 ),
               ),
             ),

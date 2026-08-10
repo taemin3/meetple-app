@@ -239,9 +239,7 @@ class _ProfileContentState extends State<ProfileContent> {
           child: ProfileMenuItem(
             key: const Key('profile_sign_out'),
             icon: Icons.logout_rounded,
-            label: _isSigningOut
-                ? '\uB85C\uADF8\uC544\uC6C3 \uC911...'
-                : '\uB85C\uADF8\uC544\uC6C3',
+            label: '\uB85C\uADF8\uC544\uC6C3',
             foregroundColor: AppColors.error,
             showChevron: false,
             trailing: _isSigningOut
