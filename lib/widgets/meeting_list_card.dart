@@ -100,7 +100,13 @@ class MeetingListCard extends StatelessWidget {
               ),
               if (trailing != null) ...[
                 const SizedBox(width: 8),
-                trailing!,
+                SizedBox(
+                  height: 112,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: trailing!,
+                  ),
+                ),
               ],
             ],
           ),
