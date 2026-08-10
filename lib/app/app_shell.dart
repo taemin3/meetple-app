@@ -73,6 +73,8 @@ class _AppShellState extends State<AppShell> {
   int _homeRefreshToken = 0;
   int _discoverRefreshToken = 0;
   int _chatRefreshToken = 0;
+  int _discoverOpenRequestId = 0;
+  DiscoverOpenRequest? _discoverOpenRequest;
 
   @override
   void initState() {
@@ -106,6 +108,7 @@ class _AppShellState extends State<AppShell> {
       child: AppNavigation(
         currentTab: currentTab,
         selectTab: _selectTab,
+        openDiscover: _openDiscover,
         child: Scaffold(
           body: SafeArea(
             bottom: false,
@@ -196,6 +199,23 @@ class _AppShellState extends State<AppShell> {
     }
 
     _selectTab(_tabAt(index));
+  }
+
+  void _openDiscover({
+    String? category,
+    bool focusSearch = false,
+  }) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      currentTab = AppTab.discover;
+      _visitedTabs.add(AppTab.discover);
+      _staleTabs.remove(AppTab.discover);
+      _discoverOpenRequest = DiscoverOpenRequest(
+        id: ++_discoverOpenRequestId,
+        category: category,
+        focusSearch: focusSearch,
+      );
+    });
   }
 
   Future<void> _openCreateMeeting() async {
@@ -301,6 +321,7 @@ class _AppShellState extends State<AppShell> {
           refreshToken: _homeRefreshToken,
           onMeetingCreated: _invalidateMeetingTabs,
           onMeetingChanged: _invalidateMeetingTabs,
+          onOpenDiscover: _openDiscover,
         );
       case AppTab.discover:
         return DiscoverPage(
@@ -308,6 +329,7 @@ class _AppShellState extends State<AppShell> {
           categoryRepository: widget.categoryRepository,
           refreshToken: _discoverRefreshToken,
           onMeetingChanged: _invalidateMeetingTabs,
+          openRequest: _discoverOpenRequest,
         );
       case AppTab.chat:
         return ChatPage(

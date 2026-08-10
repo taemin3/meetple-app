@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/meetple_app.dart';
 import 'package:meetple/core/push/push_notification_message.dart';
 import 'package:meetple/core/push/push_notification_service.dart';
+import 'package:meetple/core/map/nearby_location_provider.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/category_repository.dart';
@@ -118,6 +119,35 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
+  testWidgets('loads home recommendations from the current location first', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomePage(
+            meetingRepository: meetingRepository,
+            nearbyLocationProvider: const _StaticNearbyLocationProvider(
+              NearbyLocation(latitude: 37.5283, longitude: 126.9326),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.findAllCount, 0);
+    expect(meetingRepository.findNearbyCount, 1);
+    expect(meetingRepository.nearbyQueries.single.latitude, 37.5283);
+    expect(meetingRepository.nearbyQueries.single.longitude, 126.9326);
+    expect(meetingRepository.nearbyQueries.single.radiusMeters, 5000);
+    expect(meetingRepository.nearbyQueries.single.size, 3);
+  });
+
   testWidgets('shows Meetple home when session is restored', (
     WidgetTester tester,
   ) async {
@@ -159,6 +189,57 @@ void main() {
 
     expect(meetingRepository.findAllCount, 1);
     expect(meetingRepository.findNearbyCount, 1);
+  });
+
+  testWidgets('opens discover from home with search and category intents', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MeetpleApp(meetingRepository: meetingRepository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('home-category-운동')));
+    await tester.pumpAndSettle();
+
+    expect(
+      meetingRepository.nearbyQueries.last.category,
+      '운동',
+    );
+    expect(find.text('내 주변 모임 🔥'), findsOneWidget);
+
+    await tester.tap(find.text('홈'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('home-search-field')));
+    await tester.pumpAndSettle();
+
+    final discoverSearchField = find.byKey(
+      const Key('discover-search-field'),
+    );
+    final searchFocusNode = tester
+        .widget<EditableText>(
+          find.descendant(
+            of: discoverSearchField,
+            matching: find.byType(EditableText),
+          ),
+        )
+        .focusNode;
+    expect(searchFocusNode.hasFocus, isTrue);
+    expect(meetingRepository.nearbyQueries.last.category, isNull);
+
+    await tester.tap(find.text('홈'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const Key('home-recommendations-view-all')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('내 주변 모임 🔥'), findsOneWidget);
+    expect(meetingRepository.nearbyQueries.last.category, isNull);
   });
 
   testWidgets('pauses skeleton animations in an inactive tab', (
@@ -1064,6 +1145,7 @@ class _DeferredAuthRepository implements AuthRepository {
 class _CountingMeetingRepository extends MockMeetingRepository {
   int findAllCount = 0;
   int findNearbyCount = 0;
+  final nearbyQueries = <NearbyMeetingQuery>[];
 
   @override
   Future<List<Meeting>> findAll() {
@@ -1074,8 +1156,18 @@ class _CountingMeetingRepository extends MockMeetingRepository {
   @override
   Future<List<Meeting>> findNearby(NearbyMeetingQuery query) {
     findNearbyCount++;
+    nearbyQueries.add(query);
     return super.findNearby(query);
   }
+}
+
+class _StaticNearbyLocationProvider implements NearbyLocationProvider {
+  const _StaticNearbyLocationProvider(this.location);
+
+  final NearbyLocation? location;
+
+  @override
+  Future<NearbyLocation?> requestCurrentLocation() async => location;
 }
 
 class _DeferredFindAllRepository extends MockMeetingRepository {
