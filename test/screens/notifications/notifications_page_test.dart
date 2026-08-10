@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
+import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/app_notification.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
@@ -21,6 +22,7 @@ void main() {
       MaterialApp(
         home: NotificationsPage(
           meetingRepository: repository,
+          notificationRepository: repository,
           onMeetingChanged: () => meetingChangedCount++,
         ),
       ),
@@ -49,7 +51,10 @@ void main() {
     final repository = _DeferredNotificationMeetingRepository();
     await tester.pumpWidget(
       MaterialApp(
-        home: NotificationsPage(meetingRepository: repository),
+        home: NotificationsPage(
+          meetingRepository: repository,
+          notificationRepository: repository,
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -68,7 +73,8 @@ void main() {
   });
 }
 
-class _NotificationMeetingRepository extends MockMeetingRepository {
+class _NotificationMeetingRepository extends MockMeetingRepository
+    implements NotificationRepository {
   final readNotificationIds = <int>[];
   final requestedMeetingIds = <int>[];
 

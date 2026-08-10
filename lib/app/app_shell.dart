@@ -10,12 +10,14 @@ import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/mock_notification_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
+import '../data/repositories/notification_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
 import '../data/realtime/mock_chat_realtime_client.dart';
 import '../models/meeting.dart';
@@ -32,6 +34,7 @@ class AppShell extends StatefulWidget {
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.notificationRepository = const MockNotificationRepository(),
     this.chatRepository = const MockChatRepository(),
     this.chatRealtimeClient = const MockChatRealtimeClient(),
     required this.currentMemberId,
@@ -46,6 +49,7 @@ class AppShell extends StatefulWidget {
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
@@ -291,6 +295,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.home:
         return HomePage(
           meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
           categoryRepository: widget.categoryRepository,
           locationRepository: widget.locationRepository,
           refreshToken: _homeRefreshToken,
@@ -316,6 +321,7 @@ class _AppShellState extends State<AppShell> {
         return ProfilePage(
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
           isActive: currentTab == AppTab.profile,
           onSignedOut: widget.onSignedOut,
           onMeetingChanged: _invalidateMeetingTabs,

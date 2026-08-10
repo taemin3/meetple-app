@@ -13,7 +13,9 @@ import 'package:meetple/data/repositories/meeting_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
+import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/auth_session.dart';
+import 'package:meetple/models/app_notification.dart';
 import 'package:meetple/models/chat_room.dart';
 import 'package:meetple/models/location_search_result.dart';
 import 'package:meetple/models/meeting.dart';
@@ -626,6 +628,7 @@ void main() {
         authRepository: MockAuthRepository(),
         pushNotificationService: pushNotificationService,
         meetingRepository: meetingRepository,
+        notificationRepository: meetingRepository,
       ),
     );
     await tester.pumpAndSettle();
@@ -719,6 +722,7 @@ void main() {
         authRepository: MockAuthRepository(),
         pushNotificationService: pushNotificationService,
         meetingRepository: meetingRepository,
+        notificationRepository: meetingRepository,
       ),
     );
     await tester.pumpAndSettle();
@@ -958,7 +962,8 @@ class _PushNavigationChatRepository extends MockChatRepository {
   }
 }
 
-class _PushNavigationMeetingRepository extends MockMeetingRepository {
+class _PushNavigationMeetingRepository extends MockMeetingRepository
+    implements NotificationRepository {
   final requestedMeetingIds = <int>[];
   final readNotificationIds = <int>[];
   int findAllCount = 0;
@@ -979,6 +984,9 @@ class _PushNavigationMeetingRepository extends MockMeetingRepository {
   Future<void> markNotificationRead(int notificationId) async {
     readNotificationIds.add(notificationId);
   }
+
+  @override
+  Future<List<AppNotification>> getNotifications() async => const [];
 }
 
 class _StaticLocationRepository implements LocationRepository {

@@ -11,6 +11,7 @@ import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/notification_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
 import '../models/auth_session.dart';
@@ -31,6 +32,7 @@ class AuthEntryGate extends StatefulWidget {
     this.authRepository,
     this.pushNotificationService = const NoopPushNotificationService(),
     required this.meetingRepository,
+    required this.notificationRepository,
     required this.chatRepository,
     required this.chatRealtimeClient,
     required this.categoryRepository,
@@ -41,6 +43,7 @@ class AuthEntryGate extends StatefulWidget {
   final AuthRepository? authRepository;
   final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
   final CategoryRepository categoryRepository;
@@ -104,6 +107,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
         return AppShell(
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
           chatRepository: widget.chatRepository,
           chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: _session!.user.id,
@@ -349,7 +353,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
 
   Future<void> _markNotificationRead(int notificationId) async {
     try {
-      await widget.meetingRepository.markNotificationRead(notificationId);
+      await widget.notificationRepository.markNotificationRead(notificationId);
     } on Exception catch (error) {
       debugPrint('Push notification read update failed: $error');
     }

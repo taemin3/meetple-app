@@ -143,12 +143,8 @@ class _MyMeetingsPageState extends State<MyMeetingsPage> {
                                           _reload();
                                         }
                                       },
-                                      trailing: widget.trailingBuilder
-                                              ?.call(meeting) ??
-                                          const Icon(
-                                            Icons.chevron_right,
-                                            color: AppColors.subtle,
-                                          ),
+                                      trailing:
+                                          widget.trailingBuilder?.call(meeting),
                                     );
                                   },
                                 ),

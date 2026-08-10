@@ -43,6 +43,7 @@ void main() {
 
     expect(find.text('진행 모임'), findsNothing);
     expect(find.text('종료 모임'), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_right), findsNothing);
     expect(find.byIcon(Icons.arrow_back_ios_new_rounded), findsOneWidget);
   });
 

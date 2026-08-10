@@ -5,9 +5,11 @@ import '../../core/theme/app_colors.dart';
 import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_notification_repository.dart';
 import '../../data/repositories/mock_category_repository.dart';
 import '../../data/repositories/mock_location_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
+import '../../data/repositories/notification_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/loading_skeleton.dart';
@@ -20,6 +22,7 @@ class HomePage extends StatefulWidget {
   const HomePage({
     super.key,
     this.meetingRepository = const MockMeetingRepository(),
+    this.notificationRepository = const MockNotificationRepository(),
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.refreshToken = 0,
@@ -28,6 +31,7 @@ class HomePage extends StatefulWidget {
   });
 
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final int refreshToken;
@@ -82,6 +86,7 @@ class _HomePageState extends State<HomePage> {
       children: [
         HomeGreeting(
           meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
           onMeetingChanged: widget.onMeetingChanged ?? _reloadMeetings,
         ),
         const SizedBox(height: 24),
@@ -143,10 +148,12 @@ class HomeGreeting extends StatelessWidget {
   const HomeGreeting({
     super.key,
     required this.meetingRepository,
+    required this.notificationRepository,
     this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final VoidCallback? onMeetingChanged;
 
   @override
@@ -185,6 +192,7 @@ class HomeGreeting extends StatelessWidget {
             MaterialPageRoute(
               builder: (_) => NotificationsPage(
                 meetingRepository: meetingRepository,
+                notificationRepository: notificationRepository,
                 onMeetingChanged: onMeetingChanged,
               ),
             ),

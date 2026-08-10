@@ -4,18 +4,20 @@ import '../../app/app_routes.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
-import '../../data/repositories/mock_meeting_repository.dart';
+import '../../data/repositories/notification_repository.dart';
 import '../../models/app_notification.dart';
 import '../../widgets/app_page_header.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({
     super.key,
-    this.meetingRepository = const MockMeetingRepository(),
+    required this.meetingRepository,
+    required this.notificationRepository,
     this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final VoidCallback? onMeetingChanged;
 
   @override
@@ -30,17 +32,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
-    _future = widget.meetingRepository.getNotifications();
+    _future = widget.notificationRepository.getNotifications();
   }
 
   Future<void> _read(AppNotification item) async {
     if (!item.isRead && !_readingIds.contains(item.id)) {
       setState(() => _readingIds.add(item.id));
       try {
-        await widget.meetingRepository.markNotificationRead(item.id);
+        await widget.notificationRepository.markNotificationRead(item.id);
         if (mounted) {
           setState(() {
-            _future = widget.meetingRepository.getNotifications();
+            _future = widget.notificationRepository.getNotifications();
           });
         }
       } on Exception catch (error) {

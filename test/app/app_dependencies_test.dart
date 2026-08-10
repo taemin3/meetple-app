@@ -7,6 +7,7 @@ import 'package:meetple/data/repositories/api_chat_repository.dart';
 import 'package:meetple/data/repositories/api_image_upload_repository.dart';
 import 'package:meetple/data/repositories/api_location_repository.dart';
 import 'package:meetple/data/repositories/api_meeting_repository.dart';
+import 'package:meetple/data/repositories/api_notification_repository.dart';
 import 'package:meetple/data/repositories/auth_token_store.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/data/repositories/mock_category_repository.dart';
@@ -14,6 +15,7 @@ import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_image_upload_repository.dart';
 import 'package:meetple/data/repositories/mock_location_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
+import 'package:meetple/data/repositories/mock_notification_repository.dart';
 import 'package:meetple/data/realtime/mock_chat_realtime_client.dart';
 import 'package:meetple/data/realtime/stomp_chat_realtime_client.dart';
 
@@ -56,6 +58,22 @@ void main() {
     );
 
     expect(repository, isA<ApiMeetingRepository>());
+  });
+
+  test('creates mock notification repository by default', () {
+    final repository = createNotificationRepository();
+
+    expect(repository, isA<MockNotificationRepository>());
+  });
+
+  test('creates API notification repository when API mode is enabled', () {
+    final repository = createNotificationRepository(
+      useApiRepository: true,
+      apiBaseUrl: 'http://localhost:8080',
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    expect(repository, isA<ApiNotificationRepository>());
   });
 
   test('creates mock chat repository by default', () {

@@ -1,6 +1,5 @@
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
-import '../../models/app_notification.dart';
 
 abstract class MeetingRepository {
   const MeetingRepository();
@@ -84,14 +83,6 @@ abstract class MeetingRepository {
   }
 
   Future<List<MeetingParticipation>> getMyApplications() {
-    throw UnimplementedError();
-  }
-
-  Future<List<AppNotification>> getNotifications() {
-    throw UnimplementedError();
-  }
-
-  Future<void> markNotificationRead(int notificationId) {
     throw UnimplementedError();
   }
 }
