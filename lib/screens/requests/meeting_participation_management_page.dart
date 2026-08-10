@@ -37,7 +37,7 @@ class _MeetingParticipationManagementPageState
   _ParticipationFilter _selectedFilter = _ParticipationFilter.all;
   late int _joined;
   late Future<Map<ParticipationStatus, List<MeetingParticipation>>> _future;
-  final Set<int> _reviewingIds = {};
+  final Map<int, bool> _reviewingApprovals = {};
 
   @override
   void initState() {
@@ -111,8 +111,8 @@ class _MeetingParticipationManagementPageState
     MeetingParticipation participation, {
     required bool approve,
   }) async {
-    if (_reviewingIds.contains(participation.id)) return;
-    setState(() => _reviewingIds.add(participation.id));
+    if (_reviewingApprovals.containsKey(participation.id)) return;
+    setState(() => _reviewingApprovals[participation.id] = approve);
     try {
       await widget.meetingRepository.reviewParticipation(
         widget.meeting.id!,
@@ -136,7 +136,7 @@ class _MeetingParticipationManagementPageState
           .showSnackBar(SnackBar(content: Text(message)));
     } finally {
       if (mounted) {
-        setState(() => _reviewingIds.remove(participation.id));
+        setState(() => _reviewingApprovals.remove(participation.id));
       }
     }
   }
@@ -189,10 +189,15 @@ class _MeetingParticipationManagementPageState
                                     const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final item = items[index];
+                                  final reviewApprove =
+                                      _reviewingApprovals[item.id];
                                   return _ParticipationApplicantCard(
                                     participation: item,
-                                    isReviewing:
-                                        _reviewingIds.contains(item.id),
+                                    isApproving: reviewApprove == true,
+                                    isRejecting: reviewApprove == false &&
+                                        _reviewingApprovals.containsKey(
+                                          item.id,
+                                        ),
                                     canApprove:
                                         _joined < widget.meeting.capacity,
                                     onReject: () =>
@@ -277,14 +282,16 @@ class _ParticipationInfoBanner extends StatelessWidget {
 class _ParticipationApplicantCard extends StatelessWidget {
   const _ParticipationApplicantCard({
     required this.participation,
-    required this.isReviewing,
+    required this.isApproving,
+    required this.isRejecting,
     required this.canApprove,
     required this.onReject,
     required this.onApprove,
   });
 
   final MeetingParticipation participation;
-  final bool isReviewing;
+  final bool isApproving;
+  final bool isRejecting;
   final bool canApprove;
   final VoidCallback onReject;
   final VoidCallback onApprove;
@@ -292,6 +299,7 @@ class _ParticipationApplicantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPending = participation.status == ParticipationStatus.pending;
+    final isReviewing = isApproving || isRejecting;
     final message = participation.message?.trim();
 
     return Container(
@@ -395,6 +403,7 @@ class _ParticipationApplicantCard extends StatelessWidget {
                   child: SecondaryButton(
                     label: '거절',
                     onPressed: isReviewing ? null : onReject,
+                    loading: isRejecting,
                     height: 40,
                     borderRadius: 10,
                   ),
@@ -403,8 +412,9 @@ class _ParticipationApplicantCard extends StatelessWidget {
                 SizedBox(
                   width: 88,
                   child: PrimaryButton(
-                    label: isReviewing ? '처리 중' : '수락',
+                    label: '수락',
                     onPressed: isReviewing || !canApprove ? null : onApprove,
+                    loading: isApproving,
                     height: 40,
                     borderRadius: 10,
                   ),
