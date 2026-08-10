@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
@@ -5,6 +7,7 @@ import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/requests/meeting_participation_management_page.dart';
 import 'package:meetple/widgets/primary_button.dart';
+import 'package:meetple/widgets/secondary_button.dart';
 
 void main() {
   testWidgets('shows applicant counts and filters by review status',
@@ -76,6 +79,53 @@ void main() {
     );
     expect(remainingButton.onPressed, isNull);
   });
+
+  for (final approve in [true, false]) {
+    testWidgets(
+      'shows a compact loader without overflow while ${approve ? 'accepting' : 'rejecting'}',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(320, 700));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final repository = _ParticipationManagementRepository(
+          deferReview: true,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MeetingParticipationManagementPage(
+              meeting: _meeting,
+              meetingRepository: repository,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          approve
+              ? find.widgetWithText(PrimaryButton, '수락').first
+              : find.widgetWithText(SecondaryButton, '거절').first,
+        );
+        await tester.pump();
+
+        final loadingButton = approve
+            ? find.byType(PrimaryButton).first
+            : find.byType(SecondaryButton).first;
+        expect(
+          find.descendant(
+            of: loadingButton,
+            matching: find.byType(CircularProgressIndicator),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('처리 중'), findsNothing);
+        expect(tester.takeException(), isNull);
+
+        repository.completeReview();
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 }
 
 const _meeting = Meeting(
@@ -97,6 +147,10 @@ const _meeting = Meeting(
 );
 
 class _ParticipationManagementRepository extends MockMeetingRepository {
+  _ParticipationManagementRepository({this.deferReview = false});
+
+  final bool deferReview;
+  final Completer<void> _reviewCompleter = Completer<void>();
   final List<int> reviewedIds = [];
   final List<String?> requestedStatuses = [];
   final List<MeetingParticipation> _pending = [
@@ -178,6 +232,9 @@ class _ParticipationManagementRepository extends MockMeetingRepository {
     required bool approve,
   }) async {
     reviewedIds.add(participationId);
+    if (deferReview) {
+      await _reviewCompleter.future;
+    }
     final participation =
         _pending.firstWhere((item) => item.id == participationId);
     _pending.remove(participation);
@@ -197,5 +254,11 @@ class _ParticipationManagementRepository extends MockMeetingRepository {
       _rejected.add(reviewed);
     }
     return reviewed;
+  }
+
+  void completeReview() {
+    if (!_reviewCompleter.isCompleted) {
+      _reviewCompleter.complete();
+    }
   }
 }

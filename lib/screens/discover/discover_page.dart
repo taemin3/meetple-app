@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../app/app_navigation.dart';
 import '../../app/app_routes.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
@@ -26,12 +27,14 @@ class DiscoverPage extends StatefulWidget {
     this.categoryRepository = const MockCategoryRepository(),
     this.refreshToken = 0,
     this.onMeetingChanged,
+    this.openRequest,
   });
 
   final MeetingRepository meetingRepository;
   final CategoryRepository categoryRepository;
   final int refreshToken;
   final VoidCallback? onMeetingChanged;
+  final DiscoverOpenRequest? openRequest;
 
   @override
   State<DiscoverPage> createState() => _DiscoverPageState();
@@ -46,6 +49,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   static const _defaultSearchRadiusMeters = 5000;
 
   final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
 
   NearbyMeetingMapController? _mapController;
   NearbyMapCoordinate _searchCenter = _initialCoordinate;
@@ -67,6 +71,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   bool _requestedInitialLocation = false;
   int _requestGeneration = 0;
   int _categoryRequestGeneration = 0;
+  int? _handledOpenRequestId;
 
   bool get _isLiveMapEnabled =>
       AppConfig.hasNaverMapClientId && isNearbyMeetingMapSupported;
@@ -87,6 +92,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   void initState() {
     super.initState();
+    _applyOpenRequest(reload: false);
     unawaited(_loadCategories());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -110,11 +116,15 @@ class _DiscoverPageState extends State<DiscoverPage> {
     if (oldWidget.categoryRepository != widget.categoryRepository) {
       unawaited(_loadCategories());
     }
+    if (oldWidget.openRequest?.id != widget.openRequest?.id) {
+      _applyOpenRequest(reload: true);
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -157,6 +167,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   children: [
                     MapSearchRow(
                       controller: _searchController,
+                      focusNode: _searchFocusNode,
                       onChanged: (value) {
                         setState(() {
                           _searchText = value;
@@ -448,6 +459,33 @@ class _DiscoverPageState extends State<DiscoverPage> {
     unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
   }
 
+  void _applyOpenRequest({required bool reload}) {
+    final request = widget.openRequest;
+    if (request == null || request.id == _handledOpenRequestId) {
+      return;
+    }
+
+    _handledOpenRequestId = request.id;
+    final category = request.category?.trim();
+    _selectedCategory = category == null || category.isEmpty ? '전체' : category;
+    _searchController.clear();
+    _searchText = '';
+    _selectedMeeting = null;
+    _isSheetCollapsed = false;
+
+    if (request.focusSearch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _searchFocusNode.requestFocus();
+        }
+      });
+    }
+
+    if (reload) {
+      unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+    }
+  }
+
   Future<void> _loadCategories() async {
     final generation = ++_categoryRequestGeneration;
     try {
@@ -461,20 +499,30 @@ class _DiscoverPageState extends State<DiscoverPage> {
           .where((name) => name.isNotEmpty)
           .toSet()
           .toList(growable: false);
+      final availableCategories = ['전체', ...names];
+      final shouldResetCategory =
+          !availableCategories.contains(_selectedCategory);
       setState(() {
-        _categories = ['전체', ...names];
-        if (!_categories.contains(_selectedCategory)) {
+        _categories = availableCategories;
+        if (shouldResetCategory) {
           _selectedCategory = '전체';
         }
       });
+      if (shouldResetCategory) {
+        unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+      }
     } catch (_) {
       if (!mounted || generation != _categoryRequestGeneration) {
         return;
       }
+      final shouldResetCategory = _selectedCategory != '전체';
       setState(() {
         _categories = const ['전체'];
         _selectedCategory = '전체';
       });
+      if (shouldResetCategory) {
+        unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+      }
     }
   }
 
@@ -731,11 +779,13 @@ class MapSearchRow extends StatelessWidget {
   const MapSearchRow({
     super.key,
     required this.controller,
+    required this.focusNode,
     required this.onChanged,
     required this.onFilterPressed,
   });
 
   final TextEditingController controller;
+  final FocusNode focusNode;
   final ValueChanged<String> onChanged;
   final VoidCallback onFilterPressed;
 
@@ -755,7 +805,9 @@ class MapSearchRow extends StatelessWidget {
               ],
             ),
             child: TextField(
+              key: const Key('discover-search-field'),
               controller: controller,
+              focusNode: focusNode,
               onChanged: onChanged,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(

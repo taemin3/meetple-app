@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_navigation.dart';
 import '../../app/app_routes.dart';
+import '../../core/config/app_config.dart';
+import '../../core/map/nearby_location_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/location_repository.dart';
@@ -11,6 +14,7 @@ import '../../data/repositories/mock_location_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../models/meeting.dart';
+import '../../models/meeting_category.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/meeting_list_card.dart';
@@ -28,6 +32,8 @@ class HomePage extends StatefulWidget {
     this.refreshToken = 0,
     this.onMeetingCreated,
     this.onMeetingChanged,
+    this.onOpenDiscover,
+    this.nearbyLocationProvider,
   });
 
   final MeetingRepository meetingRepository;
@@ -37,6 +43,8 @@ class HomePage extends StatefulWidget {
   final int refreshToken;
   final VoidCallback? onMeetingCreated;
   final VoidCallback? onMeetingChanged;
+  final OpenDiscover? onOpenDiscover;
+  final NearbyLocationProvider? nearbyLocationProvider;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -44,28 +52,73 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Future<List<Meeting>> _meetingsFuture;
+  late Future<List<MeetingCategory>> _categoriesFuture;
 
   @override
   void initState() {
     super.initState();
-    _loadMeetings();
+    _loadHomeData();
   }
 
   @override
   void didUpdateWidget(covariant HomePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.meetingRepository != widget.meetingRepository ||
+        oldWidget.nearbyLocationProvider != widget.nearbyLocationProvider ||
         oldWidget.refreshToken != widget.refreshToken) {
       _loadMeetings();
     }
+    if (oldWidget.categoryRepository != widget.categoryRepository) {
+      _loadCategories();
+    }
+  }
+
+  void _loadHomeData() {
+    _loadMeetings();
+    _loadCategories();
   }
 
   void _loadMeetings() {
-    _meetingsFuture = widget.meetingRepository.findAll();
+    _meetingsFuture = _findRecommendedMeetings();
+  }
+
+  void _loadCategories() {
+    _categoriesFuture = widget.categoryRepository.findAll();
+  }
+
+  Future<List<Meeting>> _findRecommendedMeetings() async {
+    final injectedProvider = widget.nearbyLocationProvider;
+    if (injectedProvider == null && !AppConfig.hasNaverMapClientId) {
+      return widget.meetingRepository.findAll();
+    }
+
+    final location = await (injectedProvider ?? createNearbyLocationProvider())
+        .requestCurrentLocation();
+    if (location == null) {
+      return widget.meetingRepository.findAll();
+    }
+
+    return widget.meetingRepository.findNearby(
+      NearbyMeetingQuery(
+        latitude: location.latitude,
+        longitude: location.longitude,
+        radiusMeters: 5000,
+        size: 3,
+      ),
+    );
   }
 
   void _reloadMeetings() {
     setState(_loadMeetings);
+  }
+
+  void _openDiscover({
+    String? category,
+    bool focusSearch = false,
+  }) {
+    final openDiscover =
+        widget.onOpenDiscover ?? AppNavigation.maybeOf(context)?.openDiscover;
+    openDiscover?.call(category: category, focusSearch: focusSearch);
   }
 
   Future<void> _openMeetingDetail(Meeting meeting) async {
@@ -90,11 +143,27 @@ class _HomePageState extends State<HomePage> {
           onMeetingChanged: widget.onMeetingChanged ?? _reloadMeetings,
         ),
         const SizedBox(height: 24),
-        const HomeSearchField(),
+        HomeSearchField(
+          onTap: () => _openDiscover(focusSearch: true),
+        ),
         const SizedBox(height: 24),
-        const CategoryShortcutRow(),
+        FutureBuilder<List<MeetingCategory>>(
+          future: _categoriesFuture,
+          builder: (context, snapshot) {
+            final categories = snapshot.data ?? const <MeetingCategory>[];
+            return CategoryShortcutRow(
+              categories: categories,
+              onSelected: (category) => _openDiscover(category: category),
+            );
+          },
+        ),
         const SizedBox(height: 30),
-        const SectionTitle(title: '추천 모임', action: '전체보기 >'),
+        SectionTitle(
+          title: '추천 모임',
+          action: '전체보기 >',
+          actionKey: const Key('home-recommendations-view-all'),
+          onActionTap: () => _openDiscover(),
+        ),
         const SizedBox(height: 14),
         FutureBuilder<List<Meeting>>(
           future: _meetingsFuture,
@@ -205,12 +274,19 @@ class HomeGreeting extends StatelessWidget {
 }
 
 class HomeSearchField extends StatelessWidget {
-  const HomeSearchField({super.key});
+  const HomeSearchField({
+    super.key,
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      key: const Key('home-search-field'),
       readOnly: true,
+      onTap: onTap,
       decoration: InputDecoration(
         hintText: '모임, 장소, 키워드 검색',
         prefixIcon: const Icon(Icons.search),
@@ -230,17 +306,21 @@ class HomeSearchField extends StatelessWidget {
 }
 
 class CategoryShortcutRow extends StatelessWidget {
-  const CategoryShortcutRow({super.key});
+  const CategoryShortcutRow({
+    super.key,
+    required this.categories,
+    required this.onSelected,
+  });
+
+  final List<MeetingCategory> categories;
+  final ValueChanged<String?> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    final items = [
-      ('전체', Icons.grid_view_rounded, true),
-      ('운동', Icons.directions_run, false),
-      ('스터디', Icons.menu_book_outlined, false),
-      ('취미', Icons.palette_outlined, false),
-      ('여행', Icons.flight_takeoff, false),
-      ('봉사', Icons.favorite_border, false),
+    final items = <(String, IconData)>[
+      ('전체', Icons.grid_view_rounded),
+      for (final category in categories)
+        (category.name, _iconForCategory(category.name)),
     ];
 
     return SingleChildScrollView(
@@ -248,33 +328,60 @@ class CategoryShortcutRow extends StatelessWidget {
       child: Row(
         children: [
           for (final item in items) ...[
-            Column(
-              children: [
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor:
-                      item.$3 ? AppColors.primary : AppColors.softSurface,
-                  child: Icon(
-                    item.$2,
-                    color: item.$3 ? Colors.white : AppColors.primary,
-                  ),
+            InkWell(
+              key: ValueKey('home-category-${item.$1}'),
+              onTap: () => onSelected(item.$1 == '전체' ? null : item.$1),
+              borderRadius: BorderRadius.circular(16),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2),
+                child: Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: item.$1 == '전체'
+                          ? AppColors.primary
+                          : AppColors.softSurface,
+                      child: Icon(
+                        item.$2,
+                        color:
+                            item.$1 == '전체' ? Colors.white : AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      item.$1,
+                      style: const TextStyle(
+                        color: AppColors.ink,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  item.$1,
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(width: 18),
           ],
         ],
       ),
     );
+  }
+
+  IconData _iconForCategory(String category) {
+    switch (category.trim()) {
+      case '운동':
+        return Icons.directions_run;
+      case '스터디':
+        return Icons.menu_book_outlined;
+      case '취미':
+        return Icons.palette_outlined;
+      case '여행':
+        return Icons.flight_takeoff;
+      case '봉사':
+        return Icons.favorite_border;
+      default:
+        return Icons.interests_outlined;
+    }
   }
 }
 

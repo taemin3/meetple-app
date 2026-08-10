@@ -7,10 +7,14 @@ class SectionTitle extends StatelessWidget {
     super.key,
     required this.title,
     this.action,
+    this.onActionTap,
+    this.actionKey,
   });
 
   final String title;
   final String? action;
+  final VoidCallback? onActionTap;
+  final Key? actionKey;
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +32,18 @@ class SectionTitle extends StatelessWidget {
           ),
         ),
         if (action != null)
-          Text(
-            action!,
-            style: const TextStyle(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w900,
+          TextButton(
+            key: actionKey,
+            onPressed: onActionTap,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              action!,
+              style: const TextStyle(fontWeight: FontWeight.w900),
             ),
           ),
       ],

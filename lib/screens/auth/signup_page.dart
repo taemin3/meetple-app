@@ -831,10 +831,9 @@ class _SignUpStickyFooter extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     PrimaryButton(
-                      label: isProfileStep
-                          ? (isSubmitting ? '가입 중...' : '가입 완료')
-                          : '다음',
+                      label: isProfileStep ? '가입 완료' : '다음',
                       onPressed: onPrimaryPressed,
+                      loading: isProfileStep && isSubmitting,
                       height: 48,
                       borderRadius: 14,
                       fontSize: 16,
