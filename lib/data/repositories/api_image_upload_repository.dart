@@ -14,11 +14,13 @@ class ApiImageUploadRepository implements ImageUploadRepository {
   ApiImageUploadRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     AccessTokenProvider? accessTokenProvider,
+    UnauthorizedTokenRefresher? unauthorizedTokenRefresher,
     http.Client? httpClient,
   }) : this(
           apiClient: HttpApiClient(
             baseUri: Uri.parse(baseUrl),
             accessTokenProvider: accessTokenProvider,
+            unauthorizedTokenRefresher: unauthorizedTokenRefresher,
           ),
           httpClient: httpClient,
         );

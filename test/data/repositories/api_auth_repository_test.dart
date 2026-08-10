@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/core/network/api_client.dart';
 import 'package:meetple/data/repositories/api_auth_repository.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
+import 'package:meetple/data/repositories/auth_token_refresh_coordinator.dart';
 import 'package:meetple/data/repositories/auth_token_store.dart';
 
 void main() {
@@ -258,6 +261,32 @@ void main() {
     expect((await tokenStore.read())?.accessToken, 'reissued-access-token');
   });
 
+  test('uses tokens rotated while restoring the current profile', () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'old-access-token',
+        refreshToken: 'old-refresh-token',
+      ),
+    );
+    final apiClient = _TokenUpdatingApiClient(
+      tokenStore: tokenStore,
+      updatedTokens: const AuthTokenPair(
+        accessToken: 'rotated-access-token',
+        refreshToken: 'rotated-refresh-token',
+      ),
+      responses: [_apiResponse(data: _profileJson())],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+
+    final session = await repository.restoreSession();
+
+    expect(session?.accessToken, 'rotated-access-token');
+    expect(session?.refreshToken, 'rotated-refresh-token');
+  });
+
   test('preserves current session when profile refresh fails transiently',
       () async {
     final tokenStore = MemoryAuthTokenStore();
@@ -357,6 +386,46 @@ void main() {
     expect(apiClient.requests.single.path, '/api/v1/auth/logout');
     expect(apiClient.requests.single.includeAuthorization, isTrue);
     expect(apiClient.requests.single.body, {'refreshToken': 'refresh-token'});
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('signs out with the rotated refresh token after proactive refresh',
+      () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: AuthTokenPair(
+        accessToken: _jwt(expiresAt: DateTime.utc(2026, 8, 10, 11)),
+        refreshToken: 'old-refresh-token',
+      ),
+    );
+    final refreshApiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'accessToken': 'new-access-token',
+            'refreshToken': 'new-refresh-token',
+          },
+        ),
+      ],
+    );
+    final logoutApiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: logoutApiClient,
+      tokenStore: tokenStore,
+      tokenRefreshCoordinator: AuthTokenRefreshCoordinator(
+        apiClient: refreshApiClient,
+        tokenStore: tokenStore,
+        now: () => DateTime.utc(2026, 8, 10, 12),
+      ),
+    );
+
+    await repository.signOut();
+
+    expect(refreshApiClient.requests.single.path, '/api/v1/auth/reissue');
+    expect(logoutApiClient.requests.single.body, {
+      'refreshToken': 'new-refresh-token',
+    });
     expect(await tokenStore.read(), isNull);
   });
 
@@ -540,6 +609,16 @@ Map<String, dynamic> _profileJson({
   };
 }
 
+String _jwt({required DateTime expiresAt}) {
+  final header = base64Url.encode(utf8.encode(jsonEncode({'alg': 'none'})));
+  final payload = base64Url.encode(
+    utf8.encode(
+      jsonEncode({'exp': expiresAt.millisecondsSinceEpoch ~/ 1000}),
+    ),
+  );
+  return '$header.$payload.signature';
+}
+
 class RecordedApiRequest {
   const RecordedApiRequest({
     required this.method,
@@ -607,5 +686,25 @@ class FakeApiClient extends ApiClient {
     }
 
     return response as Map<String, dynamic>;
+  }
+}
+
+class _TokenUpdatingApiClient extends FakeApiClient {
+  _TokenUpdatingApiClient({
+    required this.tokenStore,
+    required this.updatedTokens,
+    required super.responses,
+  });
+
+  final AuthTokenStore tokenStore;
+  final AuthTokenPair updatedTokens;
+
+  @override
+  Future<Map<String, dynamic>> getJson(
+    String path, {
+    Map<String, String?> queryParameters = const {},
+  }) async {
+    await tokenStore.write(updatedTokens);
+    return super.getJson(path, queryParameters: queryParameters);
   }
 }

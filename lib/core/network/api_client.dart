@@ -28,19 +28,26 @@ abstract class ApiClient {
 }
 
 typedef AccessTokenProvider = FutureOr<String?> Function();
+typedef UnauthorizedTokenRefresher = Future<String?> Function(
+    String rejectedAccessToken);
 
 class HttpApiClient extends ApiClient {
   HttpApiClient({
     required Uri baseUri,
     http.Client? httpClient,
     AccessTokenProvider? accessTokenProvider,
+    UnauthorizedTokenRefresher? unauthorizedTokenRefresher,
+    this.requestTimeout = const Duration(seconds: 20),
   })  : _baseUri = _normalizeBaseUri(baseUri),
         _httpClient = httpClient ?? http.Client(),
-        _accessTokenProvider = accessTokenProvider;
+        _accessTokenProvider = accessTokenProvider,
+        _unauthorizedTokenRefresher = unauthorizedTokenRefresher;
 
   final Uri _baseUri;
   final http.Client _httpClient;
   final AccessTokenProvider? _accessTokenProvider;
+  final UnauthorizedTokenRefresher? _unauthorizedTokenRefresher;
+  final Duration requestTimeout;
 
   @override
   Future<Map<String, dynamic>> getJson(
@@ -48,9 +55,10 @@ class HttpApiClient extends ApiClient {
     Map<String, String?> queryParameters = const {},
   }) async {
     final uri = _buildUri(path, queryParameters);
-    final response = await _httpClient.get(uri, headers: await _headers());
-
-    return _handleResponse(response);
+    return _sendJson(
+      includeAuthorization: true,
+      send: (headers) => _httpClient.get(uri, headers: headers),
+    );
   }
 
   @override
@@ -60,16 +68,16 @@ class HttpApiClient extends ApiClient {
     bool includeAuthorization = true,
   }) async {
     final uri = _buildUri(path, const {});
-    final response = await _httpClient.post(
-      uri,
-      headers: await _headers(
-        contentType: 'application/json',
-        includeAuthorization: includeAuthorization,
+    final encodedBody = jsonEncode(body);
+    return _sendJson(
+      includeAuthorization: includeAuthorization,
+      contentType: 'application/json',
+      send: (headers) => _httpClient.post(
+        uri,
+        headers: headers,
+        body: encodedBody,
       ),
-      body: jsonEncode(body),
     );
-
-    return _handleResponse(response);
   }
 
   @override
@@ -77,20 +85,55 @@ class HttpApiClient extends ApiClient {
     String path, {
     Map<String, dynamic> body = const {},
   }) async {
-    final response = await _httpClient.patch(
-      _buildUri(path, const {}),
-      headers: await _headers(contentType: 'application/json'),
-      body: jsonEncode(body),
+    final uri = _buildUri(path, const {});
+    final encodedBody = jsonEncode(body);
+    return _sendJson(
+      includeAuthorization: true,
+      contentType: 'application/json',
+      send: (headers) => _httpClient.patch(
+        uri,
+        headers: headers,
+        body: encodedBody,
+      ),
     );
-    return _handleResponse(response);
   }
 
   @override
   Future<Map<String, dynamic>> deleteJson(String path) async {
-    final response = await _httpClient.delete(
-      _buildUri(path, const {}),
-      headers: await _headers(),
+    final uri = _buildUri(path, const {});
+    return _sendJson(
+      includeAuthorization: true,
+      send: (headers) => _httpClient.delete(uri, headers: headers),
     );
+  }
+
+  Future<Map<String, dynamic>> _sendJson({
+    required bool includeAuthorization,
+    required Future<http.Response> Function(Map<String, String> headers) send,
+    String? contentType,
+  }) async {
+    final accessToken =
+        includeAuthorization ? await _accessTokenProvider?.call() : null;
+    var response = await send(
+      _headers(contentType: contentType, accessToken: accessToken),
+    ).timeout(requestTimeout);
+
+    if (response.statusCode == 401 &&
+        accessToken != null &&
+        accessToken.isNotEmpty &&
+        _unauthorizedTokenRefresher != null) {
+      final refreshedAccessToken =
+          await _unauthorizedTokenRefresher.call(accessToken);
+      if (refreshedAccessToken != null && refreshedAccessToken.isNotEmpty) {
+        response = await send(
+          _headers(
+            contentType: contentType,
+            accessToken: refreshedAccessToken,
+          ),
+        ).timeout(requestTimeout);
+      }
+    }
+
     return _handleResponse(response);
   }
 
@@ -112,19 +155,17 @@ class HttpApiClient extends ApiClient {
     _httpClient.close();
   }
 
-  Future<Map<String, String>> _headers({
+  Map<String, String> _headers({
     String? contentType,
-    bool includeAuthorization = true,
-  }) async {
+    String? accessToken,
+  }) {
     final headers = {'Accept': 'application/json'};
     if (contentType != null) {
       headers['Content-Type'] = contentType;
     }
 
-    final token =
-        includeAuthorization ? await _accessTokenProvider?.call() : null;
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
+    if (accessToken != null && accessToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $accessToken';
     }
 
     return headers;

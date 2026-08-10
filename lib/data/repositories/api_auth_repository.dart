@@ -3,6 +3,7 @@ import '../../core/network/api_client.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import 'auth_repository.dart';
+import 'auth_token_refresh_coordinator.dart';
 import 'auth_token_store.dart';
 
 typedef LogoutDeviceIdProvider = Future<String?> Function();
@@ -12,31 +13,44 @@ class ApiAuthRepository implements AuthRepository {
   ApiAuthRepository({
     required ApiClient apiClient,
     required AuthTokenStore tokenStore,
+    AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
     LogoutDeviceIdProvider? logoutDeviceIdProvider,
     BeforeSignOut? beforeSignOut,
   })  : _apiClient = apiClient,
         _tokenStore = tokenStore,
+        _tokenRefreshCoordinator = tokenRefreshCoordinator ??
+            AuthTokenRefreshCoordinator(
+              apiClient: apiClient,
+              tokenStore: tokenStore,
+            ),
         _logoutDeviceIdProvider = logoutDeviceIdProvider,
         _beforeSignOut = beforeSignOut;
 
   factory ApiAuthRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     AuthTokenStore? tokenStore,
+    AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
     LogoutDeviceIdProvider? logoutDeviceIdProvider,
     BeforeSignOut? beforeSignOut,
   }) {
     final resolvedTokenStore =
         tokenStore ?? const FlutterSecureAuthTokenStore();
+    final resolvedTokenRefreshCoordinator = tokenRefreshCoordinator ??
+        AuthTokenRefreshCoordinator.withBaseUrl(
+          baseUrl: baseUrl,
+          tokenStore: resolvedTokenStore,
+        );
 
     return ApiAuthRepository(
       apiClient: HttpApiClient(
         baseUri: Uri.parse(baseUrl),
-        accessTokenProvider: () async {
-          final tokens = await resolvedTokenStore.read();
-          return tokens?.accessToken;
-        },
+        accessTokenProvider:
+            resolvedTokenRefreshCoordinator.getValidAccessToken,
+        unauthorizedTokenRefresher:
+            resolvedTokenRefreshCoordinator.refreshAccessToken,
       ),
       tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: resolvedTokenRefreshCoordinator,
       logoutDeviceIdProvider: logoutDeviceIdProvider,
       beforeSignOut: beforeSignOut,
     );
@@ -44,6 +58,7 @@ class ApiAuthRepository implements AuthRepository {
 
   final ApiClient _apiClient;
   final AuthTokenStore _tokenStore;
+  final AuthTokenRefreshCoordinator _tokenRefreshCoordinator;
   final LogoutDeviceIdProvider? _logoutDeviceIdProvider;
   final BeforeSignOut? _beforeSignOut;
 
@@ -61,7 +76,7 @@ class ApiAuthRepository implements AuthRepository {
     }
 
     try {
-      return await _restoreWithTokens(tokens);
+      return await _restoreWithTokens(tokens, clearOnFailure: false);
     } on ApiException catch (error) {
       if (error.statusCode != 401 || tokens.refreshToken.isEmpty) {
         await _clearSession();
@@ -69,7 +84,13 @@ class ApiAuthRepository implements AuthRepository {
       }
 
       try {
-        final refreshedTokens = await _reissue(tokens.refreshToken);
+        final refreshedTokens = await _tokenRefreshCoordinator.refreshTokens(
+          rejectedAccessToken: tokens.accessToken,
+        );
+        if (refreshedTokens == null) {
+          _session = null;
+          return null;
+        }
         return await _restoreWithTokens(refreshedTokens);
       } on Exception {
         await _clearSession();
@@ -102,7 +123,13 @@ class ApiAuthRepository implements AuthRepository {
       }
 
       try {
-        final refreshedTokens = await _reissue(tokens.refreshToken);
+        final refreshedTokens = await _tokenRefreshCoordinator.refreshTokens(
+          rejectedAccessToken: tokens.accessToken,
+        );
+        if (refreshedTokens == null) {
+          _session = null;
+          return null;
+        }
         return await _restoreWithTokens(
           refreshedTokens,
           clearOnFailure: false,
@@ -179,9 +206,10 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     await _deactivatePushBeforeSignOut();
-    final tokens = await _tokenStore.read();
 
     try {
+      await _tokenRefreshCoordinator.getValidAccessToken();
+      final tokens = await _tokenStore.read();
       if (tokens != null && tokens.refreshToken.isNotEmpty) {
         final deviceId = await _readLogoutDeviceId();
         final response = await _apiClient.postJson(
@@ -231,19 +259,6 @@ class ApiAuthRepository implements AuthRepository {
     return _tokensFromJson(data);
   }
 
-  Future<AuthTokenPair> _reissue(String refreshToken) async {
-    final response = await _apiClient.postJson(
-      '/api/v1/auth/reissue',
-      includeAuthorization: false,
-      body: {'refreshToken': refreshToken},
-    );
-    final data = _readData(response);
-    final tokens = _tokensFromJson(data);
-    await _tokenStore.write(tokens);
-
-    return tokens;
-  }
-
   Future<AuthSession> _restoreWithTokens(
     AuthTokenPair tokens, {
     bool clearOnFailure = true,
@@ -253,10 +268,11 @@ class ApiAuthRepository implements AuthRepository {
     try {
       final response = await _apiClient.getJson('/api/v1/users/me');
       final user = _userFromJson(_readData(response));
+      final currentTokens = await _tokenStore.read() ?? tokens;
       final session = AuthSession(
         user: user,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        accessToken: currentTokens.accessToken,
+        refreshToken: currentTokens.refreshToken,
       );
       _session = session;
 

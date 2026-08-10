@@ -618,6 +618,27 @@ void main() {
     expect(find.text('\uD68C\uC6D0\uAC00\uC785'), findsOneWidget);
   });
 
+  testWidgets('returns to login when the refreshed session expires', (
+    WidgetTester tester,
+  ) async {
+    final sessionExpired = StreamController<void>.broadcast();
+    addTearDown(sessionExpired.close);
+
+    await tester.pumpWidget(
+      MeetpleApp(
+        authRepository: MockAuthRepository(),
+        authSessionExpired: sessionExpired.stream,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(LoginPage), findsNothing);
+
+    sessionExpired.add(null);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(LoginPage), findsOneWidget);
+  });
+
   testWidgets('enters app after signing in from entry login', (
     WidgetTester tester,
   ) async {

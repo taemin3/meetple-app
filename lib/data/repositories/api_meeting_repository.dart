@@ -17,6 +17,7 @@ class ApiMeetingRepository extends MeetingRepository {
   ApiMeetingRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     AccessTokenProvider? accessTokenProvider,
+    UnauthorizedTokenRefresher? unauthorizedTokenRefresher,
     String? status,
     int page = 0,
     int size = 20,
@@ -24,6 +25,7 @@ class ApiMeetingRepository extends MeetingRepository {
           apiClient: HttpApiClient(
             baseUri: Uri.parse(baseUrl),
             accessTokenProvider: accessTokenProvider,
+            unauthorizedTokenRefresher: unauthorizedTokenRefresher,
           ),
           status: status,
           page: page,

@@ -9,6 +9,7 @@ import '../data/repositories/api_location_repository.dart';
 import '../data/repositories/api_meeting_repository.dart';
 import '../data/repositories/api_notification_repository.dart';
 import '../data/repositories/auth_repository.dart';
+import '../data/repositories/auth_token_refresh_coordinator.dart';
 import '../data/repositories/auth_token_store.dart';
 import '../data/repositories/category_repository.dart';
 import '../data/repositories/chat_repository.dart';
@@ -29,18 +30,51 @@ import '../data/realtime/mock_chat_realtime_client.dart';
 import '../data/realtime/stomp_chat_realtime_client.dart';
 
 const AuthTokenStore _apiAuthTokenStore = FlutterSecureAuthTokenStore();
+final AuthTokenRefreshCoordinator _apiAuthTokenRefreshCoordinator =
+    AuthTokenRefreshCoordinator.withBaseUrl(
+  tokenStore: _apiAuthTokenStore,
+);
+
+Stream<void> get apiAuthSessionExpired =>
+    _apiAuthTokenRefreshCoordinator.sessionExpired;
+
+AuthTokenRefreshCoordinator _resolveTokenRefreshCoordinator({
+  required String apiBaseUrl,
+  required AuthTokenStore tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
+}) {
+  if (tokenRefreshCoordinator != null) {
+    return tokenRefreshCoordinator;
+  }
+  if (identical(tokenStore, _apiAuthTokenStore) &&
+      apiBaseUrl == AppConfig.apiBaseUrl) {
+    return _apiAuthTokenRefreshCoordinator;
+  }
+  return AuthTokenRefreshCoordinator.withBaseUrl(
+    baseUrl: apiBaseUrl,
+    tokenStore: tokenStore,
+  );
+}
 
 AuthRepository createAuthRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
   LogoutDeviceIdProvider? logoutDeviceIdProvider,
   BeforeSignOut? beforeSignOut,
 }) {
   if (useApiRepository) {
+    final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
     return ApiAuthRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      tokenStore: tokenStore ?? _apiAuthTokenStore,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: resolvedTokenRefreshCoordinator,
       logoutDeviceIdProvider: logoutDeviceIdProvider,
       beforeSignOut: beforeSignOut,
     );
@@ -53,6 +87,7 @@ PushNotificationService createPushNotificationService({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
   PushInstallationIdStore? installationIdStore,
 }) {
   if (!useApiRepository || !supportsFirebasePush) {
@@ -60,13 +95,17 @@ PushNotificationService createPushNotificationService({
   }
 
   final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+  final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+    apiBaseUrl: apiBaseUrl,
+    tokenStore: resolvedTokenStore,
+    tokenRefreshCoordinator: tokenRefreshCoordinator,
+  );
   return FirebasePushNotificationService(
     tokenRepository: ApiPushDeviceTokenRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     ),
     installationIdStore:
         installationIdStore ?? const SecurePushInstallationIdStore(),
@@ -77,16 +116,21 @@ MeetingRepository createMeetingRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
 }) {
   if (useApiRepository) {
     final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
 
     return ApiMeetingRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     );
   }
 
@@ -97,16 +141,21 @@ NotificationRepository createNotificationRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
 }) {
   if (useApiRepository) {
     final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
 
     return ApiNotificationRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     );
   }
 
@@ -117,16 +166,21 @@ ChatRepository createChatRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
 }) {
   if (useApiRepository) {
     final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
 
     return ApiChatRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     );
   }
 
@@ -137,16 +191,21 @@ ChatRealtimeClient createChatRealtimeClient({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
 }) {
   if (useApiRepository) {
     final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
 
     return StompChatRealtimeClient(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     );
   }
 
@@ -157,16 +216,21 @@ ImageUploadRepository createImageUploadRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
 }) {
   if (useApiRepository) {
     final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
 
     return ApiImageUploadRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     );
   }
 
@@ -177,16 +241,21 @@ CategoryRepository createCategoryRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
 }) {
   if (useApiRepository) {
     final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
 
     return ApiCategoryRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     );
   }
 
@@ -197,16 +266,21 @@ LocationRepository createLocationRepository({
   bool useApiRepository = AppConfig.useApiRepository,
   String apiBaseUrl = AppConfig.apiBaseUrl,
   AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
 }) {
   if (useApiRepository) {
     final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+    final resolvedTokenRefreshCoordinator = _resolveTokenRefreshCoordinator(
+      apiBaseUrl: apiBaseUrl,
+      tokenStore: resolvedTokenStore,
+      tokenRefreshCoordinator: tokenRefreshCoordinator,
+    );
 
     return ApiLocationRepository.withBaseUrl(
       baseUrl: apiBaseUrl,
-      accessTokenProvider: () async {
-        final tokens = await resolvedTokenStore.read();
-        return tokens?.accessToken;
-      },
+      accessTokenProvider: resolvedTokenRefreshCoordinator.getValidAccessToken,
+      unauthorizedTokenRefresher:
+          resolvedTokenRefreshCoordinator.refreshAccessToken,
     );
   }
 
