@@ -161,7 +161,7 @@ class ApiAuthRepository implements AuthRepository {
 
     try {
       final tokens = await _login(email: email, password: password);
-      return await _restoreWithTokens(tokens);
+      return await _restoreWithTokens(tokens, persistTokens: true);
     } on AuthException {
       rethrow;
     } on ApiException catch (error) {
@@ -263,8 +263,11 @@ class ApiAuthRepository implements AuthRepository {
   Future<AuthSession> _restoreWithTokens(
     AuthTokenPair tokens, {
     bool clearOnFailure = true,
+    bool persistTokens = false,
   }) async {
-    await _tokenStore.write(tokens);
+    if (persistTokens) {
+      await _tokenStore.write(tokens);
+    }
 
     try {
       final response = await _apiClient.getJson('/api/v1/users/me');

@@ -321,19 +321,19 @@ void main() {
     expect((await tokenStore.read())?.accessToken, accessToken);
   });
 
-  test('uses tokens rotated while restoring the current profile', () async {
-    final tokenStore = MemoryAuthTokenStore(
+  test('does not overwrite tokens rotated while refreshing the profile',
+      () async {
+    final tokenStore = _RotateOnFirstReadTokenStore(
       initialTokens: const AuthTokenPair(
         accessToken: 'old-access-token',
         refreshToken: 'old-refresh-token',
       ),
-    );
-    final apiClient = _TokenUpdatingApiClient(
-      tokenStore: tokenStore,
-      updatedTokens: const AuthTokenPair(
+      rotatedTokens: const AuthTokenPair(
         accessToken: 'rotated-access-token',
         refreshToken: 'rotated-refresh-token',
       ),
+    );
+    final apiClient = FakeApiClient(
       responses: [_apiResponse(data: _profileJson())],
     );
     final repository = ApiAuthRepository(
@@ -341,10 +341,11 @@ void main() {
       tokenStore: tokenStore,
     );
 
-    final session = await repository.restoreSession();
+    final session = await repository.refreshSession();
 
     expect(session?.accessToken, 'rotated-access-token');
     expect(session?.refreshToken, 'rotated-refresh-token');
+    expect((await tokenStore.read())?.accessToken, 'rotated-access-token');
   });
 
   test('preserves current session when profile refresh fails transiently',
@@ -787,22 +788,33 @@ class FakeApiClient extends ApiClient {
   }
 }
 
-class _TokenUpdatingApiClient extends FakeApiClient {
-  _TokenUpdatingApiClient({
-    required this.tokenStore,
-    required this.updatedTokens,
-    required super.responses,
-  });
+class _RotateOnFirstReadTokenStore implements AuthTokenStore {
+  _RotateOnFirstReadTokenStore({
+    required AuthTokenPair initialTokens,
+    required this.rotatedTokens,
+  }) : _tokens = initialTokens;
 
-  final AuthTokenStore tokenStore;
-  final AuthTokenPair updatedTokens;
+  final AuthTokenPair rotatedTokens;
+  AuthTokenPair? _tokens;
+  bool _shouldRotate = true;
 
   @override
-  Future<Map<String, dynamic>> getJson(
-    String path, {
-    Map<String, String?> queryParameters = const {},
-  }) async {
-    await tokenStore.write(updatedTokens);
-    return super.getJson(path, queryParameters: queryParameters);
+  Future<AuthTokenPair?> read() async {
+    final tokens = _tokens;
+    if (_shouldRotate) {
+      _shouldRotate = false;
+      _tokens = rotatedTokens;
+    }
+    return tokens;
+  }
+
+  @override
+  Future<void> write(AuthTokenPair tokens) async {
+    _tokens = tokens;
+  }
+
+  @override
+  Future<void> clear() async {
+    _tokens = null;
   }
 }

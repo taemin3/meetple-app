@@ -34,6 +34,7 @@ class AuthTokenRefreshCoordinator {
 
   Future<AuthTokenPair?>? _refreshingTokens;
   bool _refreshSuspended = false;
+  int _refreshGeneration = 0;
 
   Stream<void> get sessionExpired => _sessionExpiredController.stream;
 
@@ -66,6 +67,7 @@ class AuthTokenRefreshCoordinator {
   Future<AuthTokenPair?> refreshTokens({
     required String rejectedAccessToken,
   }) async {
+    final refreshGeneration = _refreshGeneration;
     if (_refreshSuspended) {
       return null;
     }
@@ -76,6 +78,9 @@ class AuthTokenRefreshCoordinator {
     }
 
     final storedTokens = await _tokenStore.read();
+    if (_refreshSuspended || refreshGeneration != _refreshGeneration) {
+      return null;
+    }
     final refreshStartedWhileReading = _refreshingTokens;
     if (refreshStartedWhileReading != null) {
       return refreshStartedWhileReading;
@@ -105,6 +110,7 @@ class AuthTokenRefreshCoordinator {
       // A transient refresh failure must not prevent the server logout attempt.
     }
 
+    _refreshGeneration += 1;
     _refreshSuspended = true;
     final activeRefresh = _refreshingTokens;
     if (activeRefresh == null) {

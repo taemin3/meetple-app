@@ -184,6 +184,30 @@ void main() {
 
     expect(await store.read(), isNull);
   });
+
+  test('discards a refresh that was waiting for tokens when sign out starts',
+      () async {
+    const tokens = AuthTokenPair(
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final store = _DelayedFirstReadTokenStore(tokens);
+    final apiClient = _RefreshApiClient();
+    final coordinator = AuthTokenRefreshCoordinator(
+      apiClient: apiClient,
+      tokenStore: store,
+    );
+    final refresh = coordinator.refreshAccessToken(tokens.accessToken);
+    await store.firstReadStarted.future;
+
+    await coordinator.prepareForSignOut();
+    await coordinator.clearAfterSignOut();
+    store.releaseFirstRead.complete();
+
+    expect(await refresh, isNull);
+    expect(apiClient.postCount, 0);
+    expect(await store.read(), isNull);
+  });
 }
 
 String _jwt({required DateTime expiresAt}) {
@@ -241,5 +265,35 @@ class _RefreshApiClient extends ApiClient {
     return responseCompleter == null
         ? _successResponse()
         : await responseCompleter!.future;
+  }
+}
+
+class _DelayedFirstReadTokenStore implements AuthTokenStore {
+  _DelayedFirstReadTokenStore(this._tokens);
+
+  AuthTokenPair? _tokens;
+  bool _isFirstRead = true;
+  final firstReadStarted = Completer<void>();
+  final releaseFirstRead = Completer<void>();
+
+  @override
+  Future<AuthTokenPair?> read() async {
+    final tokens = _tokens;
+    if (_isFirstRead) {
+      _isFirstRead = false;
+      firstReadStarted.complete();
+      await releaseFirstRead.future;
+    }
+    return tokens;
+  }
+
+  @override
+  Future<void> write(AuthTokenPair tokens) async {
+    _tokens = tokens;
+  }
+
+  @override
+  Future<void> clear() async {
+    _tokens = null;
   }
 }
