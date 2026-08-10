@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:meetple/core/network/api_client.dart';
 import 'package:meetple/data/repositories/api_auth_repository.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
@@ -261,6 +263,64 @@ void main() {
     expect((await tokenStore.read())?.accessToken, 'reissued-access-token');
   });
 
+  test('restores with the current token when proactive reissue fails',
+      () async {
+    final accessToken = _jwt(
+      expiresAt: DateTime.utc(2026, 8, 10, 12, 0, 20),
+    );
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: AuthTokenPair(
+        accessToken: accessToken,
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final requestedPaths = <String>[];
+    final httpClient = MockClient((request) async {
+      requestedPaths.add(request.url.path);
+      if (request.url.path == '/api/v1/auth/reissue') {
+        return http.Response(
+          jsonEncode({'message': 'Refresh failed'}),
+          500,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      expect(request.url.path, '/api/v1/users/me');
+      expect(request.headers['Authorization'], 'Bearer $accessToken');
+      return http.Response(
+        jsonEncode(_apiResponse(data: _profileJson())),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final refreshCoordinator = AuthTokenRefreshCoordinator(
+      apiClient: HttpApiClient(
+        baseUri: Uri.parse('https://api.example.com'),
+        httpClient: httpClient,
+      ),
+      tokenStore: tokenStore,
+      now: () => DateTime.utc(2026, 8, 10, 12),
+    );
+    final repository = ApiAuthRepository(
+      apiClient: HttpApiClient(
+        baseUri: Uri.parse('https://api.example.com'),
+        httpClient: httpClient,
+        accessTokenProvider: refreshCoordinator.getValidAccessToken,
+        unauthorizedTokenRefresher: refreshCoordinator.refreshAccessToken,
+      ),
+      tokenStore: tokenStore,
+      tokenRefreshCoordinator: refreshCoordinator,
+    );
+
+    final session = await repository.restoreSession();
+
+    expect(session?.accessToken, accessToken);
+    expect(requestedPaths, [
+      '/api/v1/auth/reissue',
+      '/api/v1/users/me',
+    ]);
+    expect((await tokenStore.read())?.accessToken, accessToken);
+  });
+
   test('uses tokens rotated while restoring the current profile', () async {
     final tokenStore = MemoryAuthTokenStore(
       initialTokens: const AuthTokenPair(
@@ -425,6 +485,44 @@ void main() {
     expect(refreshApiClient.requests.single.path, '/api/v1/auth/reissue');
     expect(logoutApiClient.requests.single.body, {
       'refreshToken': 'new-refresh-token',
+    });
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('still requests server logout when proactive refresh fails transiently',
+      () async {
+    final accessToken = _jwt(
+      expiresAt: DateTime.utc(2026, 8, 10, 12, 0, 20),
+    );
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: AuthTokenPair(
+        accessToken: accessToken,
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final refreshApiClient = FakeApiClient(
+      responses: [
+        const ApiException(statusCode: 500, message: 'Refresh failed'),
+      ],
+    );
+    final logoutApiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: logoutApiClient,
+      tokenStore: tokenStore,
+      tokenRefreshCoordinator: AuthTokenRefreshCoordinator(
+        apiClient: refreshApiClient,
+        tokenStore: tokenStore,
+        now: () => DateTime.utc(2026, 8, 10, 12),
+      ),
+    );
+
+    await repository.signOut();
+
+    expect(refreshApiClient.requests.single.path, '/api/v1/auth/reissue');
+    expect(logoutApiClient.requests.single.body, {
+      'refreshToken': 'refresh-token',
     });
     expect(await tokenStore.read(), isNull);
   });

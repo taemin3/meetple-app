@@ -33,6 +33,7 @@ class AuthTokenRefreshCoordinator {
       StreamController<void>.broadcast(sync: true);
 
   Future<AuthTokenPair?>? _refreshingTokens;
+  bool _refreshSuspended = false;
 
   Stream<void> get sessionExpired => _sessionExpiredController.stream;
 
@@ -45,10 +46,14 @@ class AuthTokenRefreshCoordinator {
       return tokens.accessToken;
     }
 
-    return (await refreshTokens(
-      rejectedAccessToken: tokens.accessToken,
-    ))
-        ?.accessToken;
+    try {
+      return (await refreshTokens(
+        rejectedAccessToken: tokens.accessToken,
+      ))
+          ?.accessToken;
+    } on Exception {
+      return tokens.accessToken;
+    }
   }
 
   Future<String?> refreshAccessToken(String rejectedAccessToken) async {
@@ -61,6 +66,10 @@ class AuthTokenRefreshCoordinator {
   Future<AuthTokenPair?> refreshTokens({
     required String rejectedAccessToken,
   }) async {
+    if (_refreshSuspended) {
+      return null;
+    }
+
     final existingRefresh = _refreshingTokens;
     if (existingRefresh != null) {
       return existingRefresh;
@@ -86,6 +95,33 @@ class AuthTokenRefreshCoordinator {
       if (identical(_refreshingTokens, refresh)) {
         _refreshingTokens = null;
       }
+    }
+  }
+
+  Future<void> prepareForSignOut() async {
+    try {
+      await getValidAccessToken();
+    } on Exception {
+      // A transient refresh failure must not prevent the server logout attempt.
+    }
+
+    _refreshSuspended = true;
+    final activeRefresh = _refreshingTokens;
+    if (activeRefresh == null) {
+      return;
+    }
+    try {
+      await activeRefresh;
+    } on Exception {
+      // The stored token pair remains available for the logout request.
+    }
+  }
+
+  Future<void> clearAfterSignOut() async {
+    try {
+      await _tokenStore.clear();
+    } finally {
+      _refreshSuspended = false;
     }
   }
 

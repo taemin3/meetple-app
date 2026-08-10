@@ -206,9 +206,9 @@ class ApiAuthRepository implements AuthRepository {
   @override
   Future<void> signOut() async {
     await _deactivatePushBeforeSignOut();
+    await _tokenRefreshCoordinator.prepareForSignOut();
 
     try {
-      await _tokenRefreshCoordinator.getValidAccessToken();
       final tokens = await _tokenStore.read();
       if (tokens != null && tokens.refreshToken.isNotEmpty) {
         final deviceId = await _readLogoutDeviceId();
@@ -222,7 +222,8 @@ class ApiAuthRepository implements AuthRepository {
         _ensureSuccess(response);
       }
     } finally {
-      await _clearSession();
+      _session = null;
+      await _tokenRefreshCoordinator.clearAfterSignOut();
     }
   }
 

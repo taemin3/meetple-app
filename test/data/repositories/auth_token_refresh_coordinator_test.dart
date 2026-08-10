@@ -27,6 +27,31 @@ void main() {
     expect(apiClient.postCount, 0);
   });
 
+  test('uses the current access token when proactive refresh fails transiently',
+      () async {
+    final accessToken = _jwt(
+      expiresAt: DateTime.utc(2026, 8, 10, 12, 0, 20),
+    );
+    final store = MemoryAuthTokenStore(
+      initialTokens: AuthTokenPair(
+        accessToken: accessToken,
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = _RefreshApiClient(errorStatusCode: 500);
+    final coordinator = AuthTokenRefreshCoordinator(
+      apiClient: apiClient,
+      tokenStore: store,
+      now: () => DateTime.utc(2026, 8, 10, 12),
+    );
+
+    final token = await coordinator.getValidAccessToken();
+
+    expect(token, accessToken);
+    expect((await store.read())!.accessToken, accessToken);
+    expect(apiClient.postCount, 1);
+  });
+
   test('shares one refresh request between concurrent callers', () async {
     final expiredAccessToken = _jwt(
       expiresAt: DateTime.utc(2026, 8, 10, 11),
@@ -124,6 +149,40 @@ void main() {
       ),
     );
     expect((await store.read())!.accessToken, tokens.accessToken);
+  });
+
+  test('waits for an active refresh before clearing tokens for sign out',
+      () async {
+    const tokens = AuthTokenPair(
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token',
+    );
+    final store = MemoryAuthTokenStore(initialTokens: tokens);
+    final responseCompleter = Completer<Map<String, dynamic>>();
+    final apiClient = _RefreshApiClient(responseCompleter: responseCompleter);
+    final coordinator = AuthTokenRefreshCoordinator(
+      apiClient: apiClient,
+      tokenStore: store,
+    );
+    final refresh = coordinator.refreshAccessToken(tokens.accessToken);
+    await Future<void>.delayed(Duration.zero);
+
+    final preparingForSignOut = coordinator.prepareForSignOut();
+    await Future<void>.delayed(Duration.zero);
+    responseCompleter.complete(_successResponse());
+    await preparingForSignOut;
+
+    expect(await refresh, 'new-access-token');
+    expect((await store.read())!.refreshToken, 'new-refresh-token');
+    expect(
+      await coordinator.refreshAccessToken('new-access-token'),
+      isNull,
+    );
+    expect(apiClient.postCount, 1);
+
+    await coordinator.clearAfterSignOut();
+
+    expect(await store.read(), isNull);
   });
 }
 

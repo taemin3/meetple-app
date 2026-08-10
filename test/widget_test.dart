@@ -633,9 +633,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(LoginPage), findsNothing);
 
+    Navigator.of(tester.element(find.byType(HomePage))).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(
+          body: Text('protected route'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('protected route'), findsOneWidget);
+
     sessionExpired.add(null);
     await tester.pumpAndSettle();
 
+    expect(find.text('protected route'), findsNothing);
     expect(find.byType(LoginPage), findsOneWidget);
   });
 

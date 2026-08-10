@@ -192,6 +192,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
     if (!mounted || _state != _AuthEntryState.signedIn) {
       return;
     }
+    Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
     _showSignedOut();
   }
 
