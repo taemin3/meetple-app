@@ -8,11 +8,13 @@ import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/mock_notification_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_chat_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
+import '../data/repositories/notification_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
 import '../data/realtime/mock_chat_realtime_client.dart';
 import 'app_route_observer.dart';
@@ -24,6 +26,7 @@ class MeetpleApp extends StatelessWidget {
     this.authRepository,
     this.pushNotificationService = const NoopPushNotificationService(),
     this.meetingRepository = const MockMeetingRepository(),
+    this.notificationRepository = const MockNotificationRepository(),
     this.chatRepository = const MockChatRepository(),
     this.chatRealtimeClient = const MockChatRealtimeClient(),
     this.categoryRepository = const MockCategoryRepository(),
@@ -34,6 +37,7 @@ class MeetpleApp extends StatelessWidget {
   final AuthRepository? authRepository;
   final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
   final CategoryRepository categoryRepository;
@@ -51,6 +55,7 @@ class MeetpleApp extends StatelessWidget {
         authRepository: authRepository,
         pushNotificationService: pushNotificationService,
         meetingRepository: meetingRepository,
+        notificationRepository: notificationRepository,
         chatRepository: chatRepository,
         chatRealtimeClient: chatRealtimeClient,
         categoryRepository: categoryRepository,

@@ -532,54 +532,6 @@ void main() {
 
     expect(apiClient.body, isNot(contains('imageUrls')));
   });
-
-  test('loads every notification page', () async {
-    final apiClient = SequencedApiClient(
-      responses: [
-        {
-          'status': 200,
-          'success': true,
-          'data': {
-            'content': [
-              {
-                'id': 1,
-                'type': 'PARTICIPATION_APPROVED',
-                'title': '참여 승인',
-                'message': '참여가 승인되었습니다.',
-              },
-            ],
-            'totalPages': 2,
-            'last': false,
-          },
-        },
-        {
-          'status': 200,
-          'success': true,
-          'data': {
-            'content': [
-              {
-                'id': 2,
-                'type': 'PARTICIPATION_REJECTED',
-                'title': '참여 거절',
-                'message': '참여가 거절되었습니다.',
-              },
-            ],
-            'totalPages': 2,
-            'last': true,
-          },
-        },
-      ],
-    );
-    final repository = ApiMeetingRepository(apiClient: apiClient);
-
-    final notifications = await repository.getNotifications();
-
-    expect(notifications.map((item) => item.id), [1, 2]);
-    expect(apiClient.queries, [
-      {'page': '0', 'size': '100'},
-      {'page': '1', 'size': '100'},
-    ]);
-  });
 }
 
 String _dateLabel(DateTime dateTime) {

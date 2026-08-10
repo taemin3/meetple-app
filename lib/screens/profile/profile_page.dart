@@ -5,7 +5,9 @@ import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/mock_auth_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_notification_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
+import '../../data/repositories/notification_repository.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/meeting.dart';
@@ -24,6 +26,7 @@ class ProfilePage extends StatefulWidget {
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.notificationRepository = const MockNotificationRepository(),
     this.isActive = true,
     this.onSignedOut,
     this.onMeetingChanged,
@@ -31,6 +34,7 @@ class ProfilePage extends StatefulWidget {
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final bool isActive;
   final VoidCallback? onSignedOut;
   final VoidCallback? onMeetingChanged;
@@ -100,6 +104,7 @@ class _ProfilePageState extends State<ProfilePage> {
           user: session.user,
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
           onSignedOut: _showSignedOut,
           onMeetingChanged: widget.onMeetingChanged,
         );
@@ -127,6 +132,7 @@ class ProfileContent extends StatefulWidget {
     required this.user,
     required this.authRepository,
     required this.meetingRepository,
+    required this.notificationRepository,
     required this.onSignedOut,
     this.onMeetingChanged,
   });
@@ -134,6 +140,7 @@ class ProfileContent extends StatefulWidget {
   final AuthUser user;
   final AuthRepository authRepository;
   final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
   final VoidCallback onSignedOut;
   final VoidCallback? onMeetingChanged;
 
@@ -217,6 +224,7 @@ class _ProfileContentState extends State<ProfileContent> {
                     MaterialPageRoute(
                       builder: (_) => NotificationsPage(
                         meetingRepository: widget.meetingRepository,
+                        notificationRepository: widget.notificationRepository,
                         onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),

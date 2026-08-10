@@ -4,7 +4,6 @@ import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
-import '../../models/app_notification.dart';
 import 'meeting_repository.dart';
 
 class ApiMeetingRepository extends MeetingRepository {
@@ -291,43 +290,6 @@ class ApiMeetingRepository extends MeetingRepository {
     return _getAllParticipations('/api/v1/users/me/applications');
   }
 
-  @override
-  Future<List<AppNotification>> getNotifications() async {
-    final notifications = <AppNotification>[];
-    var page = 0;
-
-    while (true) {
-      final response = await _apiClient.getJson(
-        '/api/v1/notifications',
-        queryParameters: {'page': '$page', 'size': '100'},
-      );
-      _ensureSuccess(response);
-      final data = _readMap(response['data'], 'data');
-      notifications.addAll([
-        for (final item in _readList(data['content'], 'data.content'))
-          _notificationFromJson(_readMap(item, 'data.content[]')),
-      ]);
-
-      final totalPages = _readInt(data['totalPages']);
-      final isLast = data['last'] == true;
-      if (isLast || totalPages == 0 || page + 1 >= totalPages) {
-        break;
-      }
-      page += 1;
-    }
-
-    return notifications;
-  }
-
-  @override
-  Future<void> markNotificationRead(int notificationId) async {
-    _ensureSuccess(
-      await _apiClient.patchJson(
-        '/api/v1/notifications/$notificationId/read',
-      ),
-    );
-  }
-
   Future<List<Meeting>> _getAllMeetings(String path) async {
     final meetings = <Meeting>[];
     var page = 0;
@@ -471,18 +433,6 @@ class ApiMeetingRepository extends MeetingRepository {
       nickname: _readString(json['nickname'], fallback: '알 수 없는 사용자'),
       profileImageUrl: _readNullableString(json['profileImageUrl']),
       isHost: json['host'] == true,
-    );
-  }
-
-  AppNotification _notificationFromJson(Map<String, dynamic> json) {
-    return AppNotification(
-      id: _readInt(json['id']),
-      type: _readString(json['type']),
-      title: _readString(json['title'], fallback: '알림'),
-      message: _readString(json['message']),
-      meetingId: _readNullableInt(json['meetingId']),
-      readAt: _readDateTime(json['readAt']),
-      createdAt: _readDateTime(json['createdAt']),
     );
   }
 
