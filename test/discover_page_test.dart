@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/app/app_navigation.dart';
 import 'package:meetple/core/theme/app_colors.dart';
 import 'package:meetple/data/repositories/category_repository.dart';
 import 'package:meetple/data/repositories/meeting_repository.dart';
@@ -293,6 +294,70 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets('reloads all meetings after an invalid entry category', (
+    tester,
+  ) async {
+    final categoryRepository = _DeferredCategoryRepository();
+    final meetingRepository = _RecordingNearbyMeetingRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DiscoverPage(
+            meetingRepository: meetingRepository,
+            categoryRepository: categoryRepository,
+            openRequest: const DiscoverOpenRequest(
+              id: 1,
+              category: '여행',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(meetingRepository.queries.last.category, '여행');
+
+    categoryRepository.complete(const [
+      MeetingCategory(id: 10, name: '러닝'),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.queries.last.category, isNull);
+    expect(find.text('전체'), findsOneWidget);
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+  });
+
+  testWidgets('reloads all meetings after entry category loading fails', (
+    tester,
+  ) async {
+    final categoryRepository = _DeferredCategoryRepository();
+    final meetingRepository = _RecordingNearbyMeetingRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: DiscoverPage(
+            meetingRepository: meetingRepository,
+            categoryRepository: categoryRepository,
+            openRequest: const DiscoverOpenRequest(
+              id: 1,
+              category: '여행',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(meetingRepository.queries.last.category, '여행');
+
+    categoryRepository.fail();
+    await tester.pumpAndSettle();
+
+    expect(meetingRepository.queries.last.category, isNull);
+    expect(find.text('전체'), findsOneWidget);
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+  });
 }
 
 class _DiscoverCategoryRepository implements CategoryRepository {
@@ -304,6 +369,31 @@ class _DiscoverCategoryRepository implements CategoryRepository {
       MeetingCategory(id: 10, name: '러닝'),
       MeetingCategory(id: 11, name: '독서'),
     ];
+  }
+}
+
+class _DeferredCategoryRepository implements CategoryRepository {
+  final _completer = Completer<List<MeetingCategory>>();
+
+  @override
+  Future<List<MeetingCategory>> findAll() => _completer.future;
+
+  void complete(List<MeetingCategory> categories) {
+    _completer.complete(categories);
+  }
+
+  void fail() {
+    _completer.completeError(StateError('category load failed'));
+  }
+}
+
+class _RecordingNearbyMeetingRepository extends MockMeetingRepository {
+  final queries = <NearbyMeetingQuery>[];
+
+  @override
+  Future<List<Meeting>> findNearby(NearbyMeetingQuery query) {
+    queries.add(query);
+    return super.findNearby(query);
   }
 }
 

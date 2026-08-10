@@ -499,20 +499,30 @@ class _DiscoverPageState extends State<DiscoverPage> {
           .where((name) => name.isNotEmpty)
           .toSet()
           .toList(growable: false);
+      final availableCategories = ['전체', ...names];
+      final shouldResetCategory =
+          !availableCategories.contains(_selectedCategory);
       setState(() {
-        _categories = ['전체', ...names];
-        if (!_categories.contains(_selectedCategory)) {
+        _categories = availableCategories;
+        if (shouldResetCategory) {
           _selectedCategory = '전체';
         }
       });
+      if (shouldResetCategory) {
+        unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+      }
     } catch (_) {
       if (!mounted || generation != _categoryRequestGeneration) {
         return;
       }
+      final shouldResetCategory = _selectedCategory != '전체';
       setState(() {
         _categories = const ['전체'];
         _selectedCategory = '전체';
       });
+      if (shouldResetCategory) {
+        unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+      }
     }
   }
 

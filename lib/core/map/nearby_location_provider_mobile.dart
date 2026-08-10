@@ -21,6 +21,9 @@ class _NaverNearbyLocationProvider implements NearbyLocationProvider {
       );
     } catch (_) {
       return null;
+    } finally {
+      tracker.disposeLocationService();
+      tracker.unbindAppLifecycleChange();
     }
   }
 }
