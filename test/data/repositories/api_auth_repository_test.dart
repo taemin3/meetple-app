@@ -1,7 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:meetple/core/network/api_client.dart';
 import 'package:meetple/data/repositories/api_auth_repository.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
+import 'package:meetple/data/repositories/auth_token_refresh_coordinator.dart';
 import 'package:meetple/data/repositories/auth_token_store.dart';
 
 void main() {
@@ -258,6 +263,91 @@ void main() {
     expect((await tokenStore.read())?.accessToken, 'reissued-access-token');
   });
 
+  test('restores with the current token when proactive reissue fails',
+      () async {
+    final accessToken = _jwt(
+      expiresAt: DateTime.utc(2026, 8, 10, 12, 0, 20),
+    );
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: AuthTokenPair(
+        accessToken: accessToken,
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final requestedPaths = <String>[];
+    final httpClient = MockClient((request) async {
+      requestedPaths.add(request.url.path);
+      if (request.url.path == '/api/v1/auth/reissue') {
+        return http.Response(
+          jsonEncode({'message': 'Refresh failed'}),
+          500,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      expect(request.url.path, '/api/v1/users/me');
+      expect(request.headers['Authorization'], 'Bearer $accessToken');
+      return http.Response(
+        jsonEncode(_apiResponse(data: _profileJson())),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+    final refreshCoordinator = AuthTokenRefreshCoordinator(
+      apiClient: HttpApiClient(
+        baseUri: Uri.parse('https://api.example.com'),
+        httpClient: httpClient,
+      ),
+      tokenStore: tokenStore,
+      now: () => DateTime.utc(2026, 8, 10, 12),
+    );
+    final repository = ApiAuthRepository(
+      apiClient: HttpApiClient(
+        baseUri: Uri.parse('https://api.example.com'),
+        httpClient: httpClient,
+        accessTokenProvider: refreshCoordinator.getValidAccessToken,
+        unauthorizedTokenRefresher: refreshCoordinator.refreshAccessToken,
+      ),
+      tokenStore: tokenStore,
+      tokenRefreshCoordinator: refreshCoordinator,
+    );
+
+    final session = await repository.restoreSession();
+
+    expect(session?.accessToken, accessToken);
+    expect(requestedPaths, [
+      '/api/v1/auth/reissue',
+      '/api/v1/users/me',
+    ]);
+    expect((await tokenStore.read())?.accessToken, accessToken);
+  });
+
+  test('does not overwrite tokens rotated while refreshing the profile',
+      () async {
+    final tokenStore = _RotateOnFirstReadTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'old-access-token',
+        refreshToken: 'old-refresh-token',
+      ),
+      rotatedTokens: const AuthTokenPair(
+        accessToken: 'rotated-access-token',
+        refreshToken: 'rotated-refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(
+      responses: [_apiResponse(data: _profileJson())],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+
+    final session = await repository.refreshSession();
+
+    expect(session?.accessToken, 'rotated-access-token');
+    expect(session?.refreshToken, 'rotated-refresh-token');
+    expect((await tokenStore.read())?.accessToken, 'rotated-access-token');
+  });
+
   test('preserves current session when profile refresh fails transiently',
       () async {
     final tokenStore = MemoryAuthTokenStore();
@@ -357,6 +447,84 @@ void main() {
     expect(apiClient.requests.single.path, '/api/v1/auth/logout');
     expect(apiClient.requests.single.includeAuthorization, isTrue);
     expect(apiClient.requests.single.body, {'refreshToken': 'refresh-token'});
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('signs out with the rotated refresh token after proactive refresh',
+      () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: AuthTokenPair(
+        accessToken: _jwt(expiresAt: DateTime.utc(2026, 8, 10, 11)),
+        refreshToken: 'old-refresh-token',
+      ),
+    );
+    final refreshApiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'accessToken': 'new-access-token',
+            'refreshToken': 'new-refresh-token',
+          },
+        ),
+      ],
+    );
+    final logoutApiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: logoutApiClient,
+      tokenStore: tokenStore,
+      tokenRefreshCoordinator: AuthTokenRefreshCoordinator(
+        apiClient: refreshApiClient,
+        tokenStore: tokenStore,
+        now: () => DateTime.utc(2026, 8, 10, 12),
+      ),
+    );
+
+    await repository.signOut();
+
+    expect(refreshApiClient.requests.single.path, '/api/v1/auth/reissue');
+    expect(logoutApiClient.requests.single.body, {
+      'refreshToken': 'new-refresh-token',
+    });
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('still requests server logout when proactive refresh fails transiently',
+      () async {
+    final accessToken = _jwt(
+      expiresAt: DateTime.utc(2026, 8, 10, 12, 0, 20),
+    );
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: AuthTokenPair(
+        accessToken: accessToken,
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final refreshApiClient = FakeApiClient(
+      responses: [
+        const ApiException(statusCode: 500, message: 'Refresh failed'),
+      ],
+    );
+    final logoutApiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: logoutApiClient,
+      tokenStore: tokenStore,
+      tokenRefreshCoordinator: AuthTokenRefreshCoordinator(
+        apiClient: refreshApiClient,
+        tokenStore: tokenStore,
+        now: () => DateTime.utc(2026, 8, 10, 12),
+      ),
+    );
+
+    await repository.signOut();
+
+    expect(refreshApiClient.requests.single.path, '/api/v1/auth/reissue');
+    expect(logoutApiClient.requests.single.body, {
+      'refreshToken': 'refresh-token',
+    });
     expect(await tokenStore.read(), isNull);
   });
 
@@ -540,6 +708,16 @@ Map<String, dynamic> _profileJson({
   };
 }
 
+String _jwt({required DateTime expiresAt}) {
+  final header = base64Url.encode(utf8.encode(jsonEncode({'alg': 'none'})));
+  final payload = base64Url.encode(
+    utf8.encode(
+      jsonEncode({'exp': expiresAt.millisecondsSinceEpoch ~/ 1000}),
+    ),
+  );
+  return '$header.$payload.signature';
+}
+
 class RecordedApiRequest {
   const RecordedApiRequest({
     required this.method,
@@ -607,5 +785,36 @@ class FakeApiClient extends ApiClient {
     }
 
     return response as Map<String, dynamic>;
+  }
+}
+
+class _RotateOnFirstReadTokenStore implements AuthTokenStore {
+  _RotateOnFirstReadTokenStore({
+    required AuthTokenPair initialTokens,
+    required this.rotatedTokens,
+  }) : _tokens = initialTokens;
+
+  final AuthTokenPair rotatedTokens;
+  AuthTokenPair? _tokens;
+  bool _shouldRotate = true;
+
+  @override
+  Future<AuthTokenPair?> read() async {
+    final tokens = _tokens;
+    if (_shouldRotate) {
+      _shouldRotate = false;
+      _tokens = rotatedTokens;
+    }
+    return tokens;
+  }
+
+  @override
+  Future<void> write(AuthTokenPair tokens) async {
+    _tokens = tokens;
+  }
+
+  @override
+  Future<void> clear() async {
+    _tokens = null;
   }
 }

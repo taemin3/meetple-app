@@ -30,6 +30,7 @@ class AuthEntryGate extends StatefulWidget {
   const AuthEntryGate({
     super.key,
     this.authRepository,
+    this.authSessionExpired,
     this.pushNotificationService = const NoopPushNotificationService(),
     required this.meetingRepository,
     required this.notificationRepository,
@@ -41,6 +42,7 @@ class AuthEntryGate extends StatefulWidget {
   });
 
   final AuthRepository? authRepository;
+  final Stream<void>? authSessionExpired;
   final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
@@ -60,6 +62,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   AuthSession? _session;
   int _restoreGeneration = 0;
   StreamSubscription<PushNotificationMessage>? _openedNotificationSubscription;
+  StreamSubscription<void>? _authSessionExpiredSubscription;
   PushNotificationMessage? _pendingOpenedNotification;
   bool _notificationNavigationScheduled = false;
   bool _openingNotification = false;
@@ -70,6 +73,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   void initState() {
     super.initState();
     _authRepository = widget.authRepository ?? MockAuthRepository();
+    _subscribeToAuthSessionExpiration();
     _subscribeToOpenedNotifications();
     _restoreSession();
   }
@@ -81,6 +85,10 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       _authRepository = widget.authRepository ?? MockAuthRepository();
       _restoreSession();
     }
+    if (oldWidget.authSessionExpired != widget.authSessionExpired) {
+      unawaited(_authSessionExpiredSubscription?.cancel());
+      _subscribeToAuthSessionExpiration();
+    }
     if (oldWidget.pushNotificationService != widget.pushNotificationService) {
       unawaited(_openedNotificationSubscription?.cancel());
       _subscribeToOpenedNotifications();
@@ -90,6 +98,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   @override
   void dispose() {
     unawaited(_openedNotificationSubscription?.cancel());
+    unawaited(_authSessionExpiredSubscription?.cancel());
     super.dispose();
   }
 
@@ -172,6 +181,19 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       _session = null;
       _state = _AuthEntryState.signedOut;
     });
+  }
+
+  void _subscribeToAuthSessionExpiration() {
+    _authSessionExpiredSubscription =
+        widget.authSessionExpired?.listen((_) => _handleSessionExpired());
+  }
+
+  void _handleSessionExpired() {
+    if (!mounted || _state != _AuthEntryState.signedIn) {
+      return;
+    }
+    Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    _showSignedOut();
   }
 
   Future<void> _activatePushNotifications() async {

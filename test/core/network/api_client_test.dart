@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -132,5 +134,70 @@ void main() {
     final response = await client.getJson('/api/v1/meetings');
 
     expect(response['success'], true);
+  });
+
+  test('refreshes once and retries an unauthorized request', () async {
+    var requestCount = 0;
+    final client = HttpApiClient(
+      baseUri: Uri.parse('http://localhost:8080'),
+      accessTokenProvider: () => 'expired-access-token',
+      unauthorizedTokenRefresher: (rejectedAccessToken) async {
+        expect(rejectedAccessToken, 'expired-access-token');
+        return 'new-access-token';
+      },
+      httpClient: MockClient((request) async {
+        requestCount += 1;
+        final token = request.headers['Authorization'];
+        if (requestCount == 1) {
+          expect(token, 'Bearer expired-access-token');
+          return http.Response('{"message":"expired"}', 401);
+        }
+        expect(token, 'Bearer new-access-token');
+        return http.Response('{"success":true}', 200);
+      }),
+    );
+
+    final response = await client.getJson('/api/v1/meetings');
+
+    expect(response['success'], true);
+    expect(requestCount, 2);
+  });
+
+  test('does not retry an unauthorized request more than once', () async {
+    var requestCount = 0;
+    final client = HttpApiClient(
+      baseUri: Uri.parse('http://localhost:8080'),
+      accessTokenProvider: () => 'expired-access-token',
+      unauthorizedTokenRefresher: (_) async => 'new-access-token',
+      httpClient: MockClient((request) async {
+        requestCount += 1;
+        return http.Response('{"message":"unauthorized"}', 401);
+      }),
+    );
+
+    await expectLater(
+      client.getJson('/api/v1/meetings'),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.statusCode,
+          'statusCode',
+          401,
+        ),
+      ),
+    );
+    expect(requestCount, 2);
+  });
+
+  test('times out a stalled request', () async {
+    final client = HttpApiClient(
+      baseUri: Uri.parse('http://localhost:8080'),
+      requestTimeout: const Duration(milliseconds: 10),
+      httpClient: MockClient((request) => Completer<http.Response>().future),
+    );
+
+    await expectLater(
+      client.getJson('/api/v1/meetings'),
+      throwsA(isA<TimeoutException>()),
+    );
   });
 }

@@ -24,6 +24,7 @@ class MeetpleApp extends StatelessWidget {
   const MeetpleApp({
     super.key,
     this.authRepository,
+    this.authSessionExpired,
     this.pushNotificationService = const NoopPushNotificationService(),
     this.meetingRepository = const MockMeetingRepository(),
     this.notificationRepository = const MockNotificationRepository(),
@@ -35,6 +36,7 @@ class MeetpleApp extends StatelessWidget {
   });
 
   final AuthRepository? authRepository;
+  final Stream<void>? authSessionExpired;
   final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
@@ -53,6 +55,7 @@ class MeetpleApp extends StatelessWidget {
       navigatorObservers: [appRouteObserver],
       home: AuthEntryGate(
         authRepository: authRepository,
+        authSessionExpired: authSessionExpired,
         pushNotificationService: pushNotificationService,
         meetingRepository: meetingRepository,
         notificationRepository: notificationRepository,

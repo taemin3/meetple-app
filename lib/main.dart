@@ -22,6 +22,7 @@ Future<void> main() async {
 
   runApp(
     MeetpleApp(
+      authSessionExpired: apiAuthSessionExpired,
       authRepository: createAuthRepository(
         logoutDeviceIdProvider: pushNotificationService.deviceId,
         beforeSignOut: pushNotificationService.deactivate,

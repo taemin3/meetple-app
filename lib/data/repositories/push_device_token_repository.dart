@@ -16,11 +16,13 @@ class ApiPushDeviceTokenRepository implements PushDeviceTokenRepository {
   factory ApiPushDeviceTokenRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     required AccessTokenProvider accessTokenProvider,
+    UnauthorizedTokenRefresher? unauthorizedTokenRefresher,
   }) {
     return ApiPushDeviceTokenRepository(
       apiClient: HttpApiClient(
         baseUri: Uri.parse(baseUrl),
         accessTokenProvider: accessTokenProvider,
+        unauthorizedTokenRefresher: unauthorizedTokenRefresher,
       ),
     );
   }

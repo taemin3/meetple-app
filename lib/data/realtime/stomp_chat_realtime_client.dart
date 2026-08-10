@@ -11,10 +11,12 @@ class StompChatRealtimeClient implements ChatRealtimeClient {
   const StompChatRealtimeClient({
     required this.baseUrl,
     required this.accessTokenProvider,
+    this.unauthorizedTokenRefresher,
   });
 
   final String baseUrl;
   final AccessTokenProvider accessTokenProvider;
+  final UnauthorizedTokenRefresher? unauthorizedTokenRefresher;
 
   @override
   ChatRealtimeSession openRoom({
@@ -25,6 +27,7 @@ class StompChatRealtimeClient implements ChatRealtimeClient {
       roomId: roomId,
       webSocketUrl: chatWebSocketUrl(baseUrl),
       accessTokenProvider: accessTokenProvider,
+      unauthorizedTokenRefresher: unauthorizedTokenRefresher,
     );
   }
 }
@@ -102,11 +105,13 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
     required this.roomId,
     required this.webSocketUrl,
     required this.accessTokenProvider,
+    this.unauthorizedTokenRefresher,
   });
 
   final int roomId;
   final String webSocketUrl;
   final AccessTokenProvider accessTokenProvider;
+  final UnauthorizedTokenRefresher? unauthorizedTokenRefresher;
   final StreamController<ChatRealtimeConnectionState> _stateController =
       StreamController<ChatRealtimeConnectionState>.broadcast();
   final StreamController<ChatMessage> _messageController =
@@ -121,6 +126,8 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
   bool _activating = false;
   bool _connected = false;
   bool _closed = false;
+  bool _refreshingUnauthorizedToken = false;
+  String? _activeAccessToken;
 
   @override
   Stream<ChatRealtimeConnectionState> get connectionStates =>
@@ -153,6 +160,7 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
         _emitState(ChatRealtimeConnectionState.disconnected);
         return;
       }
+      _activeAccessToken = token;
 
       final client = StompClient(
         config: StompConfig(
@@ -250,6 +258,19 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
 
   void _onStompError(StompFrame frame) {
     if (_closed) return;
+    final rejectedAccessToken = _activeAccessToken;
+    if (isUnauthorizedStompError(
+          body: frame.body,
+          headerMessage: frame.headers['message'],
+        ) &&
+        rejectedAccessToken != null &&
+        unauthorizedTokenRefresher != null &&
+        !_refreshingUnauthorizedToken) {
+      _refreshingUnauthorizedToken = true;
+      _connected = false;
+      unawaited(_refreshAfterUnauthorized(rejectedAccessToken));
+      return;
+    }
     final headerMessage = frame.headers['message'];
     _emitError(
       _errorMessageFrom(
@@ -260,6 +281,21 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
     _handleDisconnected();
   }
 
+  Future<void> _refreshAfterUnauthorized(String rejectedAccessToken) async {
+    try {
+      await unauthorizedTokenRefresher?.call(rejectedAccessToken);
+    } on Exception {
+      _emitError('로그인 정보를 갱신하지 못했습니다.');
+    } finally {
+      if (!_closed) {
+        _refreshingUnauthorizedToken = false;
+        _activating = false;
+        _activeAccessToken = null;
+        _emitState(ChatRealtimeConnectionState.disconnected);
+      }
+    }
+  }
+
   void _handleTransportError(String message) {
     if (_closed) return;
     _emitError(message);
@@ -268,6 +304,10 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
 
   void _handleDisconnected() {
     if (_closed) return;
+    if (_refreshingUnauthorizedToken) {
+      _connected = false;
+      return;
+    }
     _activating = false;
     _connected = false;
     _emitState(ChatRealtimeConnectionState.disconnected);
@@ -299,6 +339,8 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
     _closed = true;
     _activating = false;
     _connected = false;
+    _refreshingUnauthorizedToken = false;
+    _activeAccessToken = null;
     _unsubscribeRoom?.call();
     _unsubscribeErrors?.call();
     _unsubscribeControl?.call();
@@ -321,6 +363,22 @@ class _StompChatRealtimeSession implements ChatRealtimeSession {
       _errorController.add(ChatRealtimeException(message));
     }
   }
+}
+
+bool isUnauthorizedStompError({String? body, String? headerMessage}) {
+  if (body != null && body.isNotEmpty) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['status'] == 401) {
+        return true;
+      }
+    } on FormatException {
+      // Fall through to the STOMP error header.
+    }
+  }
+  final message = headerMessage?.toLowerCase();
+  return message?.contains('401') == true ||
+      message?.contains('unauthorized') == true;
 }
 
 String _errorMessageFrom(String? body, {String? fallback}) {

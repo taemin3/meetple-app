@@ -68,4 +68,23 @@ void main() {
       ),
     );
   });
+
+  test('recognizes unauthorized STOMP errors for token refresh', () {
+    expect(
+      isUnauthorizedStompError(
+        body: '{"status":401,"message":"expired"}',
+      ),
+      isTrue,
+    );
+    expect(
+      isUnauthorizedStompError(headerMessage: '401 Unauthorized'),
+      isTrue,
+    );
+    expect(
+      isUnauthorizedStompError(
+        body: '{"status":403,"message":"forbidden"}',
+      ),
+      isFalse,
+    );
+  });
 }

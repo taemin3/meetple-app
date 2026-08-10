@@ -10,10 +10,12 @@ class ApiLocationRepository implements LocationRepository {
   ApiLocationRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     AccessTokenProvider? accessTokenProvider,
+    UnauthorizedTokenRefresher? unauthorizedTokenRefresher,
   }) : this(
           apiClient: HttpApiClient(
             baseUri: Uri.parse(baseUrl),
             accessTokenProvider: accessTokenProvider,
+            unauthorizedTokenRefresher: unauthorizedTokenRefresher,
           ),
         );
 

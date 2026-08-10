@@ -11,10 +11,12 @@ class ApiChatRepository
   ApiChatRepository.withBaseUrl({
     String baseUrl = AppConfig.apiBaseUrl,
     AccessTokenProvider? accessTokenProvider,
+    UnauthorizedTokenRefresher? unauthorizedTokenRefresher,
   }) : this(
           apiClient: HttpApiClient(
             baseUri: Uri.parse(baseUrl),
             accessTokenProvider: accessTokenProvider,
+            unauthorizedTokenRefresher: unauthorizedTokenRefresher,
           ),
         );
 
