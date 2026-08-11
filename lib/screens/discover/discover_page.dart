@@ -928,7 +928,7 @@ class GlobalMeetingSearchEntry extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '전체 모임에서 ‘$keyword’ 검색',
+                  '전국에서 ‘$keyword’ 검색',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(

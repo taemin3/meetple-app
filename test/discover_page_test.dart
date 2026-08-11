@@ -108,9 +108,9 @@ void main() {
       find.byKey(const Key('discover-global-search-entry')),
       findsOneWidget,
     );
-    expect(find.text('전체 모임에서 ‘러닝’ 검색'), findsOneWidget);
+    expect(find.text('전국에서 ‘러닝’ 검색'), findsOneWidget);
 
-    await tester.tap(find.text('전체 모임에서 ‘러닝’ 검색'));
+    await tester.tap(find.text('전국에서 ‘러닝’ 검색'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('global-meeting-search-page')), findsOneWidget);

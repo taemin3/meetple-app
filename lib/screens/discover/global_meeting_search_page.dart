@@ -301,7 +301,7 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
                       onChanged: (_) => setState(() {}),
                       onSubmitted: _submitSearch,
                       decoration: InputDecoration(
-                        hintText: '전체 모임 검색',
+                        hintText: '전국 모임 검색',
                         prefixIcon: const Icon(Icons.search_rounded),
                         suffixIcon: _searchController.text.isEmpty
                             ? null
@@ -340,7 +340,7 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
                   final selected = category == _selectedCategory;
                   return ChoiceChip(
                     key: ValueKey('global-search-category-$category'),
-                    label: Text(category == '전체' ? '전체 카테고리' : category),
+                    label: Text(category == '전체' ? '전체' : category),
                     selected: selected,
                     onSelected: (_) => _selectCategory(category),
                     selectedColor: AppColors.primary,
@@ -407,20 +407,20 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
     }
     if (_isLoading) {
       return const AppLoadingView(
-        message: '전체 모임을 검색하고 있습니다.',
+        message: '전국 모임을 검색하고 있습니다.',
         height: double.infinity,
       );
     }
     if (_loadError != null) {
       return AppErrorView(
-        message: '전체 모임 검색 결과를 불러오지 못했습니다.',
+        message: '전국 모임 검색 결과를 불러오지 못했습니다.',
         height: double.infinity,
         onRetry: _loadFirstPage,
       );
     }
     if (_meetings.isEmpty) {
       return AppEmptyView(
-        message: '전체 모임에서 ‘$_submittedKeyword’을 찾지 못했어요.',
+        message: '전국에서 ‘$_submittedKeyword’ 모임을 찾지 못했어요.',
         height: double.infinity,
       );
     }

@@ -86,7 +86,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('전체 모임에서 ‘없는모임’을 찾지 못했어요.'), findsOneWidget);
+    expect(find.text('전국에서 ‘없는모임’ 모임을 찾지 못했어요.'), findsOneWidget);
   });
 
   testWidgets('shows a retry action when global search fails', (tester) async {
@@ -103,7 +103,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('전체 모임 검색 결과를 불러오지 못했습니다.'), findsOneWidget);
+    expect(find.text('전국 모임 검색 결과를 불러오지 못했습니다.'), findsOneWidget);
     await tester.tap(find.text('다시 시도'));
     await tester.pumpAndSettle();
 
