@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/data/repositories/category_repository.dart';
 import 'package:meetple/data/repositories/meeting_repository.dart';
+import 'package:meetple/data/repositories/mock_image_upload_repository.dart';
+import 'package:meetple/data/repositories/mock_location_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
+import 'package:meetple/models/meeting_category.dart';
 import 'package:meetple/screens/discover/global_meeting_search_page.dart';
+import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
 
 void main() {
   testWidgets('searches globally with the selected category and origin',
@@ -102,6 +109,106 @@ void main() {
 
     expect(repository.calls, 2);
   });
+
+  testWidgets('updates category filters after the page is opened',
+      (tester) async {
+    final categoryRepository = _DeferredCategoryRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GlobalMeetingSearchPage(
+          meetingRepository: _RecordingSearchRepository(),
+          categoryRepository: categoryRepository,
+          initialKeyword: '러닝',
+          originLatitude: 37.5219,
+          originLongitude: 126.9245,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('global-search-category-운동')),
+      findsNothing,
+    );
+
+    categoryRepository.complete(const [
+      MeetingCategory(id: 1, name: '운동'),
+      MeetingCategory(id: 2, name: '스터디'),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('global-search-category-운동')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('global-search-category-스터디')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('preserves edit repositories and notifies meeting changes',
+      (tester) async {
+    final meetingRepository = _RecordingSearchRepository();
+    final categoryRepository = _StaticCategoryRepository();
+    const locationRepository = MockLocationRepository();
+    const imageUploadRepository = MockImageUploadRepository();
+    var changeCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GlobalMeetingSearchPage(
+          meetingRepository: meetingRepository,
+          categoryRepository: categoryRepository,
+          locationRepository: locationRepository,
+          imageUploadRepository: imageUploadRepository,
+          initialKeyword: '러닝',
+          originLatitude: 37.5219,
+          originLongitude: 126.9245,
+          onMeetingChanged: () => changeCount += 1,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('global-search-meeting-1')),
+    );
+    await tester.pumpAndSettle();
+
+    final detailPage = tester.widget<MeetingDetailPage>(
+      find.byType(MeetingDetailPage),
+    );
+    expect(detailPage.meetingRepository, same(meetingRepository));
+    expect(detailPage.categoryRepository, same(categoryRepository));
+    expect(detailPage.locationRepository, same(locationRepository));
+    expect(detailPage.imageUploadRepository, same(imageUploadRepository));
+
+    Navigator.of(
+      tester.element(find.byType(MeetingDetailPage)),
+    ).pop(true);
+    await tester.pumpAndSettle();
+
+    expect(changeCount, 1);
+    expect(meetingRepository.queries, hasLength(2));
+  });
+}
+
+class _DeferredCategoryRepository implements CategoryRepository {
+  final _completer = Completer<List<MeetingCategory>>();
+
+  @override
+  Future<List<MeetingCategory>> findAll() => _completer.future;
+
+  void complete(List<MeetingCategory> categories) {
+    _completer.complete(categories);
+  }
+}
+
+class _StaticCategoryRepository implements CategoryRepository {
+  @override
+  Future<List<MeetingCategory>> findAll() async {
+    return const [MeetingCategory(id: 1, name: '운동')];
+  }
 }
 
 class _RecordingSearchRepository extends MockMeetingRepository {

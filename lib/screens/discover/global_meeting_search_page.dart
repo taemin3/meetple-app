@@ -4,7 +4,13 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../data/repositories/category_repository.dart';
+import '../../data/repositories/image_upload_repository.dart';
+import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/mock_category_repository.dart';
+import '../../data/repositories/mock_image_upload_repository.dart';
+import '../../data/repositories/mock_location_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/meeting_list_card.dart';
@@ -13,19 +19,27 @@ class GlobalMeetingSearchPage extends StatefulWidget {
   const GlobalMeetingSearchPage({
     super.key,
     required this.meetingRepository,
+    this.categoryRepository = const MockCategoryRepository(),
+    this.locationRepository = const MockLocationRepository(),
+    this.imageUploadRepository = const MockImageUploadRepository(),
     required this.initialKeyword,
     required this.originLatitude,
     required this.originLongitude,
     this.categories = const ['전체'],
     this.initialCategory,
+    this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
+  final CategoryRepository categoryRepository;
+  final LocationRepository locationRepository;
+  final ImageUploadRepository imageUploadRepository;
   final String initialKeyword;
   final double originLatitude;
   final double originLongitude;
   final List<String> categories;
   final String? initialCategory;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<GlobalMeetingSearchPage> createState() =>
@@ -39,6 +53,7 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
   final ScrollController _scrollController = ScrollController();
 
   List<Meeting> _meetings = const [];
+  late List<String> _categories;
   late String _submittedKeyword;
   late String _selectedCategory;
   Object? _loadError;
@@ -46,6 +61,7 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
   int _totalElements = 0;
   int _nextPage = 0;
   int _requestGeneration = 0;
+  int _categoryRequestGeneration = 0;
   bool _hasNextPage = false;
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -55,14 +71,17 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
     super.initState();
     _submittedKeyword = widget.initialKeyword.trim();
     _searchController = TextEditingController(text: _submittedKeyword);
+    _categories = _resolveInitialCategories();
     _selectedCategory = _resolveInitialCategory();
     _scrollController.addListener(_handleScroll);
+    unawaited(_loadCategories());
     unawaited(_loadFirstPage());
   }
 
   @override
   void dispose() {
     _requestGeneration += 1;
+    _categoryRequestGeneration += 1;
     _scrollController
       ..removeListener(_handleScroll)
       ..dispose();
@@ -74,10 +93,54 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
     final category = widget.initialCategory?.trim();
     if (category != null &&
         category.isNotEmpty &&
-        widget.categories.contains(category)) {
+        _categories.contains(category)) {
       return category;
     }
     return '전체';
+  }
+
+  List<String> _resolveInitialCategories() {
+    final categories = <String>{
+      '전체',
+      ...widget.categories.map((category) => category.trim()).where(
+            (category) => category.isNotEmpty && category != '전체',
+          ),
+    };
+    final initialCategory = widget.initialCategory?.trim();
+    if (initialCategory != null && initialCategory.isNotEmpty) {
+      categories.add(initialCategory);
+    }
+    return categories.toList(growable: false);
+  }
+
+  Future<void> _loadCategories() async {
+    final generation = ++_categoryRequestGeneration;
+    try {
+      final categories = await widget.categoryRepository.findAll();
+      if (!mounted || generation != _categoryRequestGeneration) {
+        return;
+      }
+
+      final availableCategories = <String>{
+        '전체',
+        ...categories.map((category) => category.name.trim()).where(
+              (category) => category.isNotEmpty && category != '전체',
+            ),
+      }.toList(growable: false);
+      final shouldResetCategory =
+          !availableCategories.contains(_selectedCategory);
+      setState(() {
+        _categories = availableCategories;
+        if (shouldResetCategory) {
+          _selectedCategory = '전체';
+        }
+      });
+      if (shouldResetCategory) {
+        unawaited(_loadFirstPage());
+      }
+    } catch (_) {
+      // Keep the categories received from the previous screen when loading fails.
+    }
   }
 
   Future<void> _loadFirstPage() async {
@@ -203,8 +266,12 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
       context,
       meeting,
       meetingRepository: widget.meetingRepository,
+      categoryRepository: widget.categoryRepository,
+      locationRepository: widget.locationRepository,
+      imageUploadRepository: widget.imageUploadRepository,
     );
     if (result != null && mounted) {
+      widget.onMeetingChanged?.call();
       await _loadFirstPage();
     }
   }
@@ -266,10 +333,10 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
-                itemCount: widget.categories.length,
+                itemCount: _categories.length,
                 separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
-                  final category = widget.categories[index];
+                  final category = _categories[index];
                   final selected = category == _selectedCategory;
                   return ChoiceChip(
                     key: ValueKey('global-search-category-$category'),

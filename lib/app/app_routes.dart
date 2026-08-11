@@ -114,6 +114,10 @@ abstract final class AppRoutes {
     required List<String> categories,
     String? initialCategory,
     MeetingRepository? meetingRepository,
+    CategoryRepository? categoryRepository,
+    LocationRepository? locationRepository,
+    ImageUploadRepository? imageUploadRepository,
+    VoidCallback? onMeetingChanged,
   }) {
     final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
     return Navigator.of(context).push<T>(
@@ -123,11 +127,21 @@ abstract final class AppRoutes {
           meetingRepository: meetingRepository ??
               repositoryScope?.repository ??
               const MockMeetingRepository(),
+          categoryRepository: categoryRepository ??
+              repositoryScope?.categoryRepository ??
+              const MockCategoryRepository(),
+          locationRepository: locationRepository ??
+              repositoryScope?.locationRepository ??
+              const MockLocationRepository(),
+          imageUploadRepository: imageUploadRepository ??
+              repositoryScope?.imageUploadRepository ??
+              const MockImageUploadRepository(),
           initialKeyword: keyword,
           originLatitude: originLatitude,
           originLongitude: originLongitude,
           categories: categories,
           initialCategory: initialCategory,
+          onMeetingChanged: onMeetingChanged,
         ),
       ),
     );

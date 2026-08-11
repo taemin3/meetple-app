@@ -367,7 +367,18 @@ class _DiscoverPageState extends State<DiscoverPage> {
       categories: List.unmodifiable(categories),
       initialCategory: _selectedCategory == '전체' ? null : _selectedCategory,
       meetingRepository: widget.meetingRepository,
+      categoryRepository: widget.categoryRepository,
+      onMeetingChanged: _handleMeetingChangedFromGlobalSearch,
     );
+  }
+
+  void _handleMeetingChangedFromGlobalSearch() {
+    final onMeetingChanged = widget.onMeetingChanged;
+    if (onMeetingChanged != null) {
+      onMeetingChanged();
+    } else {
+      unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
+    }
   }
 
   void _handleCameraIdle(NearbyMapCoordinate coordinate, double zoom) {
