@@ -96,6 +96,42 @@ class ApiMeetingRepository extends MeetingRepository {
   }
 
   @override
+  Future<MeetingSearchPage> searchMeetings(MeetingSearchQuery query) async {
+    final response = await _apiClient.getJson(
+      '/api/v1/meetings/search',
+      queryParameters: {
+        'keyword': query.keyword.trim(),
+        'category': query.category,
+        'latitude': query.latitude.toString(),
+        'longitude': query.longitude.toString(),
+        'page': query.page.toString(),
+        'size': query.size.toString(),
+      },
+    );
+
+    _ensureSuccess(response);
+
+    final data = _readMap(response['data'], 'data');
+    final totalPages = _readInt(data['totalPages']);
+    return MeetingSearchPage(
+      meetings: [
+        for (final item in _readList(data['content'], 'data.content'))
+          _meetingFromJson(
+            _readMap(item, 'data.content[]'),
+            originLatitude: query.latitude,
+            originLongitude: query.longitude,
+          ),
+      ],
+      page: _readInt(data['page'], fallback: query.page),
+      totalElements: _readInt(data['totalElements']),
+      totalPages: totalPages,
+      isLast: data['last'] == true ||
+          totalPages == 0 ||
+          query.page + 1 >= totalPages,
+    );
+  }
+
+  @override
   Future<Meeting> createMeeting(CreateMeetingInput input) async {
     final response = await _apiClient.postJson(
       '/api/v1/meetings',

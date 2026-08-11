@@ -141,6 +141,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
             ? collapsedSheetHeight - expandedSheetHeight
             : 0.0;
         final visibleMeetings = _visibleMeetings;
+        final globalSearchKeyword = _searchText.trim();
 
         return Stack(
           children: [
@@ -182,11 +183,18 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       selectedCategory: _selectedCategory,
                       onSelected: _selectCategory,
                     ),
+                    if (globalSearchKeyword.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      GlobalMeetingSearchEntry(
+                        keyword: globalSearchKeyword,
+                        onTap: _openGlobalMeetingSearch,
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
-            if (_showSearchAreaButton)
+            if (_showSearchAreaButton && globalSearchKeyword.isEmpty)
               Positioned(
                 top: 130,
                 left: 24,
@@ -217,7 +225,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   ),
                 ),
               )
-            else if (_locationNotice != null)
+            else if (_locationNotice != null && globalSearchKeyword.isEmpty)
               Positioned(
                 top: 130,
                 left: 20,
@@ -337,6 +345,39 @@ class _DiscoverPageState extends State<DiscoverPage> {
       } else {
         await _loadMeetingsAt(_searchCenter, zoom: _searchZoom);
       }
+    }
+  }
+
+  Future<void> _openGlobalMeetingSearch() async {
+    final keyword = _searchText.trim();
+    if (keyword.isEmpty) {
+      return;
+    }
+
+    _searchFocusNode.unfocus();
+    final categories =
+        _selectedCategory == '전체' || _categories.contains(_selectedCategory)
+            ? _categories
+            : [..._categories, _selectedCategory];
+    await AppRoutes.openGlobalMeetingSearch<Object>(
+      context,
+      keyword: keyword,
+      originLatitude: _searchCenter.latitude,
+      originLongitude: _searchCenter.longitude,
+      categories: List.unmodifiable(categories),
+      initialCategory: _selectedCategory == '전체' ? null : _selectedCategory,
+      meetingRepository: widget.meetingRepository,
+      categoryRepository: widget.categoryRepository,
+      onMeetingChanged: _handleMeetingChangedFromGlobalSearch,
+    );
+  }
+
+  void _handleMeetingChangedFromGlobalSearch() {
+    final onMeetingChanged = widget.onMeetingChanged;
+    if (onMeetingChanged != null) {
+      onMeetingChanged();
+    } else {
+      unawaited(_loadMeetingsAt(_searchCenter, zoom: _searchZoom));
     }
   }
 
@@ -850,6 +891,60 @@ class MapSearchRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class GlobalMeetingSearchEntry extends StatelessWidget {
+  const GlobalMeetingSearchEntry({
+    super.key,
+    required this.keyword,
+    required this.onTap,
+  });
+
+  final String keyword;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      key: const Key('discover-global-search-entry'),
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      elevation: 3,
+      shadowColor: const Color(0x2617151F),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.public_rounded,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '전국에서 ‘$keyword’ 검색',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.ink,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppColors.subtle,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

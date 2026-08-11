@@ -48,6 +48,32 @@ class MockMeetingRepository extends MeetingRepository {
   }
 
   @override
+  Future<MeetingSearchPage> searchMeetings(MeetingSearchQuery query) async {
+    final keyword = query.keyword.trim().toLowerCase();
+    final matches = mockMeetings.where((meeting) {
+      final matchesKeyword = meeting.title.toLowerCase().contains(keyword) ||
+          meeting.area.toLowerCase().contains(keyword) ||
+          meeting.category.toLowerCase().contains(keyword);
+      final matchesCategory = query.category == null ||
+          query.category!.isEmpty ||
+          meeting.category == query.category;
+      return matchesKeyword && matchesCategory;
+    }).toList(growable: false);
+    final start = (query.page * query.size).clamp(0, matches.length);
+    final end = (start + query.size).clamp(start, matches.length);
+    final totalPages =
+        matches.isEmpty ? 0 : (matches.length / query.size).ceil();
+
+    return MeetingSearchPage(
+      meetings: matches.sublist(start, end),
+      page: query.page,
+      totalElements: matches.length,
+      totalPages: totalPages,
+      isLast: totalPages == 0 || query.page + 1 >= totalPages,
+    );
+  }
+
+  @override
   Future<Meeting> createMeeting(CreateMeetingInput input) async {
     return Meeting(
       title: input.title,

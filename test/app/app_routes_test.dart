@@ -8,6 +8,7 @@ import 'package:meetple/data/repositories/mock_location_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_engagement.dart';
+import 'package:meetple/screens/discover/global_meeting_search_page.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
 import 'package:meetple/screens/meeting_detail/meeting_edit_page.dart';
 
@@ -62,6 +63,50 @@ void main() {
     expect(editPage.categoryRepository, same(categoryRepository));
     expect(editPage.locationRepository, same(locationRepository));
     expect(editPage.imageUploadRepository, same(imageUploadRepository));
+  });
+
+  testWidgets('passes scoped repositories through the global search route',
+      (tester) async {
+    final meetingRepository = _HostMeetingRepository();
+    const categoryRepository = MockCategoryRepository();
+    const locationRepository = MockLocationRepository();
+    const imageUploadRepository = MockImageUploadRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingRepositoryScope(
+          repository: meetingRepository,
+          categoryRepository: categoryRepository,
+          locationRepository: locationRepository,
+          imageUploadRepository: imageUploadRepository,
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: FilledButton(
+                onPressed: () => AppRoutes.openGlobalMeetingSearch<void>(
+                  context,
+                  keyword: '러닝',
+                  originLatitude: 37.5219,
+                  originLongitude: 126.9245,
+                  categories: const ['전체'],
+                ),
+                child: const Text('전체 검색 열기'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('전체 검색 열기'));
+    await tester.pumpAndSettle();
+
+    final searchPage = tester.widget<GlobalMeetingSearchPage>(
+      find.byType(GlobalMeetingSearchPage),
+    );
+    expect(searchPage.meetingRepository, same(meetingRepository));
+    expect(searchPage.categoryRepository, same(categoryRepository));
+    expect(searchPage.locationRepository, same(locationRepository));
+    expect(searchPage.imageUploadRepository, same(imageUploadRepository));
   });
 }
 
