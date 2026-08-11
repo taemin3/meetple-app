@@ -366,7 +366,11 @@ void main() {
     await tester.pumpAndSettle();
     final initialLoadCount = meetingRepository.findAllCount;
 
-    await tester.tap(find.text('+'));
+    expect(
+      find.byKey(const Key('home-create-meeting-people')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('home-create-meeting-button')));
     await tester.pumpAndSettle();
 
     expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
@@ -491,7 +495,7 @@ void main() {
     await tester.pumpWidget(const MeetpleApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('+'));
+    await tester.tap(find.byKey(const Key('home-create-meeting-button')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('create_meeting_submit')));
@@ -521,7 +525,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('+'));
+    await tester.tap(find.byKey(const Key('home-create-meeting-button')));
     await tester.pumpAndSettle();
 
     expect(find.text('러닝'), findsOneWidget);
@@ -556,7 +560,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('+'));
+    await tester.tap(find.byKey(const Key('home-create-meeting-button')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('create_meeting_location_name')));
