@@ -626,7 +626,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       builder: (context) {
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 4, 24, 28),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -158,9 +158,9 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             child: ListView(
               key: const Key('meeting_form_scroll_view'),
               padding: EdgeInsets.fromLTRB(
-                24,
+                16,
                 18,
-                24,
+                16,
                 24 + keyboardInset,
               ),
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -252,7 +252,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             child: SafeArea(
               top: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 12),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: PrimaryButton(
                   key: const Key('create_meeting_submit'),
                   label: widget.isEditing ? '수정 완료' : '모임 만들기',
