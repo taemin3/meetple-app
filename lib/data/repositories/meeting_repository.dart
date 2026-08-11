@@ -12,6 +12,10 @@ abstract class MeetingRepository {
 
   Future<List<Meeting>> findNearby(NearbyMeetingQuery query);
 
+  Future<MeetingSearchPage> searchMeetings(MeetingSearchQuery query) {
+    throw UnimplementedError();
+  }
+
   Future<Meeting> createMeeting(CreateMeetingInput input);
 
   Future<MeetingEngagement> getEngagement(int meetingId) {
@@ -103,6 +107,42 @@ class NearbyMeetingQuery {
   final String? category;
   final int page;
   final int size;
+}
+
+class MeetingSearchQuery {
+  const MeetingSearchQuery({
+    required this.keyword,
+    required this.latitude,
+    required this.longitude,
+    this.category,
+    this.page = 0,
+    this.size = 20,
+  });
+
+  final String keyword;
+  final double latitude;
+  final double longitude;
+  final String? category;
+  final int page;
+  final int size;
+}
+
+class MeetingSearchPage {
+  const MeetingSearchPage({
+    required this.meetings,
+    required this.page,
+    required this.totalElements,
+    required this.totalPages,
+    required this.isLast,
+  });
+
+  final List<Meeting> meetings;
+  final int page;
+  final int totalElements;
+  final int totalPages;
+  final bool isLast;
+
+  bool get hasNext => !isLast && page + 1 < totalPages;
 }
 
 class CreateMeetingInput {

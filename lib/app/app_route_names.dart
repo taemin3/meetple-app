@@ -5,6 +5,7 @@ abstract final class AppRouteNames {
   static const discover = '/discover';
   static const createMeeting = '/meetings/create';
   static const meetingDetail = '/meetings/detail';
+  static const meetingSearch = '/meetings/search';
   static const chat = '/chat';
   static const profile = '/profile';
 }

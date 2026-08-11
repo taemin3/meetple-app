@@ -133,6 +133,70 @@ void main() {
     expect(meetings.single.imageUrls, hasLength(2));
   });
 
+  test('requests paged global search results with origin coordinates',
+      () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'content': [
+            {
+              'id': 12,
+              'hostId': 3,
+              'hostNickname': '지민',
+              'categoryName': '운동',
+              'title': '전국 러닝 모임',
+              'description': '함께 달려요.',
+              'locationName': '여의도공원',
+              'address': '서울 영등포구',
+              'latitude': 37.5219,
+              'longitude': 126.9245,
+              'scheduledAt': '2026-07-25T19:30:00',
+              'capacity': 10,
+              'currentPeople': 4,
+              'status': 'RECRUITING',
+            },
+          ],
+          'page': 1,
+          'size': 20,
+          'totalElements': 24,
+          'totalPages': 2,
+          'first': false,
+          'last': true,
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final result = await repository.searchMeetings(
+      const MeetingSearchQuery(
+        keyword: ' 러닝 ',
+        category: '운동',
+        latitude: 37.5219,
+        longitude: 126.9245,
+        page: 1,
+      ),
+    );
+
+    expect(apiClient.path, '/api/v1/meetings/search');
+    expect(apiClient.queryParameters, {
+      'keyword': '러닝',
+      'category': '운동',
+      'latitude': '37.5219',
+      'longitude': '126.9245',
+      'page': '1',
+      'size': '20',
+    });
+    expect(result.meetings.single.title, '전국 러닝 모임');
+    expect(result.meetings.single.distance, '0m');
+    expect(result.page, 1);
+    expect(result.totalElements, 24);
+    expect(result.totalPages, 2);
+    expect(result.isLast, isTrue);
+    expect(result.hasNext, isFalse);
+  });
+
   test('maps participation applicant details and timestamps', () async {
     final apiClient = FakeApiClient(
       response: {

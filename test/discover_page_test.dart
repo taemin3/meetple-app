@@ -85,6 +85,50 @@ void main() {
     expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
   });
 
+  testWidgets('opens global search entry and preserves the map query on return',
+      (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DiscoverPage(
+            meetingRepository: MockMeetingRepository(),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const Key('discover-search-field')),
+      '러닝',
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const Key('discover-global-search-entry')),
+      findsOneWidget,
+    );
+    expect(find.text('전체 모임에서 ‘러닝’ 검색'), findsOneWidget);
+
+    await tester.tap(find.text('전체 모임에서 ‘러닝’ 검색'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('global-meeting-search-page')), findsOneWidget);
+    expect(find.textContaining('‘러닝’ 검색 결과'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('뒤로 가기'));
+    await tester.pumpAndSettle();
+
+    final searchField = tester.widget<TextField>(
+      find.byKey(const Key('discover-search-field')),
+    );
+    expect(searchField.controller?.text, '러닝');
+    expect(
+      find.byKey(const Key('discover-global-search-entry')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('opens meeting detail from a nearby meeting card',
       (tester) async {
     await tester.pumpWidget(

@@ -15,6 +15,7 @@ import '../models/meeting.dart';
 import '../screens/auth/login_page.dart';
 import '../screens/auth/signup_page.dart';
 import '../screens/create_meeting/create_meeting_page.dart';
+import '../screens/discover/global_meeting_search_page.dart';
 import '../screens/meeting_detail/meeting_detail_page.dart';
 import 'app_route_names.dart';
 import 'meeting_repository_scope.dart';
@@ -100,6 +101,33 @@ abstract final class AppRoutes {
               locationRepository ?? repositoryScope?.locationRepository,
           imageUploadRepository:
               imageUploadRepository ?? repositoryScope?.imageUploadRepository,
+        ),
+      ),
+    );
+  }
+
+  static Future<T?> openGlobalMeetingSearch<T>(
+    BuildContext context, {
+    required String keyword,
+    required double originLatitude,
+    required double originLongitude,
+    required List<String> categories,
+    String? initialCategory,
+    MeetingRepository? meetingRepository,
+  }) {
+    final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
+    return Navigator.of(context).push<T>(
+      MaterialPageRoute<T>(
+        settings: const RouteSettings(name: AppRouteNames.meetingSearch),
+        builder: (_) => GlobalMeetingSearchPage(
+          meetingRepository: meetingRepository ??
+              repositoryScope?.repository ??
+              const MockMeetingRepository(),
+          initialKeyword: keyword,
+          originLatitude: originLatitude,
+          originLongitude: originLongitude,
+          categories: categories,
+          initialCategory: initialCategory,
         ),
       ),
     );
