@@ -18,7 +18,6 @@ import '../../models/meeting_category.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/meeting_list_card.dart';
-import '../../widgets/primary_button.dart';
 import '../../widgets/section_title.dart';
 import '../notifications/notifications_page.dart';
 
@@ -540,11 +539,54 @@ class CreateMeetingBanner extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 90,
-            child: PrimaryButton(
-              label: '+',
-              onPressed: () => _openCreateMeeting(context),
+            width: 104,
+            height: 92,
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Transform.translate(
+                    offset: const Offset(0, 6),
+                    child: Image.asset(
+                      'assets/images/create_meeting_people.png',
+                      key: const Key('home-create-meeting-people'),
+                      fit: BoxFit.contain,
+                      alignment: Alignment.bottomCenter,
+                      cacheWidth: 360,
+                      excludeFromSemantics: true,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  child: Semantics(
+                    button: true,
+                    label: '모임 만들기',
+                    child: Material(
+                      color: Colors.white,
+                      elevation: 6,
+                      shadowColor: const Color(0x4D2F1A66),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        key: const Key('home-create-meeting-button'),
+                        onTap: () => _openCreateMeeting(context),
+                        customBorder: const CircleBorder(),
+                        child: const SizedBox.square(
+                          dimension: 54,
+                          child: Icon(
+                            Icons.add_rounded,
+                            color: AppColors.primary,
+                            size: 31,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
