@@ -96,6 +96,7 @@ class Meeting {
     String? status,
     DateTime? scheduledAt,
     DateTime? endsAt,
+    bool clearEndsAt = false,
     String? cancelReason,
   }) {
     return Meeting(
@@ -124,7 +125,7 @@ class Meeting {
       imageUrls: imageUrls ?? this.imageUrls,
       status: status ?? this.status,
       scheduledAt: scheduledAt ?? this.scheduledAt,
-      endsAt: endsAt ?? this.endsAt,
+      endsAt: clearEndsAt ? null : endsAt ?? this.endsAt,
       cancelReason: cancelReason ?? this.cancelReason,
     );
   }

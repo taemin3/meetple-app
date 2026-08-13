@@ -768,7 +768,7 @@ class MeetingMetaSummary extends StatelessWidget {
         const SizedBox(width: 6),
         Expanded(
           child: Text(
-            '${meeting.date} · ${meeting.time}',
+            _meetingScheduleLabel(meeting),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -810,7 +810,7 @@ class MeetingInfoSection extends StatelessWidget {
         DetailInfoItem(
           icon: Icons.schedule_rounded,
           label: '일시',
-          value: '${meeting.date}  ${meeting.time}',
+          value: _meetingScheduleLabel(meeting),
         ),
         DetailInfoItem(
           icon: Icons.location_on_outlined,
@@ -832,6 +832,34 @@ class MeetingInfoSection extends StatelessWidget {
     );
   }
 }
+
+String _meetingScheduleLabel(Meeting meeting) {
+  final scheduledAt = meeting.scheduledAt?.toLocal();
+  if (scheduledAt == null) {
+    return '${meeting.date} ${meeting.time}';
+  }
+
+  final startLabel =
+      '${scheduledAt.month}/${scheduledAt.day} ${_twoDigits(scheduledAt.hour)}:${_twoDigits(scheduledAt.minute)}';
+  final endsAt = meeting.endsAt?.toLocal();
+  if (endsAt == null) {
+    return '$startLabel 시작 · 종료 미정';
+  }
+
+  final endTime = '${_twoDigits(endsAt.hour)}:${_twoDigits(endsAt.minute)}';
+  if (_isSameDate(scheduledAt, endsAt)) {
+    return '$startLabel ~ $endTime';
+  }
+  return '$startLabel ~ ${endsAt.month}/${endsAt.day} $endTime';
+}
+
+bool _isSameDate(DateTime left, DateTime right) {
+  return left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
+}
+
+String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
 class DetailInfoItem extends StatelessWidget {
   const DetailInfoItem({

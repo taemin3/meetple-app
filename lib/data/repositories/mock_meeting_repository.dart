@@ -86,6 +86,8 @@ class MockMeetingRepository extends MeetingRepository {
       date: '${input.scheduledAt.month}/${input.scheduledAt.day}',
       time:
           '${_twoDigits(input.scheduledAt.hour)}:${_twoDigits(input.scheduledAt.minute)}',
+      scheduledAt: input.scheduledAt,
+      endsAt: input.endsAt,
       distance: '거리 미정',
       capacity: input.capacity,
       joined: 1,
@@ -191,6 +193,8 @@ class MockMeetingRepository extends MeetingRepository {
       time:
           '${_twoDigits(input.scheduledAt.hour)}:${_twoDigits(input.scheduledAt.minute)}',
       scheduledAt: input.scheduledAt,
+      endsAt: input.endsAt,
+      clearEndsAt: input.endsAt == null,
       description: input.description,
       capacity: input.capacity,
       thumbnailImageUrl:

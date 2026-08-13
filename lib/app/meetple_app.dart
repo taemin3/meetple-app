@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/theme/app_theme.dart';
 import '../core/push/push_notification_service.dart';
@@ -52,6 +53,9 @@ class MeetpleApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: '밋플',
       theme: AppTheme.light(),
+      locale: const Locale('ko', 'KR'),
+      supportedLocales: const [Locale('ko', 'KR')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       navigatorObservers: [appRouteObserver],
       home: AuthEntryGate(
         authRepository: authRepository,

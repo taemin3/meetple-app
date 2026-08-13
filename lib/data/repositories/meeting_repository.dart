@@ -154,6 +154,7 @@ class CreateMeetingInput {
     required this.latitude,
     required this.longitude,
     required this.scheduledAt,
+    this.endsAt,
     required this.capacity,
     required this.description,
     this.imageUrls = const [],
@@ -166,6 +167,7 @@ class CreateMeetingInput {
   final double latitude;
   final double longitude;
   final DateTime scheduledAt;
+  final DateTime? endsAt;
   final int capacity;
   final String description;
   final List<String> imageUrls;
@@ -180,6 +182,7 @@ class UpdateMeetingInput {
     required this.latitude,
     required this.longitude,
     required this.scheduledAt,
+    this.endsAt,
     required this.capacity,
     required this.description,
     this.imageUrls,
@@ -192,6 +195,7 @@ class UpdateMeetingInput {
   final double latitude;
   final double longitude;
   final DateTime scheduledAt;
+  final DateTime? endsAt;
   final int capacity;
   final String description;
   final List<String>? imageUrls;

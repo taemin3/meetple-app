@@ -85,6 +85,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _titleController;
   late final TextEditingController _scheduleController;
+  late final TextEditingController _endScheduleController;
   late final TextEditingController _locationNameController;
   late final TextEditingController _capacityController;
   late final TextEditingController _descriptionController;
@@ -95,6 +96,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
   bool _isLoadingCategories = true;
   int _categoryLoadGeneration = 0;
   DateTime? _scheduledAt;
+  DateTime? _endsAt;
   LocationSearchResult? _selectedLocation;
   bool _isSubmitting = false;
   bool _isPickingImages = false;
@@ -106,11 +108,15 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     super.initState();
     final meeting = widget.initialMeeting;
     _scheduledAt = _initialSchedule(meeting);
+    _endsAt = meeting?.endsAt;
     _selectedLocation = _initialLocation(meeting);
     _category = meeting?.category;
     _titleController = TextEditingController(text: meeting?.title);
     _scheduleController = TextEditingController(
       text: _scheduledAt == null ? '' : _formatSchedule(_scheduledAt!),
+    );
+    _endScheduleController = TextEditingController(
+      text: _endsAt == null ? '' : _formatSchedule(_endsAt!),
     );
     _locationNameController = TextEditingController(
       text: _selectedLocation?.name ?? meeting?.area ?? '',
@@ -140,6 +146,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
   void dispose() {
     _titleController.dispose();
     _scheduleController.dispose();
+    _endScheduleController.dispose();
     _locationNameController.dispose();
     _capacityController.dispose();
     _descriptionController.dispose();
@@ -210,6 +217,43 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
                   validator: (value) =>
                       _scheduledAt == null ? '모임 일시를 선택해주세요.' : null,
                 ),
+                SwitchListTile.adaptive(
+                  key: const Key('create_meeting_end_time_unknown'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text(
+                    '종료 시간 미정',
+                    style: TextStyle(
+                      color: AppColors.ink,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  subtitle: const Text('끝나는 시간이 유동적이면 켜주세요.'),
+                  value: _endsAt == null,
+                  onChanged: _setEndTimeUnknown,
+                ),
+                if (_endsAt != null) ...[
+                  const SizedBox(height: 8),
+                  CreateField(
+                    key: const Key('create_meeting_end_schedule'),
+                    controller: _endScheduleController,
+                    label: '예상 종료',
+                    hint: '예상 종료 날짜와 시간을 선택해주세요',
+                    readOnly: true,
+                    suffix: Icons.schedule_outlined,
+                    onTap: _pickEndSchedule,
+                    validator: (_) {
+                      final scheduledAt = _scheduledAt;
+                      final endsAt = _endsAt;
+                      if (scheduledAt != null &&
+                          endsAt != null &&
+                          !endsAt.isAfter(scheduledAt)) {
+                        return '예상 종료는 시작 일시 이후여야 합니다.';
+                      }
+                      return null;
+                    },
+                  ),
+                ] else
+                  const SizedBox(height: 18),
                 CreateField(
                   key: const Key('create_meeting_location_name'),
                   controller: _locationNameController,
@@ -360,9 +404,90 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
       return;
     }
 
+    final previousDuration = _scheduledAt != null && _endsAt != null
+        ? _endsAt!.difference(_scheduledAt!)
+        : null;
     setState(() {
       _scheduledAt = selected;
       _scheduleController.text = _formatSchedule(selected);
+      if (_endsAt != null) {
+        final duration =
+            previousDuration != null && !previousDuration.isNegative
+                ? previousDuration
+                : const Duration(hours: 2);
+        _endsAt = selected.add(duration);
+        _endScheduleController.text = _formatSchedule(_endsAt!);
+      }
+    });
+  }
+
+  void _setEndTimeUnknown(bool isUnknown) {
+    if (isUnknown) {
+      setState(() {
+        _endsAt = null;
+        _endScheduleController.clear();
+      });
+      return;
+    }
+
+    final scheduledAt = _scheduledAt;
+    if (scheduledAt == null) {
+      _showSnackBar('시작 일시를 먼저 선택해주세요.');
+      return;
+    }
+
+    setState(() {
+      _endsAt = scheduledAt.add(const Duration(hours: 2));
+      _endScheduleController.text = _formatSchedule(_endsAt!);
+    });
+  }
+
+  Future<void> _pickEndSchedule() async {
+    final scheduledAt = _scheduledAt;
+    if (scheduledAt == null) {
+      _showSnackBar('시작 일시를 먼저 선택해주세요.');
+      return;
+    }
+
+    final firstDate = DateTime(
+      scheduledAt.year,
+      scheduledAt.month,
+      scheduledAt.day,
+    );
+    final lastDate = firstDate.add(const Duration(days: 365));
+    final initialEnd = _endsAt ?? scheduledAt.add(const Duration(hours: 2));
+    final initialDate = _clampDate(initialEnd, firstDate, lastDate);
+    final date = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
+    );
+
+    if (date == null || !mounted) return;
+
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialEnd),
+    );
+
+    if (time == null || !mounted) return;
+
+    final selected = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    if (!selected.isAfter(scheduledAt)) {
+      _showSnackBar('예상 종료는 시작 일시 이후로 선택해주세요.');
+      return;
+    }
+
+    setState(() {
+      _endsAt = selected;
+      _endScheduleController.text = _formatSchedule(selected);
     });
   }
 
@@ -439,6 +564,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             latitude: selectedLocation.latitude,
             longitude: selectedLocation.longitude,
             scheduledAt: _scheduledAt!,
+            endsAt: _endsAt,
             capacity: int.parse(_capacityController.text.trim()),
             description: _descriptionController.text.trim(),
             imageUrls: _imagesChanged ? imageUrls : null,
@@ -454,6 +580,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             latitude: selectedLocation.latitude,
             longitude: selectedLocation.longitude,
             scheduledAt: _scheduledAt!,
+            endsAt: _endsAt,
             capacity: int.parse(_capacityController.text.trim()),
             description: _descriptionController.text.trim(),
             imageUrls: imageUrls,
