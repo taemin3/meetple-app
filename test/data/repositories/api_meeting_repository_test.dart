@@ -458,6 +458,7 @@ void main() {
       'latitude': 37.5219,
       'longitude': 126.9245,
       'scheduledAt': '2026-07-01T19:30:00',
+      'endsAt': null,
       'capacity': 12,
       'description': 'Run together',
     });
@@ -547,6 +548,7 @@ void main() {
         latitude: 37.5268,
         longitude: 126.9228,
         scheduledAt: DateTime(2026, 8, 10, 19, 30),
+        endsAt: DateTime(2026, 8, 10, 21, 30),
         capacity: 12,
         description: '함께 달려요.',
         imageUrls: const ['https://cdn.example.com/run.png'],
@@ -563,6 +565,7 @@ void main() {
       'latitude': 37.5268,
       'longitude': 126.9228,
       'scheduledAt': '2026-08-10T19:30:00',
+      'endsAt': '2026-08-10T21:30:00',
       'capacity': 12,
       'description': '함께 달려요.',
       'imageUrls': ['https://cdn.example.com/run.png'],

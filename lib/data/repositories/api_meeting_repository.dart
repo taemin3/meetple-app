@@ -143,6 +143,8 @@ class ApiMeetingRepository extends MeetingRepository {
         'latitude': input.latitude,
         'longitude': input.longitude,
         'scheduledAt': _formatApiDateTime(input.scheduledAt),
+        'endsAt':
+            input.endsAt == null ? null : _formatApiDateTime(input.endsAt!),
         'capacity': input.capacity,
         'description': input.description,
         if (input.imageUrls.isNotEmpty) 'imageUrls': input.imageUrls,
@@ -297,6 +299,8 @@ class ApiMeetingRepository extends MeetingRepository {
         'latitude': input.latitude,
         'longitude': input.longitude,
         'scheduledAt': _formatApiDateTime(input.scheduledAt),
+        'endsAt':
+            input.endsAt == null ? null : _formatApiDateTime(input.endsAt!),
         'capacity': input.capacity,
         'description': input.description.trim(),
         if (input.imageUrls case final imageUrls?) 'imageUrls': imageUrls,

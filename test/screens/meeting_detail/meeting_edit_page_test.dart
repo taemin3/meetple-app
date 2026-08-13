@@ -35,6 +35,10 @@ void main() {
       '2026.08.10 19:30',
     );
     expect(
+      _controllerText(tester, const Key('create_meeting_end_schedule')),
+      '2026.08.10 21:30',
+    );
+    expect(
       _controllerText(tester, const Key('create_meeting_location_name')),
       '여의도공원',
     );
@@ -51,6 +55,10 @@ void main() {
       _textField(const Key('create_meeting_title')),
       '수정된 러닝 모임',
     );
+    await tester.tap(
+      find.byKey(const Key('create_meeting_end_time_unknown')),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('create_meeting_submit')));
     await tester.pumpAndSettle();
 
@@ -63,6 +71,7 @@ void main() {
     expect(input.latitude, 37.5268);
     expect(input.longitude, 126.9228);
     expect(input.scheduledAt, DateTime(2026, 8, 10, 19, 30));
+    expect(input.endsAt, isNull);
     expect(input.capacity, 10);
     expect(input.description, '기존 모임 소개');
     expect(input.imageUrls, isNull);
@@ -174,6 +183,7 @@ final _meeting = Meeting(
   reviewCount: 0,
   thumbnailImageUrl: 'https://cdn.example.com/meeting-thumbnail.png',
   scheduledAt: DateTime(2026, 8, 10, 19, 30),
+  endsAt: DateTime(2026, 8, 10, 21, 30),
 );
 
 class _CategoryRepository implements CategoryRepository {
@@ -206,6 +216,8 @@ class _CapturingMeetingRepository extends MockMeetingRepository {
       latitude: input.latitude,
       longitude: input.longitude,
       scheduledAt: input.scheduledAt,
+      endsAt: input.endsAt,
+      clearEndsAt: input.endsAt == null,
       capacity: input.capacity,
       description: input.description,
       imageUrls: input.imageUrls ?? _meeting.imageUrls,
