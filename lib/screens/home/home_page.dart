@@ -134,7 +134,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
       children: [
         HomeGreeting(
           meetingRepository: widget.meetingRepository,

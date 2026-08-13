@@ -154,7 +154,7 @@ class _ProfileContentState extends State<ProfileContent> {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
       children: [
         ProfileHeader(user: widget.user),
         const SizedBox(height: 24),
@@ -442,7 +442,7 @@ class SignedOutProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
       children: [
         const SizedBox(height: 72),
         const Icon(Icons.person_outline, color: AppColors.primary, size: 58),
