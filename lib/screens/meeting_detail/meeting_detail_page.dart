@@ -836,7 +836,7 @@ class MeetingInfoSection extends StatelessWidget {
 String _meetingScheduleLabel(Meeting meeting) {
   final scheduledAt = meeting.scheduledAt?.toLocal();
   if (scheduledAt == null) {
-    return '${meeting.date} ${meeting.time} 시작 · 종료 미정';
+    return '${meeting.date} ${meeting.time}';
   }
 
   final startLabel =

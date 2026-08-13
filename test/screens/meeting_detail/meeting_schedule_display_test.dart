@@ -29,17 +29,41 @@ void main() {
 
     expect(find.text('8/22 14:00 ~ 16:00'), findsOneWidget);
   });
+
+  testWidgets('preserves legacy schedule text', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingInfoSection(
+            meeting: _meeting(
+              hasStructuredSchedule: false,
+              date: '내일 (토)',
+              time: '07:00 ~ 08:30',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('내일 (토) 07:00 ~ 08:30'), findsOneWidget);
+    expect(find.textContaining('종료 미정'), findsNothing);
+  });
 }
 
-Meeting _meeting({DateTime? endsAt}) {
+Meeting _meeting({
+  DateTime? endsAt,
+  bool hasStructuredSchedule = true,
+  String date = '8/22',
+  String time = '14:00',
+}) {
   return Meeting(
     id: 10,
     title: '한강 산책',
     category: '취미',
     tags: const ['취미'],
     area: '여의도공원',
-    date: '8/22',
-    time: '14:00',
+    date: date,
+    time: time,
     distance: '1km',
     capacity: 10,
     joined: 3,
@@ -48,7 +72,7 @@ Meeting _meeting({DateTime? endsAt}) {
     fee: '무료',
     rating: 0,
     reviewCount: 0,
-    scheduledAt: DateTime(2026, 8, 22, 14),
+    scheduledAt: hasStructuredSchedule ? DateTime(2026, 8, 22, 14) : null,
     endsAt: endsAt,
   );
 }
