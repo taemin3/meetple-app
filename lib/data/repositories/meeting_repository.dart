@@ -157,7 +157,6 @@ class CreateMeetingInput {
     this.endsAt,
     required this.capacity,
     required this.description,
-    this.imageUrls = const [],
     this.imageObjectKeys = const [],
   });
 
@@ -171,7 +170,6 @@ class CreateMeetingInput {
   final DateTime? endsAt;
   final int capacity;
   final String description;
-  final List<String> imageUrls;
   final List<String> imageObjectKeys;
 }
 
@@ -187,7 +185,6 @@ class UpdateMeetingInput {
     this.endsAt,
     required this.capacity,
     required this.description,
-    this.imageUrls,
     this.imageObjectKeys,
   });
 
@@ -201,6 +198,5 @@ class UpdateMeetingInput {
   final DateTime? endsAt;
   final int capacity;
   final String description;
-  final List<String>? imageUrls;
   final List<String>? imageObjectKeys;
 }

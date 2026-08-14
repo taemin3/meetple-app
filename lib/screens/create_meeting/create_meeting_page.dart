@@ -548,22 +548,16 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
         localImages,
       );
       var uploadedIndex = 0;
-      final imageUrls = <String>[];
       final imageObjectKeys = <String>[];
       for (final image in _selectedImages) {
-        if (image.remoteUrl case final remoteUrl?) {
-          imageUrls.add(remoteUrl);
-          if (image.objectKey case final objectKey?) {
-            imageObjectKeys.add(objectKey);
-          }
+        if (image.objectKey case final objectKey?) {
+          imageObjectKeys.add(objectKey);
           continue;
         }
         final uploadedImage = uploadedImages[uploadedIndex];
         uploadedIndex += 1;
-        imageUrls.add(uploadedImage.fileUrl);
         imageObjectKeys.add(uploadedImage.objectKey);
       }
-      final canUseObjectKeys = imageObjectKeys.length == imageUrls.length;
 
       if (widget.initialMeeting case final meeting?) {
         savedMeeting = await widget.meetingRepository.updateMeetingDetails(
@@ -579,9 +573,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             endsAt: _endsAt,
             capacity: int.parse(_capacityController.text.trim()),
             description: _descriptionController.text.trim(),
-            imageUrls: _imagesChanged && !canUseObjectKeys ? imageUrls : null,
-            imageObjectKeys:
-                _imagesChanged && canUseObjectKeys ? imageObjectKeys : null,
+            imageObjectKeys: _imagesChanged ? imageObjectKeys : null,
           ),
         );
       } else {
@@ -597,8 +589,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             endsAt: _endsAt,
             capacity: int.parse(_capacityController.text.trim()),
             description: _descriptionController.text.trim(),
-            imageUrls: imageUrls,
-            imageObjectKeys: canUseObjectKeys ? imageObjectKeys : const [],
+            imageObjectKeys: imageObjectKeys,
           ),
         );
       }
@@ -896,21 +887,17 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     for (var index = 0; index < meeting.imageUrls.length; index += 1) {
       final imageUrl = meeting.imageUrls[index].trim();
       if (imageUrl.isEmpty) continue;
-      final objectKey = index < meeting.imageObjectKeys.length
-          ? meeting.imageObjectKeys[index].trim()
-          : '';
+      if (index >= meeting.imageObjectKeys.length) continue;
+      final objectKey = meeting.imageObjectKeys[index].trim();
+      if (objectKey.isEmpty) continue;
       images.add(
         _SelectedMeetingImage.remote(
           imageUrl,
-          objectKey: objectKey.isEmpty ? null : objectKey,
+          objectKey: objectKey,
         ),
       );
     }
-    if (images.isNotEmpty) return images;
-    final primaryImageUrl = meeting.primaryImageUrl;
-    return primaryImageUrl == null
-        ? const []
-        : [_SelectedMeetingImage.remote(primaryImageUrl)];
+    return images;
   }
 
   LocationSearchResult? _initialLocation(Meeting? meeting) {
@@ -1047,8 +1034,10 @@ class _SelectedMeetingImage {
   })  : remoteUrl = null,
         objectKey = null;
 
-  const _SelectedMeetingImage.remote(this.remoteUrl, {this.objectKey})
-      : name = '',
+  const _SelectedMeetingImage.remote(
+    this.remoteUrl, {
+    required this.objectKey,
+  })  : name = '',
         contentType = '',
         bytes = null;
 

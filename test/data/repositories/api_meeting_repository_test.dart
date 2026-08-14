@@ -509,7 +509,6 @@ void main() {
         scheduledAt: scheduledAt,
         capacity: 12,
         description: 'Run together',
-        imageUrls: const ['https://cdn.example.com/first.png'],
         imageObjectKeys: const ['images/meeting/1/first.png'],
       ),
     );
@@ -558,7 +557,6 @@ void main() {
         endsAt: DateTime(2026, 8, 10, 21, 30),
         capacity: 12,
         description: '함께 달려요.',
-        imageUrls: const ['https://cdn.example.com/run.png'],
         imageObjectKeys: const ['images/meeting/1/run.png'],
       ),
     );

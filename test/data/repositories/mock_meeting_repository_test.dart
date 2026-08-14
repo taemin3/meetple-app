@@ -19,7 +19,7 @@ void main() {
         scheduledAt: DateTime(2026, 8, 10, 9, 5),
         capacity: 12,
         description: '함께 달려요.',
-        imageUrls: const [],
+        imageObjectKeys: const [],
       ),
     );
 

@@ -148,9 +148,7 @@ class ApiMeetingRepository extends MeetingRepository {
         'capacity': input.capacity,
         'description': input.description,
         if (input.imageObjectKeys.isNotEmpty)
-          'imageObjectKeys': input.imageObjectKeys
-        else if (input.imageUrls.isNotEmpty)
-          'imageUrls': input.imageUrls,
+          'imageObjectKeys': input.imageObjectKeys,
       },
     );
 
@@ -307,9 +305,7 @@ class ApiMeetingRepository extends MeetingRepository {
         'capacity': input.capacity,
         'description': input.description.trim(),
         if (input.imageObjectKeys case final imageObjectKeys?)
-          'imageObjectKeys': imageObjectKeys
-        else if (input.imageUrls case final imageUrls?)
-          'imageUrls': imageUrls,
+          'imageObjectKeys': imageObjectKeys,
       },
     );
     _ensureSuccess(response);
