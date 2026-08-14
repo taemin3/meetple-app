@@ -42,6 +42,7 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isPrivacyTermsAgreed = false;
   bool _isAgeAgreed = false;
   bool _isPickingProfileImage = false;
+  bool _isProfileImageUploaded = false;
   ImageUploadFile? _profileImage;
   AuthSession? _createdSession;
   DateTime? _birthDate;
@@ -193,12 +194,22 @@ class _SignUpPageState extends State<SignUpPage> {
                     left: 0,
                     right: 0,
                     bottom: keyboardInset,
-                    child: _SignUpStickyFooter(
-                      step: _step,
-                      isSubmitting: _isSubmitting,
-                      onPrimaryPressed: _step == 0
-                          ? _goToProfileStep
-                          : (_isSubmitting ? null : _submit),
+                    child: PopScope<AuthSession?>(
+                      canPop: _createdSession == null && _step == 0,
+                      onPopInvokedWithResult: (didPop, result) {
+                        if (!didPop) {
+                          _handleBackPressed();
+                        }
+                      },
+                      child: _SignUpStickyFooter(
+                        step: _step,
+                        isSubmitting: _isSubmitting,
+                        onPrimaryPressed: _step == 0
+                            ? _goToProfileStep
+                            : (_isSubmitting || _isPickingProfileImage
+                                ? null
+                                : _submit),
+                      ),
                     ),
                   ),
                 ],
@@ -339,6 +350,7 @@ class _SignUpPageState extends State<SignUpPage> {
       _isPickingProfileImage = false;
       if (selectedImage != null) {
         _profileImage = selectedImage;
+        _isProfileImageUploaded = false;
         _errorMessage = null;
       }
     });
@@ -356,11 +368,14 @@ class _SignUpPageState extends State<SignUpPage> {
     if (_isSubmitting || _isPickingProfileImage) {
       return;
     }
-    setState(() => _profileImage = null);
+    setState(() {
+      _profileImage = null;
+      _isProfileImageUploaded = false;
+    });
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting) {
+    if (_isSubmitting || _isPickingProfileImage) {
       return;
     }
 
@@ -386,9 +401,10 @@ class _SignUpPageState extends State<SignUpPage> {
       }
 
       final profileImage = _profileImage;
-      if (profileImage != null && session.user.profileImageUrl == null) {
+      if (profileImage != null && !_isProfileImageUploaded) {
         final profileImageUrl =
             await widget.imageUploadRepository.uploadProfileImage(profileImage);
+        _isProfileImageUploaded = true;
         session = AuthSession(
           user: session.user.copyWith(profileImageUrl: profileImageUrl),
           accessToken: session.accessToken,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -16,7 +17,9 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final authRepository = _SignUpAuthRepository();
+    final authRepository = _SignUpAuthRepository(
+      profileImageUrl: 'https://cdn.example.com/profile/default.png',
+    );
     final imageUploadRepository = _RecordingImageUploadRepository();
     AuthSession? completedSession;
 
@@ -37,7 +40,7 @@ void main() {
                             'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
                             'AAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
                           ),
-                          name: 'avatar.png',
+                          name: '',
                           mimeType: 'image/png',
                         ),
                       ),
@@ -81,9 +84,145 @@ void main() {
       'https://cdn.example.com/profile/avatar.png',
     );
   });
+
+  testWidgets('disables signup while the profile image is being picked', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final authRepository = _SignUpAuthRepository();
+    final imageUploadRepository = _RecordingImageUploadRepository();
+    final pickedImage = Completer<XFile?>();
+
+    await _openSignUp(
+      tester,
+      authRepository: authRepository,
+      imageUploadRepository: imageUploadRepository,
+      pickProfileImage: () => pickedImage.future,
+    );
+    await _advanceToProfileStep(tester);
+    await tester.enterText(find.byType(TextField).at(0), '밋플러');
+
+    await tester.tap(find.byKey(const Key('sign_up_profile_photo_picker')));
+    await tester.pump();
+
+    final submitButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, '가입 완료'),
+    );
+    expect(submitButton.onPressed, isNull);
+    expect(authRepository.signUpCount, 0);
+
+    pickedImage.complete(
+      XFile.fromData(
+        base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+          'AAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        ),
+        name: 'avatar.png',
+        mimeType: 'image/png',
+      ),
+    );
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('returns the created session on system back after upload failure',
+      (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final authRepository = _SignUpAuthRepository();
+    final imageUploadRepository = _RecordingImageUploadRepository(
+      failUpload: true,
+    );
+    AuthSession? completedSession;
+
+    await _openSignUp(
+      tester,
+      authRepository: authRepository,
+      imageUploadRepository: imageUploadRepository,
+      pickProfileImage: () async => XFile.fromData(
+        base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
+          'AAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        ),
+        name: 'avatar.png',
+        mimeType: 'image/png',
+      ),
+      onCompleted: (session) => completedSession = session,
+    );
+    await _advanceToProfileStep(tester);
+    await tester.tap(find.byKey(const Key('sign_up_profile_photo_picker')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), '밋플러');
+    await tester.ensureVisible(find.text('가입 완료'));
+    await tester.tap(find.text('가입 완료'));
+    await tester.pumpAndSettle();
+
+    expect(authRepository.signUpCount, 1);
+    expect(imageUploadRepository.uploadCount, 1);
+    expect(completedSession, isNull);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(completedSession?.accessToken, 'access-token');
+    expect(find.byType(SignUpPage), findsNothing);
+  });
+}
+
+Future<void> _openSignUp(
+  WidgetTester tester, {
+  required AuthRepository authRepository,
+  required ImageUploadRepository imageUploadRepository,
+  required Future<XFile?> Function() pickProfileImage,
+  ValueChanged<AuthSession?>? onCompleted,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: FilledButton(
+              onPressed: () async {
+                final session = await Navigator.of(context).push<AuthSession>(
+                  MaterialPageRoute<AuthSession>(
+                    builder: (_) => SignUpPage(
+                      authRepository: authRepository,
+                      imageUploadRepository: imageUploadRepository,
+                      pickProfileImage: pickProfileImage,
+                    ),
+                  ),
+                );
+                onCompleted?.call(session);
+              },
+              child: const Text('회원가입 열기'),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  await tester.tap(find.text('회원가입 열기'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _advanceToProfileStep(WidgetTester tester) async {
+  await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
+  await tester.enterText(find.byType(TextField).at(1), 'password1!');
+  await tester.enterText(find.byType(TextField).at(2), 'password1!');
+  await tester.tap(find.byKey(const Key('sign_up_all_terms')));
+  await tester.tap(find.text('다음'));
+  await tester.pumpAndSettle();
 }
 
 class _SignUpAuthRepository implements AuthRepository {
+  _SignUpAuthRepository({this.profileImageUrl});
+
+  final String? profileImageUrl;
   int signUpCount = 0;
   AuthSession? _session;
 
@@ -114,6 +253,7 @@ class _SignUpAuthRepository implements AuthRepository {
         nickname: nickname.trim(),
         handle: nickname.trim(),
         email: email.trim(),
+        profileImageUrl: profileImageUrl,
       ),
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
@@ -128,7 +268,11 @@ class _SignUpAuthRepository implements AuthRepository {
 }
 
 class _RecordingImageUploadRepository implements ImageUploadRepository {
+  _RecordingImageUploadRepository({this.failUpload = false});
+
+  final bool failUpload;
   ImageUploadFile? uploadedImage;
+  int uploadCount = 0;
 
   @override
   Future<List<String>> uploadMeetingImages(List<ImageUploadFile> images) async {
@@ -137,7 +281,11 @@ class _RecordingImageUploadRepository implements ImageUploadRepository {
 
   @override
   Future<String> uploadProfileImage(ImageUploadFile image) async {
+    uploadCount += 1;
     uploadedImage = image;
+    if (failUpload) {
+      throw const ImageUploadException('프로필 이미지 업로드에 실패했습니다.');
+    }
     return 'https://cdn.example.com/profile/avatar.png';
   }
 }
