@@ -1,9 +1,16 @@
 import 'dart:typed_data';
 
 abstract interface class ImageUploadRepository {
-  Future<List<String>> uploadMeetingImages(List<ImageUploadFile> images);
+  Future<List<UploadedImage>> uploadMeetingImages(List<ImageUploadFile> images);
 
-  Future<String> uploadProfileImage(ImageUploadFile image);
+  Future<UploadedImage> uploadProfileImage(ImageUploadFile image);
+}
+
+class UploadedImage {
+  const UploadedImage({required this.objectKey, required this.fileUrl});
+
+  final String objectKey;
+  final String fileUrl;
 }
 
 class ImageUploadFile {

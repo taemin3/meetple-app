@@ -36,7 +36,9 @@ class ApiImageUploadRepository implements ImageUploadRepository {
   };
 
   @override
-  Future<List<String>> uploadMeetingImages(List<ImageUploadFile> images) async {
+  Future<List<UploadedImage>> uploadMeetingImages(
+    List<ImageUploadFile> images,
+  ) async {
     if (images.isEmpty) {
       return const [];
     }
@@ -66,17 +68,22 @@ class ApiImageUploadRepository implements ImageUploadRepository {
       throw const FormatException('Upload URL count does not match images.');
     }
 
-    final fileUrls = <String>[];
+    final uploadedImages = <UploadedImage>[];
     for (var index = 0; index < images.length; index += 1) {
       await _uploadImage(uploads[index], images[index]);
-      fileUrls.add(uploads[index].fileUrl);
+      uploadedImages.add(
+        UploadedImage(
+          objectKey: uploads[index].objectKey,
+          fileUrl: uploads[index].fileUrl,
+        ),
+      );
     }
 
-    return fileUrls;
+    return uploadedImages;
   }
 
   @override
-  Future<String> uploadProfileImage(ImageUploadFile image) async {
+  Future<UploadedImage> uploadProfileImage(ImageUploadFile image) async {
     final response = await _apiClient.postJson(
       '/api/v1/images/upload-url',
       body: {
@@ -95,11 +102,11 @@ class ApiImageUploadRepository implements ImageUploadRepository {
 
     final profileResponse = await _apiClient.patchJson(
       '/api/v1/users/me/profile-image',
-      body: {'profileImageUrl': upload.fileUrl},
+      body: {'profileImageObjectKey': upload.objectKey},
     );
     _ensureSuccess(profileResponse);
 
-    return upload.fileUrl;
+    return UploadedImage(objectKey: upload.objectKey, fileUrl: upload.fileUrl);
   }
 
   Future<void> _uploadImage(
@@ -191,19 +198,30 @@ class _UploadUrlContract {
   const _UploadUrlContract({
     required this.uploadUrl,
     required this.fileUrl,
+    required this.objectKey,
     required this.headers,
   });
 
   factory _UploadUrlContract.fromJson(Map<String, dynamic> json) {
+    final uploadUrl = ApiImageUploadRepository._readString(json['uploadUrl']);
+    final fileUrl = ApiImageUploadRepository._readString(json['fileUrl']);
+    final objectKey = ApiImageUploadRepository._readString(json['objectKey']);
+    if (uploadUrl.isEmpty || fileUrl.isEmpty || objectKey.isEmpty) {
+      throw const FormatException(
+        'Upload response must include uploadUrl, fileUrl, and objectKey.',
+      );
+    }
     return _UploadUrlContract(
-      uploadUrl: ApiImageUploadRepository._readString(json['uploadUrl']),
-      fileUrl: ApiImageUploadRepository._readString(json['fileUrl']),
+      uploadUrl: uploadUrl,
+      fileUrl: fileUrl,
+      objectKey: objectKey,
       headers: _readHeaders(json['headers']),
     );
   }
 
   final String uploadUrl;
   final String fileUrl;
+  final String objectKey;
   final Map<String, String> headers;
 
   static Map<String, String> _readHeaders(Object? value) {

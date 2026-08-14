@@ -75,6 +75,7 @@ class MockMeetingRepository extends MeetingRepository {
 
   @override
   Future<Meeting> createMeeting(CreateMeetingInput input) async {
+    final imageUrls = _mockImageUrls(input.imageObjectKeys);
     return Meeting(
       title: input.title,
       category: input.category,
@@ -96,8 +97,9 @@ class MockMeetingRepository extends MeetingRepository {
       fee: '무료',
       rating: 0,
       reviewCount: 0,
-      thumbnailImageUrl: input.imageUrls.isEmpty ? null : input.imageUrls.first,
-      imageUrls: input.imageUrls,
+      thumbnailImageUrl: imageUrls.isEmpty ? null : imageUrls.first,
+      imageUrls: imageUrls,
+      imageObjectKeys: input.imageObjectKeys,
     );
   }
 
@@ -180,7 +182,9 @@ class MockMeetingRepository extends MeetingRepository {
     UpdateMeetingInput input,
   ) async {
     final meeting = mockMeetings.first;
-    final imageUrls = input.imageUrls;
+    final imageObjectKeys = input.imageObjectKeys;
+    final imageUrls =
+        imageObjectKeys == null ? null : _mockImageUrls(imageObjectKeys);
     return meeting.copyWith(
       title: input.title,
       category: input.category,
@@ -201,6 +205,7 @@ class MockMeetingRepository extends MeetingRepository {
           imageUrls == null || imageUrls.isEmpty ? null : imageUrls.first,
       clearThumbnailImageUrl: imageUrls != null && imageUrls.isEmpty,
       imageUrls: imageUrls,
+      imageObjectKeys: imageObjectKeys,
     );
   }
 
@@ -211,6 +216,12 @@ class MockMeetingRepository extends MeetingRepository {
   @override
   Future<List<Meeting>> getHostedMeetings() async =>
       mockMeetings.take(2).toList();
+
+  List<String> _mockImageUrls(List<String> objectKeys) {
+    return [
+      for (final objectKey in objectKeys) 'https://example.com/$objectKey'
+    ];
+  }
 
   @override
   Future<List<Meeting>> getJoinedMeetings() async =>

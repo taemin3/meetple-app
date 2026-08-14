@@ -74,7 +74,7 @@ void main() {
     expect(input.endsAt, isNull);
     expect(input.capacity, 10);
     expect(input.description, '기존 모임 소개');
-    expect(input.imageUrls, isNull);
+    expect(input.imageObjectKeys, isNull);
     expect(find.text('수정 완료: 수정된 러닝 모임'), findsOneWidget);
   });
 
@@ -220,7 +220,8 @@ class _CapturingMeetingRepository extends MockMeetingRepository {
       clearEndsAt: input.endsAt == null,
       capacity: input.capacity,
       description: input.description,
-      imageUrls: input.imageUrls ?? _meeting.imageUrls,
+      imageUrls: _meeting.imageUrls,
+      imageObjectKeys: input.imageObjectKeys ?? _meeting.imageObjectKeys,
     );
   }
 }

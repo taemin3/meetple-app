@@ -275,17 +275,22 @@ class _RecordingImageUploadRepository implements ImageUploadRepository {
   int uploadCount = 0;
 
   @override
-  Future<List<String>> uploadMeetingImages(List<ImageUploadFile> images) async {
+  Future<List<UploadedImage>> uploadMeetingImages(
+    List<ImageUploadFile> images,
+  ) async {
     return const [];
   }
 
   @override
-  Future<String> uploadProfileImage(ImageUploadFile image) async {
+  Future<UploadedImage> uploadProfileImage(ImageUploadFile image) async {
     uploadCount += 1;
     uploadedImage = image;
     if (failUpload) {
       throw const ImageUploadException('프로필 이미지 업로드에 실패했습니다.');
     }
-    return 'https://cdn.example.com/profile/avatar.png';
+    return const UploadedImage(
+      objectKey: 'images/profile/1/avatar.png',
+      fileUrl: 'https://cdn.example.com/profile/avatar.png',
+    );
   }
 }

@@ -402,11 +402,13 @@ class _SignUpPageState extends State<SignUpPage> {
 
       final profileImage = _profileImage;
       if (profileImage != null && !_isProfileImageUploaded) {
-        final profileImageUrl =
+        final uploadedProfileImage =
             await widget.imageUploadRepository.uploadProfileImage(profileImage);
         _isProfileImageUploaded = true;
         session = AuthSession(
-          user: session.user.copyWith(profileImageUrl: profileImageUrl),
+          user: session.user.copyWith(
+            profileImageUrl: uploadedProfileImage.fileUrl,
+          ),
           accessToken: session.accessToken,
           refreshToken: session.refreshToken,
         );
