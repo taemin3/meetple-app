@@ -59,6 +59,13 @@ void main() {
     final editPage = tester.widget<MeetingEditPage>(
       find.byType(MeetingEditPage),
     );
+    expect(meetingRepository.requestedMeetingIds, [10]);
+    expect(editPage.meeting.imageUrls, [
+      'https://cdn.example.com/images/meeting/1/meeting.png',
+    ]);
+    expect(editPage.meeting.imageObjectKeys, [
+      'images/meeting/1/meeting.png',
+    ]);
     expect(editPage.meetingRepository, same(meetingRepository));
     expect(editPage.categoryRepository, same(categoryRepository));
     expect(editPage.locationRepository, same(locationRepository));
@@ -111,6 +118,19 @@ void main() {
 }
 
 class _HostMeetingRepository extends MockMeetingRepository {
+  final requestedMeetingIds = <int>[];
+
+  @override
+  Future<Meeting> findById(int meetingId) async {
+    requestedMeetingIds.add(meetingId);
+    return _meeting.copyWith(
+      imageUrls: const [
+        'https://cdn.example.com/images/meeting/1/meeting.png',
+      ],
+      imageObjectKeys: const ['images/meeting/1/meeting.png'],
+    );
+  }
+
   @override
   Future<MeetingEngagement> getEngagement(int meetingId) async {
     return const MeetingEngagement(

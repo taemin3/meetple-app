@@ -196,19 +196,35 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
   }
 
   Future<void> _openEditMeeting() async {
-    final updated = await Navigator.of(context).push<Meeting>(
-      MaterialPageRoute(
-        builder: (_) => MeetingEditPage(
-          meeting: widget.meeting,
-          meetingRepository: widget.meetingRepository,
-          categoryRepository: widget.categoryRepository,
-          locationRepository: widget.locationRepository,
-          imageUploadRepository: widget.imageUploadRepository,
+    if (_isBusy) return;
+    setState(() => _isBusy = true);
+    try {
+      final meetingId = widget.meeting.id;
+      final meeting = meetingId == null
+          ? widget.meeting
+          : await widget.meetingRepository.findById(meetingId);
+      if (!mounted) return;
+
+      final updated = await Navigator.of(context).push<Meeting>(
+        MaterialPageRoute(
+          builder: (_) => MeetingEditPage(
+            meeting: meeting,
+            meetingRepository: widget.meetingRepository,
+            categoryRepository: widget.categoryRepository,
+            locationRepository: widget.locationRepository,
+            imageUploadRepository: widget.imageUploadRepository,
+          ),
         ),
-      ),
-    );
-    if (updated != null && mounted) {
-      Navigator.of(context).pop(updated);
+      );
+      if (updated != null && mounted) {
+        Navigator.of(context).pop(updated);
+      }
+    } on Exception catch (error) {
+      if (mounted) _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
     }
   }
 
