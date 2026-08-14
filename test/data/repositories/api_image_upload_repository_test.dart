@@ -80,6 +80,53 @@ void main() {
     expect(fileUrls, isEmpty);
   });
 
+  test('uploads a profile image and links it to the current user', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'uploadUrl': 'https://upload.example.com/avatar',
+          'fileUrl': 'https://cdn.example.com/avatar.png',
+          'headers': {'Content-Type': 'image/png'},
+        },
+      },
+      patchResponse: {
+        'status': 200,
+        'success': true,
+        'data': {'profileImageUrl': 'https://cdn.example.com/avatar.png'},
+      },
+    );
+    final repository = ApiImageUploadRepository(
+      apiClient: apiClient,
+      httpClient: MockClient((request) async {
+        expect(request.bodyBytes, [1, 2, 3]);
+        return http.Response('', 200);
+      }),
+    );
+
+    final fileUrl = await repository.uploadProfileImage(
+      ImageUploadFile(
+        name: 'avatar.png',
+        contentType: 'image/png',
+        bytes: Uint8List.fromList([1, 2, 3]),
+      ),
+    );
+
+    expect(apiClient.path, '/api/v1/images/upload-url');
+    expect(apiClient.body, {
+      'purpose': 'PROFILE',
+      'fileName': 'avatar.png',
+      'contentType': 'image/png',
+      'contentLength': 3,
+    });
+    expect(apiClient.patchPath, '/api/v1/users/me/profile-image');
+    expect(apiClient.patchBody, {
+      'profileImageUrl': 'https://cdn.example.com/avatar.png',
+    });
+    expect(fileUrl, 'https://cdn.example.com/avatar.png');
+  });
+
   test('throws ImageUploadException when storage upload fails', () async {
     final repository = ApiImageUploadRepository(
       apiClient: FakeApiClient(
@@ -112,11 +159,14 @@ void main() {
 }
 
 class FakeApiClient extends ApiClient {
-  FakeApiClient({required this.response});
+  FakeApiClient({required this.response, this.patchResponse});
 
   final Map<String, dynamic> response;
+  final Map<String, dynamic>? patchResponse;
   String? path;
   Map<String, dynamic>? body;
+  String? patchPath;
+  Map<String, dynamic>? patchBody;
 
   @override
   Future<Map<String, dynamic>> getJson(
@@ -135,5 +185,15 @@ class FakeApiClient extends ApiClient {
     this.path = path;
     this.body = body;
     return response;
+  }
+
+  @override
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) async {
+    patchPath = path;
+    patchBody = body;
+    return patchResponse ?? response;
   }
 }

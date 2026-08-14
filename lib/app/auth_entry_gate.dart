@@ -110,6 +110,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       case _AuthEntryState.signedOut:
         return LoginPage(
           authRepository: _authRepository,
+          imageUploadRepository: widget.imageUploadRepository,
           onAuthenticated: _showSignedIn,
         );
       case _AuthEntryState.signedIn:
@@ -192,7 +193,8 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
     if (!mounted || _state != _AuthEntryState.signedIn) {
       return;
     }
-    Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+    Navigator.of(context, rootNavigator: true)
+        .popUntil((route) => route.isFirst);
     _showSignedOut();
   }
 
