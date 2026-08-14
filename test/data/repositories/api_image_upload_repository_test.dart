@@ -39,7 +39,7 @@ void main() {
       }),
     );
 
-    final fileUrls = await repository.uploadMeetingImages([
+    final uploadedImages = await repository.uploadMeetingImages([
       ImageUploadFile(
         name: 'first.png',
         contentType: 'image/png',
@@ -58,7 +58,8 @@ void main() {
         },
       ],
     });
-    expect(fileUrls, ['https://cdn.example.com/first.png']);
+    expect(uploadedImages.single.objectKey, 'images/meeting/1/first.png');
+    expect(uploadedImages.single.fileUrl, 'https://cdn.example.com/first.png');
     expect(putRequests, hasLength(1));
     expect(putRequests.single.method, 'PUT');
     expect(
@@ -88,6 +89,7 @@ void main() {
         'data': {
           'uploadUrl': 'https://upload.example.com/avatar',
           'fileUrl': 'https://cdn.example.com/avatar.png',
+          'objectKey': 'images/profile/1/avatar.png',
           'headers': {'Content-Type': 'image/png'},
         },
       },
@@ -105,7 +107,7 @@ void main() {
       }),
     );
 
-    final fileUrl = await repository.uploadProfileImage(
+    final uploadedImage = await repository.uploadProfileImage(
       ImageUploadFile(
         name: 'avatar.png',
         contentType: 'image/png',
@@ -122,9 +124,10 @@ void main() {
     });
     expect(apiClient.patchPath, '/api/v1/users/me/profile-image');
     expect(apiClient.patchBody, {
-      'profileImageUrl': 'https://cdn.example.com/avatar.png',
+      'profileImageObjectKey': 'images/profile/1/avatar.png',
     });
-    expect(fileUrl, 'https://cdn.example.com/avatar.png');
+    expect(uploadedImage.objectKey, 'images/profile/1/avatar.png');
+    expect(uploadedImage.fileUrl, 'https://cdn.example.com/avatar.png');
   });
 
   test('throws ImageUploadException when storage upload fails', () async {
@@ -137,6 +140,7 @@ void main() {
             {
               'uploadUrl': 'https://upload.example.com/first',
               'fileUrl': 'https://cdn.example.com/first.png',
+              'objectKey': 'images/meeting/1/first.png',
               'headers': {'Content-Type': 'image/png'},
             },
           ],

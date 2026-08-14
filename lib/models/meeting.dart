@@ -21,6 +21,7 @@ class Meeting {
     required this.reviewCount,
     this.thumbnailImageUrl,
     this.imageUrls = const [],
+    this.imageObjectKeys = const [],
     this.status = 'RECRUITING',
     this.scheduledAt,
     this.endsAt,
@@ -48,6 +49,7 @@ class Meeting {
   final int reviewCount;
   final String? thumbnailImageUrl;
   final List<String> imageUrls;
+  final List<String> imageObjectKeys;
   final String status;
   final DateTime? scheduledAt;
   final DateTime? endsAt;
@@ -93,6 +95,7 @@ class Meeting {
     String? thumbnailImageUrl,
     bool clearThumbnailImageUrl = false,
     List<String>? imageUrls,
+    List<String>? imageObjectKeys,
     String? status,
     DateTime? scheduledAt,
     DateTime? endsAt,
@@ -123,6 +126,7 @@ class Meeting {
           ? null
           : thumbnailImageUrl ?? this.thumbnailImageUrl,
       imageUrls: imageUrls ?? this.imageUrls,
+      imageObjectKeys: imageObjectKeys ?? this.imageObjectKeys,
       status: status ?? this.status,
       scheduledAt: scheduledAt ?? this.scheduledAt,
       endsAt: clearEndsAt ? null : endsAt ?? this.endsAt,

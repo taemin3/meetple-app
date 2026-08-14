@@ -158,6 +158,7 @@ class CreateMeetingInput {
     required this.capacity,
     required this.description,
     this.imageUrls = const [],
+    this.imageObjectKeys = const [],
   });
 
   final String title;
@@ -171,6 +172,7 @@ class CreateMeetingInput {
   final int capacity;
   final String description;
   final List<String> imageUrls;
+  final List<String> imageObjectKeys;
 }
 
 class UpdateMeetingInput {
@@ -186,6 +188,7 @@ class UpdateMeetingInput {
     required this.capacity,
     required this.description,
     this.imageUrls,
+    this.imageObjectKeys,
   });
 
   final String title;
@@ -199,4 +202,5 @@ class UpdateMeetingInput {
   final int capacity;
   final String description;
   final List<String>? imageUrls;
+  final List<String>? imageObjectKeys;
 }

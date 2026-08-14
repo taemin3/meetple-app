@@ -98,6 +98,7 @@ class MockMeetingRepository extends MeetingRepository {
       reviewCount: 0,
       thumbnailImageUrl: input.imageUrls.isEmpty ? null : input.imageUrls.first,
       imageUrls: input.imageUrls,
+      imageObjectKeys: input.imageObjectKeys,
     );
   }
 
@@ -201,6 +202,7 @@ class MockMeetingRepository extends MeetingRepository {
           imageUrls == null || imageUrls.isEmpty ? null : imageUrls.first,
       clearThumbnailImageUrl: imageUrls != null && imageUrls.isEmpty,
       imageUrls: imageUrls,
+      imageObjectKeys: input.imageObjectKeys,
     );
   }
 

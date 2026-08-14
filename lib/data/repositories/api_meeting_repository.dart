@@ -147,7 +147,10 @@ class ApiMeetingRepository extends MeetingRepository {
             input.endsAt == null ? null : _formatApiDateTime(input.endsAt!),
         'capacity': input.capacity,
         'description': input.description,
-        if (input.imageUrls.isNotEmpty) 'imageUrls': input.imageUrls,
+        if (input.imageObjectKeys.isNotEmpty)
+          'imageObjectKeys': input.imageObjectKeys
+        else if (input.imageUrls.isNotEmpty)
+          'imageUrls': input.imageUrls,
       },
     );
 
@@ -303,7 +306,10 @@ class ApiMeetingRepository extends MeetingRepository {
             input.endsAt == null ? null : _formatApiDateTime(input.endsAt!),
         'capacity': input.capacity,
         'description': input.description.trim(),
-        if (input.imageUrls case final imageUrls?) 'imageUrls': imageUrls,
+        if (input.imageObjectKeys case final imageObjectKeys?)
+          'imageObjectKeys': imageObjectKeys
+        else if (input.imageUrls case final imageUrls?)
+          'imageUrls': imageUrls,
       },
     );
     _ensureSuccess(response);
@@ -445,6 +451,7 @@ class ApiMeetingRepository extends MeetingRepository {
       reviewCount: 0,
       thumbnailImageUrl: _readNullableString(json['thumbnailImageUrl']),
       imageUrls: _readStringList(json['imageUrls']),
+      imageObjectKeys: _readStringList(json['imageObjectKeys']),
       status: _readString(json['status'], fallback: 'RECRUITING'),
       scheduledAt: scheduledAt,
       endsAt: _readDateTime(json['endsAt']),

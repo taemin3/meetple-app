@@ -468,7 +468,7 @@ void main() {
     expect(meeting.joined, 1);
   });
 
-  test('creates meeting with uploaded image URLs', () async {
+  test('creates meeting with uploaded image object keys', () async {
     final scheduledAt = DateTime(2026, 7, 1, 19, 30);
     final apiClient = FakeApiClient(
       response: {
@@ -492,12 +492,13 @@ void main() {
           'status': 'RECRUITING',
           'thumbnailImageUrl': 'https://cdn.example.com/first.png',
           'imageUrls': ['https://cdn.example.com/first.png'],
+          'imageObjectKeys': ['images/meeting/1/first.png'],
         },
       },
     );
     final repository = ApiMeetingRepository(apiClient: apiClient);
 
-    await repository.createMeeting(
+    final meeting = await repository.createMeeting(
       CreateMeetingInput(
         title: 'Morning run',
         category: 'exercise',
@@ -509,10 +510,15 @@ void main() {
         capacity: 12,
         description: 'Run together',
         imageUrls: const ['https://cdn.example.com/first.png'],
+        imageObjectKeys: const ['images/meeting/1/first.png'],
       ),
     );
 
-    expect(apiClient.body?['imageUrls'], ['https://cdn.example.com/first.png']);
+    expect(apiClient.body, isNot(contains('imageUrls')));
+    expect(apiClient.body?['imageObjectKeys'], [
+      'images/meeting/1/first.png',
+    ]);
+    expect(meeting.imageObjectKeys, ['images/meeting/1/first.png']);
   });
 
   test('updates every editable meeting field', () async {
@@ -533,6 +539,7 @@ void main() {
           'capacity': 12,
           'currentPeople': 6,
           'imageUrls': ['https://cdn.example.com/run.png'],
+          'imageObjectKeys': ['images/meeting/1/run.png'],
         },
       },
     );
@@ -552,6 +559,7 @@ void main() {
         capacity: 12,
         description: '함께 달려요.',
         imageUrls: const ['https://cdn.example.com/run.png'],
+        imageObjectKeys: const ['images/meeting/1/run.png'],
       ),
     );
 
@@ -568,7 +576,7 @@ void main() {
       'endsAt': '2026-08-10T21:30:00',
       'capacity': 12,
       'description': '함께 달려요.',
-      'imageUrls': ['https://cdn.example.com/run.png'],
+      'imageObjectKeys': ['images/meeting/1/run.png'],
     });
   });
 

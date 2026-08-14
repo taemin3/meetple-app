@@ -128,7 +128,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
       text: meeting?.description,
     );
     _selectedImages.addAll(
-      _initialImageUrls(meeting).map(_SelectedMeetingImage.remote),
+      _initialImages(meeting),
     );
     _loadCategories(showLoading: false);
     unawaited(_restoreLostImages());
@@ -543,15 +543,27 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
               bytes: image.bytes!,
             ),
       ];
-      final uploadedImageUrls =
+      final uploadedImages =
           await widget.imageUploadRepository.uploadMeetingImages(
         localImages,
       );
-      final imageUrls = [
-        for (final image in _selectedImages)
-          if (image.remoteUrl != null) image.remoteUrl!,
-        ...uploadedImageUrls,
-      ];
+      var uploadedIndex = 0;
+      final imageUrls = <String>[];
+      final imageObjectKeys = <String>[];
+      for (final image in _selectedImages) {
+        if (image.remoteUrl case final remoteUrl?) {
+          imageUrls.add(remoteUrl);
+          if (image.objectKey case final objectKey?) {
+            imageObjectKeys.add(objectKey);
+          }
+          continue;
+        }
+        final uploadedImage = uploadedImages[uploadedIndex];
+        uploadedIndex += 1;
+        imageUrls.add(uploadedImage.fileUrl);
+        imageObjectKeys.add(uploadedImage.objectKey);
+      }
+      final canUseObjectKeys = imageObjectKeys.length == imageUrls.length;
 
       if (widget.initialMeeting case final meeting?) {
         savedMeeting = await widget.meetingRepository.updateMeetingDetails(
@@ -567,7 +579,9 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             endsAt: _endsAt,
             capacity: int.parse(_capacityController.text.trim()),
             description: _descriptionController.text.trim(),
-            imageUrls: _imagesChanged ? imageUrls : null,
+            imageUrls: _imagesChanged && !canUseObjectKeys ? imageUrls : null,
+            imageObjectKeys:
+                _imagesChanged && canUseObjectKeys ? imageObjectKeys : null,
           ),
         );
       } else {
@@ -584,6 +598,7 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
             capacity: int.parse(_capacityController.text.trim()),
             description: _descriptionController.text.trim(),
             imageUrls: imageUrls,
+            imageObjectKeys: canUseObjectKeys ? imageObjectKeys : const [],
           ),
         );
       }
@@ -875,15 +890,27 @@ class _MeetingFormPageState extends State<MeetingFormPage> {
     Navigator.of(context).maybePop();
   }
 
-  List<String> _initialImageUrls(Meeting? meeting) {
+  List<_SelectedMeetingImage> _initialImages(Meeting? meeting) {
     if (meeting == null) return const [];
-    final imageUrls = [
-      for (final imageUrl in meeting.imageUrls)
-        if (imageUrl.trim().isNotEmpty) imageUrl.trim(),
-    ];
-    if (imageUrls.isNotEmpty) return imageUrls;
+    final images = <_SelectedMeetingImage>[];
+    for (var index = 0; index < meeting.imageUrls.length; index += 1) {
+      final imageUrl = meeting.imageUrls[index].trim();
+      if (imageUrl.isEmpty) continue;
+      final objectKey = index < meeting.imageObjectKeys.length
+          ? meeting.imageObjectKeys[index].trim()
+          : '';
+      images.add(
+        _SelectedMeetingImage.remote(
+          imageUrl,
+          objectKey: objectKey.isEmpty ? null : objectKey,
+        ),
+      );
+    }
+    if (images.isNotEmpty) return images;
     final primaryImageUrl = meeting.primaryImageUrl;
-    return primaryImageUrl == null ? const [] : [primaryImageUrl];
+    return primaryImageUrl == null
+        ? const []
+        : [_SelectedMeetingImage.remote(primaryImageUrl)];
   }
 
   LocationSearchResult? _initialLocation(Meeting? meeting) {
@@ -1017,9 +1044,10 @@ class _SelectedMeetingImage {
     required this.name,
     required this.contentType,
     required this.bytes,
-  }) : remoteUrl = null;
+  })  : remoteUrl = null,
+        objectKey = null;
 
-  const _SelectedMeetingImage.remote(this.remoteUrl)
+  const _SelectedMeetingImage.remote(this.remoteUrl, {this.objectKey})
       : name = '',
         contentType = '',
         bytes = null;
@@ -1028,6 +1056,7 @@ class _SelectedMeetingImage {
   final String contentType;
   final Uint8List? bytes;
   final String? remoteUrl;
+  final String? objectKey;
 }
 
 class _ImageUploadBox extends StatelessWidget {
