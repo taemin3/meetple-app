@@ -1,7 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/image_upload_repository.dart';
+import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../models/auth_session.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
@@ -10,9 +15,13 @@ class SignUpPage extends StatefulWidget {
   const SignUpPage({
     super.key,
     required this.authRepository,
+    this.imageUploadRepository = const MockImageUploadRepository(),
+    this.pickProfileImage,
   });
 
   final AuthRepository authRepository;
+  final ImageUploadRepository imageUploadRepository;
+  final Future<XFile?> Function()? pickProfileImage;
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
@@ -32,9 +41,11 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isServiceTermsAgreed = false;
   bool _isPrivacyTermsAgreed = false;
   bool _isAgeAgreed = false;
-  bool _hasProfilePhoto = false;
+  bool _isPickingProfileImage = false;
+  bool _isProfileImageUploaded = false;
+  ImageUploadFile? _profileImage;
+  AuthSession? _createdSession;
   DateTime? _birthDate;
-  String? _region;
   String? _errorMessage;
 
   bool get _isAllTermsAgreed =>
@@ -161,18 +172,15 @@ class _SignUpPageState extends State<SignUpPage> {
                                       key: const ValueKey('profile-step'),
                                       nicknameController: _nicknameController,
                                       introController: _introController,
-                                      hasProfilePhoto: _hasProfilePhoto,
+                                      profileImage: _profileImage,
+                                      isPickingProfileImage:
+                                          _isPickingProfileImage,
                                       birthDate: _birthDate,
-                                      region: _region,
                                       isSubmitting: _isSubmitting,
                                       errorMessage: _errorMessage,
-                                      toggleProfilePhoto: () {
-                                        setState(() {
-                                          _hasProfilePhoto = !_hasProfilePhoto;
-                                        });
-                                      },
+                                      pickProfilePhoto: _pickProfilePhoto,
+                                      removeProfilePhoto: _removeProfilePhoto,
                                       selectBirthDate: _selectBirthDate,
-                                      selectRegion: _selectRegion,
                                     ),
                             ),
                           ],
@@ -186,12 +194,22 @@ class _SignUpPageState extends State<SignUpPage> {
                     left: 0,
                     right: 0,
                     bottom: keyboardInset,
-                    child: _SignUpStickyFooter(
-                      step: _step,
-                      isSubmitting: _isSubmitting,
-                      onPrimaryPressed: _step == 0
-                          ? _goToProfileStep
-                          : (_isSubmitting ? null : _submit),
+                    child: PopScope<AuthSession?>(
+                      canPop: _createdSession == null && _step == 0,
+                      onPopInvokedWithResult: (didPop, result) {
+                        if (!didPop) {
+                          _handleBackPressed();
+                        }
+                      },
+                      child: _SignUpStickyFooter(
+                        step: _step,
+                        isSubmitting: _isSubmitting,
+                        onPrimaryPressed: _step == 0
+                            ? _goToProfileStep
+                            : (_isSubmitting || _isPickingProfileImage
+                                ? null
+                                : _submit),
+                      ),
                     ),
                   ),
                 ],
@@ -210,6 +228,12 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   void _handleBackPressed() {
+    final createdSession = _createdSession;
+    if (createdSession != null) {
+      _complete(createdSession);
+      return;
+    }
+
     if (_step == 0) {
       Navigator.of(context).maybePop();
       return;
@@ -282,77 +306,76 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  Future<void> _selectRegion() async {
-    final selectedRegion = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (context) {
-        const regions = [
-          '서울',
-          '경기',
-          '인천',
-          '부산',
-          '대구',
-          '광주',
-          '대전',
-        ];
+  Future<void> _pickProfilePhoto() async {
+    if (_isSubmitting || _isPickingProfileImage) {
+      return;
+    }
 
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 18, 22, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 42,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.line,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                const Text(
-                  '거주 지역 선택',
-                  style: TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                ...regions.map(
-                  (region) => ListTile(
-                    title: Text(
-                      region,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    trailing: _region == region
-                        ? const Icon(Icons.check_rounded)
-                        : null,
-                    onTap: () => Navigator.of(context).pop(region),
-                  ),
-                ),
-              ],
-            ),
-          ),
+    setState(() => _isPickingProfileImage = true);
+
+    Object? pickError;
+    ImageUploadFile? selectedImage;
+    try {
+      final pickProfileImage = widget.pickProfileImage;
+      final file = pickProfileImage == null
+          ? await ImagePicker().pickImage(
+              source: ImageSource.gallery,
+              imageQuality: 85,
+            )
+          : await pickProfileImage();
+      if (file != null) {
+        final contentType = _resolveImageContentType(file.mimeType, file.name);
+        if (contentType == null) {
+          throw const ImageUploadException(
+            'jpg, png, webp 이미지만 선택할 수 있습니다.',
+          );
+        }
+        selectedImage = ImageUploadFile(
+          name: file.name.trim().isEmpty
+              ? _defaultProfileImageFileName(contentType)
+              : file.name,
+          contentType: contentType,
+          bytes: await file.readAsBytes(),
         );
-      },
-    );
+      }
+    } on Object catch (error) {
+      pickError = error;
+    }
 
-    if (selectedRegion != null) {
-      setState(() => _region = selectedRegion);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isPickingProfileImage = false;
+      if (selectedImage != null) {
+        _profileImage = selectedImage;
+        _isProfileImageUploaded = false;
+        _errorMessage = null;
+      }
+    });
+
+    if (pickError != null) {
+      _showSnackBar(
+        pickError is ImageUploadException
+            ? pickError.message
+            : '프로필 사진을 불러오지 못했습니다.',
+      );
     }
   }
 
+  void _removeProfilePhoto() {
+    if (_isSubmitting || _isPickingProfileImage) {
+      return;
+    }
+    setState(() {
+      _profileImage = null;
+      _isProfileImageUploaded = false;
+    });
+  }
+
   Future<void> _submit() async {
-    if (_isSubmitting) {
+    if (_isSubmitting || _isPickingProfileImage) {
       return;
     }
 
@@ -367,17 +390,38 @@ class _SignUpPageState extends State<SignUpPage> {
     });
 
     try {
-      final session = await widget.authRepository.signUp(
-        nickname: _nicknameController.text,
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
+      var session = _createdSession;
+      if (session == null) {
+        session = await widget.authRepository.signUp(
+          nickname: _nicknameController.text,
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+        _createdSession = session;
+      }
+
+      final profileImage = _profileImage;
+      if (profileImage != null && !_isProfileImageUploaded) {
+        final profileImageUrl =
+            await widget.imageUploadRepository.uploadProfileImage(profileImage);
+        _isProfileImageUploaded = true;
+        session = AuthSession(
+          user: session.user.copyWith(profileImageUrl: profileImageUrl),
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+        _createdSession = session;
+      }
       _complete(session);
     } on Exception catch (error) {
       if (!mounted) {
         return;
       }
-      setState(() => _errorMessage = authErrorMessage(error));
+      setState(() {
+        _errorMessage = _createdSession == null
+            ? authErrorMessage(error)
+            : '가입은 완료됐지만 프로필 사진을 저장하지 못했습니다. 다시 시도해 주세요.';
+      });
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
@@ -391,6 +435,37 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     Navigator.of(context).pop(session);
+  }
+
+  String? _resolveImageContentType(String? mimeType, String fileName) {
+    final normalizedMimeType = mimeType?.toLowerCase();
+    if (normalizedMimeType == 'image/jpeg' ||
+        normalizedMimeType == 'image/png' ||
+        normalizedMimeType == 'image/webp') {
+      return normalizedMimeType;
+    }
+
+    final extension = fileName.split('.').last.toLowerCase();
+    return switch (extension) {
+      'jpg' || 'jpeg' => 'image/jpeg',
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => null,
+    };
+  }
+
+  String _defaultProfileImageFileName(String contentType) {
+    return switch (contentType) {
+      'image/jpeg' => 'profile.jpg',
+      'image/webp' => 'profile.webp',
+      _ => 'profile.png',
+    };
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 }
 
@@ -682,26 +757,26 @@ class _ProfileStep extends StatelessWidget {
     super.key,
     required this.nicknameController,
     required this.introController,
-    required this.hasProfilePhoto,
+    required this.profileImage,
+    required this.isPickingProfileImage,
     required this.birthDate,
-    required this.region,
     required this.isSubmitting,
     required this.errorMessage,
-    required this.toggleProfilePhoto,
+    required this.pickProfilePhoto,
+    required this.removeProfilePhoto,
     required this.selectBirthDate,
-    required this.selectRegion,
   });
 
   final TextEditingController nicknameController;
   final TextEditingController introController;
-  final bool hasProfilePhoto;
+  final ImageUploadFile? profileImage;
+  final bool isPickingProfileImage;
   final DateTime? birthDate;
-  final String? region;
   final bool isSubmitting;
   final String? errorMessage;
-  final VoidCallback toggleProfilePhoto;
+  final VoidCallback pickProfilePhoto;
+  final VoidCallback removeProfilePhoto;
   final VoidCallback selectBirthDate;
-  final VoidCallback selectRegion;
 
   @override
   Widget build(BuildContext context) {
@@ -713,8 +788,10 @@ class _ProfileStep extends StatelessWidget {
         Row(
           children: [
             _ProfilePhotoPicker(
-              isSelected: hasProfilePhoto,
-              onTap: toggleProfilePhoto,
+              imageBytes: profileImage?.bytes,
+              isPicking: isPickingProfileImage,
+              onTap: pickProfilePhoto,
+              onRemove: removeProfilePhoto,
             ),
             const SizedBox(width: 16),
             const Expanded(
@@ -768,13 +845,6 @@ class _ProfileStep extends StatelessWidget {
           icon: Icons.calendar_today_outlined,
           text: birthDate == null ? '생년월일을 선택해주세요' : _formatDate(birthDate!),
           onTap: selectBirthDate,
-        ),
-        const SizedBox(height: 18),
-        _PickerField(
-          label: '거주 지역',
-          icon: Icons.location_on_outlined,
-          text: region ?? '거주 지역을 선택해주세요',
-          onTap: selectRegion,
         ),
         if (errorMessage != null) ...[
           const SizedBox(height: 14),
@@ -1281,53 +1351,95 @@ class _RoundCheck extends StatelessWidget {
 
 class _ProfilePhotoPicker extends StatelessWidget {
   const _ProfilePhotoPicker({
-    required this.isSelected,
+    required this.imageBytes,
+    required this.isPicking,
     required this.onTap,
+    required this.onRemove,
   });
 
-  final bool isSelected;
+  final Uint8List? imageBytes;
+  final bool isPicking;
   final VoidCallback onTap;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: CustomPaint(
-          painter: _DashedBorderPainter(
-            color: AppColors.secondary.withOpacity(0.55),
-            radius: 18,
-          ),
-          child: SizedBox(
-            width: 92,
-            height: 92,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    isSelected
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.photo_camera_outlined,
-                    color: AppColors.primary,
-                    size: 28,
+    final selectedImage = imageBytes;
+    return SizedBox(
+      width: 100,
+      height: 100,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: const Key('sign_up_profile_photo_picker'),
+                onTap: isPicking ? null : onTap,
+                borderRadius: BorderRadius.circular(18),
+                child: CustomPaint(
+                  painter: _DashedBorderPainter(
+                    color: AppColors.secondary.withOpacity(0.55),
+                    radius: 18,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    isSelected ? '추가됨' : '사진 추가',
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: selectedImage == null
+                        ? Center(
+                            child: isPicking
+                                ? const CircularProgressIndicator()
+                                : const Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.photo_camera_outlined,
+                                        color: AppColors.primary,
+                                        size: 28,
+                                      ),
+                                      SizedBox(height: 6),
+                                      Text(
+                                        '사진 추가',
+                                        style: TextStyle(
+                                          color: AppColors.primary,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                          )
+                        : Image.memory(
+                            selectedImage,
+                            key: const Key('sign_up_profile_photo_preview'),
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            height: double.infinity,
+                          ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
+          if (selectedImage != null)
+            Positioned(
+              top: -8,
+              right: -8,
+              child: IconButton.filled(
+                key: const Key('sign_up_profile_photo_remove'),
+                tooltip: '프로필 사진 제거',
+                onPressed: isPicking ? null : onRemove,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColors.ink,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size.square(28),
+                  fixedSize: const Size.square(28),
+                  padding: EdgeInsets.zero,
+                ),
+                icon: const Icon(Icons.close_rounded, size: 18),
+              ),
+            ),
+        ],
       ),
     );
   }

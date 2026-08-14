@@ -10,4 +10,9 @@ class MockImageUploadRepository implements ImageUploadRepository {
         'https://example.com/meetings/mock-image-$index.jpg',
     ];
   }
+
+  @override
+  Future<String> uploadProfileImage(ImageUploadFile image) async {
+    return 'https://example.com/profile/mock-profile-image.jpg';
+  }
 }

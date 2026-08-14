@@ -75,6 +75,33 @@ class ApiImageUploadRepository implements ImageUploadRepository {
     return fileUrls;
   }
 
+  @override
+  Future<String> uploadProfileImage(ImageUploadFile image) async {
+    final response = await _apiClient.postJson(
+      '/api/v1/images/upload-url',
+      body: {
+        'purpose': 'PROFILE',
+        'fileName': image.name,
+        'contentType': image.contentType,
+        'contentLength': image.contentLength,
+      },
+    );
+    _ensureSuccess(response);
+
+    final upload = _UploadUrlContract.fromJson(
+      _readMap(response['data'], 'data'),
+    );
+    await _uploadImage(upload, image);
+
+    final profileResponse = await _apiClient.patchJson(
+      '/api/v1/users/me/profile-image',
+      body: {'profileImageUrl': upload.fileUrl},
+    );
+    _ensureSuccess(profileResponse);
+
+    return upload.fileUrl;
+  }
+
   Future<void> _uploadImage(
     _UploadUrlContract upload,
     ImageUploadFile image,

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/app_route_names.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/image_upload_repository.dart';
+import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../models/auth_session.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
@@ -12,10 +14,12 @@ class LoginPage extends StatefulWidget {
   const LoginPage({
     super.key,
     required this.authRepository,
+    this.imageUploadRepository = const MockImageUploadRepository(),
     this.onAuthenticated,
   });
 
   final AuthRepository authRepository;
+  final ImageUploadRepository imageUploadRepository;
   final ValueChanged<AuthSession>? onAuthenticated;
 
   @override
@@ -218,7 +222,10 @@ class _LoginPageState extends State<LoginPage> {
     final session = await Navigator.of(context).push<AuthSession>(
       MaterialPageRoute<AuthSession>(
         settings: const RouteSettings(name: AppRouteNames.signUp),
-        builder: (_) => SignUpPage(authRepository: widget.authRepository),
+        builder: (_) => SignUpPage(
+          authRepository: widget.authRepository,
+          imageUploadRepository: widget.imageUploadRepository,
+        ),
       ),
     );
 

@@ -24,12 +24,15 @@ abstract final class AppRoutes {
   static Future<AuthSession?> openLogin(
     BuildContext context, {
     AuthRepository? authRepository,
+    ImageUploadRepository? imageUploadRepository,
   }) {
     return Navigator.of(context).push<AuthSession>(
       MaterialPageRoute<AuthSession>(
         settings: const RouteSettings(name: AppRouteNames.login),
         builder: (_) => LoginPage(
           authRepository: authRepository ?? MockAuthRepository(),
+          imageUploadRepository:
+              imageUploadRepository ?? const MockImageUploadRepository(),
         ),
       ),
     );
@@ -38,12 +41,15 @@ abstract final class AppRoutes {
   static Future<AuthSession?> openSignUp(
     BuildContext context, {
     AuthRepository? authRepository,
+    ImageUploadRepository? imageUploadRepository,
   }) {
     return Navigator.of(context).push<AuthSession>(
       MaterialPageRoute<AuthSession>(
         settings: const RouteSettings(name: AppRouteNames.signUp),
         builder: (_) => SignUpPage(
           authRepository: authRepository ?? MockAuthRepository(),
+          imageUploadRepository:
+              imageUploadRepository ?? const MockImageUploadRepository(),
         ),
       ),
     );
