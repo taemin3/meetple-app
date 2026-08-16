@@ -342,6 +342,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.profile:
         return ProfilePage(
           authRepository: _authRepository,
+          imageUploadRepository: widget.imageUploadRepository,
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
           isActive: currentTab == AppTab.profile,

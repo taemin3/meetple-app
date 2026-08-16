@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/image_upload_repository.dart';
 import '../../data/repositories/mock_auth_repository.dart';
+import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_notification_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
@@ -13,6 +15,7 @@ import '../../models/auth_user.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_list_filter.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/network_image_with_skeleton.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/surface_panel.dart';
 import '../auth/auth_form_widgets.dart';
@@ -20,11 +23,14 @@ import '../notifications/notifications_page.dart';
 import 'bookmarked_meetings_page.dart';
 import 'my_applications_page.dart';
 import 'my_meetings_page.dart';
+import 'profile_edit_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
     super.key,
     this.authRepository,
+    this.imageUploadRepository = const MockImageUploadRepository(),
+    this.pickProfileImage,
     this.meetingRepository = const MockMeetingRepository(),
     this.notificationRepository = const MockNotificationRepository(),
     this.isActive = true,
@@ -33,6 +39,8 @@ class ProfilePage extends StatefulWidget {
   });
 
   final AuthRepository? authRepository;
+  final ImageUploadRepository imageUploadRepository;
+  final ProfileImagePicker? pickProfileImage;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
   final bool isActive;
@@ -103,9 +111,14 @@ class _ProfilePageState extends State<ProfilePage> {
         return ProfileContent(
           user: session.user,
           authRepository: _authRepository,
+          imageUploadRepository: widget.imageUploadRepository,
+          pickProfileImage: widget.pickProfileImage,
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
           onSignedOut: _showSignedOut,
+          onProfileUpdated: (result) {
+            _showProfile(session, result);
+          },
           onMeetingChanged: widget.onMeetingChanged,
         );
       },
@@ -124,6 +137,19 @@ class _ProfilePageState extends State<ProfilePage> {
     });
     widget.onSignedOut?.call();
   }
+
+  void _showProfile(AuthSession session, ProfileEditResult result) {
+    _showSession(
+      AuthSession(
+        user: result.user,
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      ),
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(result.message)),
+    );
+  }
 }
 
 class ProfileContent extends StatefulWidget {
@@ -131,17 +157,23 @@ class ProfileContent extends StatefulWidget {
     super.key,
     required this.user,
     required this.authRepository,
+    required this.imageUploadRepository,
+    this.pickProfileImage,
     required this.meetingRepository,
     required this.notificationRepository,
     required this.onSignedOut,
+    required this.onProfileUpdated,
     this.onMeetingChanged,
   });
 
   final AuthUser user;
   final AuthRepository authRepository;
+  final ImageUploadRepository imageUploadRepository;
+  final ProfileImagePicker? pickProfileImage;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
   final VoidCallback onSignedOut;
+  final ValueChanged<ProfileEditResult> onProfileUpdated;
   final VoidCallback? onMeetingChanged;
 
   @override
@@ -156,7 +188,10 @@ class _ProfileContentState extends State<ProfileContent> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
       children: [
-        ProfileHeader(user: widget.user),
+        ProfileHeader(
+          user: widget.user,
+          onEditProfileImage: _openProfileImageEditor,
+        ),
         const SizedBox(height: 24),
         ProfileStatsCard(user: widget.user),
         const SizedBox(height: 18),
@@ -283,6 +318,24 @@ class _ProfileContentState extends State<ProfileContent> {
     widget.onSignedOut();
   }
 
+  Future<void> _openProfileImageEditor() async {
+    final result = await Navigator.of(context).push<ProfileEditResult>(
+      MaterialPageRoute(
+        builder: (_) => ProfileEditPage(
+          user: widget.user,
+          authRepository: widget.authRepository,
+          imageUploadRepository: widget.imageUploadRepository,
+          pickProfileImage: widget.pickProfileImage,
+        ),
+      ),
+    );
+    if (!mounted || result == null) {
+      return;
+    }
+
+    widget.onProfileUpdated(result);
+  }
+
   void _openMeetings({
     required String title,
     required String emptyMessage,
@@ -304,19 +357,22 @@ class _ProfileContentState extends State<ProfileContent> {
 }
 
 class ProfileHeader extends StatelessWidget {
-  const ProfileHeader({super.key, required this.user});
+  const ProfileHeader({
+    super.key,
+    required this.user,
+    required this.onEditProfileImage,
+  });
 
   final AuthUser user;
+  final VoidCallback onEditProfileImage;
 
   @override
   Widget build(BuildContext context) {
+    final introduction = user.introduction?.trim();
+
     return Row(
       children: [
-        const CircleAvatar(
-          radius: 34,
-          backgroundColor: AppColors.softSurface,
-          child: Icon(Icons.person, color: AppColors.primary, size: 34),
-        ),
+        _ProfileAvatar(profileImageUrl: user.profileImageUrl),
         const SizedBox(width: 16),
         Expanded(
           child: Column(
@@ -330,22 +386,68 @@ class ProfileHeader extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '@${user.handle}',
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w700,
+              if (introduction != null && introduction.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  introduction,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
         IconButton(
-          onPressed: () {},
+          key: const Key('profile_image_edit_open'),
+          tooltip: '프로필 사진 수정',
+          onPressed: onEditProfileImage,
           icon: const Icon(Icons.settings_outlined),
         ),
       ],
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({required this.profileImageUrl});
+
+  final String? profileImageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final fallback = _fallback();
+    final imageUrl = profileImageUrl?.trim();
+
+    return Container(
+      width: 68,
+      height: 68,
+      decoration: const BoxDecoration(
+        color: AppColors.softSurface,
+        shape: BoxShape.circle,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: imageUrl != null && imageUrl.isNotEmpty
+          ? NetworkImageWithSkeleton(
+              imageKey: const Key('profile_avatar_image'),
+              imageUrl: imageUrl,
+              width: 68,
+              height: 68,
+              fit: BoxFit.cover,
+              cacheWidth: 136,
+              cacheHeight: 136,
+              skeleton: fallback,
+              errorWidget: fallback,
+            )
+          : fallback,
+    );
+  }
+
+  Widget _fallback() {
+    return const Center(
+      child: Icon(Icons.person, color: AppColors.primary, size: 34),
     );
   }
 }

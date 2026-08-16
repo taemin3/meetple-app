@@ -1,4 +1,5 @@
 import '../../models/auth_session.dart';
+import '../../models/auth_user.dart';
 import '../mock/mock_auth.dart';
 import 'auth_repository.dart';
 
@@ -59,6 +60,48 @@ class MockAuthRepository implements AuthRepository {
     _session = session;
 
     return session;
+  }
+
+  @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
+  }) async {
+    final session = _session;
+    if (session == null) {
+      throw const AuthException('로그인이 필요합니다.');
+    }
+
+    final normalizedNickname = nickname.trim();
+    if (normalizedNickname.length < 2 || normalizedNickname.length > 20) {
+      throw const AuthException('닉네임은 2자 이상 20자 이하여야 합니다.');
+    }
+
+    final normalizedIntroduction = introduction.trim();
+    if (normalizedIntroduction.length > 30) {
+      throw const AuthException('한줄 소개는 30자 이하여야 합니다.');
+    }
+
+    final user = session.user.copyWith(
+      nickname: normalizedNickname,
+      handle: normalizedNickname,
+      introduction: normalizedIntroduction,
+    );
+    synchronizeUser(user);
+    return user;
+  }
+
+  @override
+  void synchronizeUser(AuthUser user) {
+    final session = _session;
+    if (session == null) {
+      return;
+    }
+    _session = AuthSession(
+      user: user,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    );
   }
 
   @override

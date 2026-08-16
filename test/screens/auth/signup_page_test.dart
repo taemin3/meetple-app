@@ -262,6 +262,17 @@ class _SignUpAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  void synchronizeUser(AuthUser user) {}
+
+  @override
   Future<void> signOut() async {
     _session = null;
   }
@@ -273,6 +284,9 @@ class _RecordingImageUploadRepository implements ImageUploadRepository {
   final bool failUpload;
   ImageUploadFile? uploadedImage;
   int uploadCount = 0;
+
+  @override
+  Future<void> deleteProfileImage() async {}
 
   @override
   Future<List<UploadedImage>> uploadMeetingImages(

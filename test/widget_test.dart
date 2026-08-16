@@ -16,6 +16,7 @@ import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/auth_session.dart';
+import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/models/app_notification.dart';
 import 'package:meetple/models/chat_room.dart';
 import 'package:meetple/models/location_search_result.dart';
@@ -602,7 +603,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('\uAE40\uBAA8\uC784'), findsOneWidget);
-    expect(find.text('@gather_together'), findsOneWidget);
+    expect(find.text('@gather_together'), findsNothing);
   });
 
   testWidgets('shows login first when no session is restored', (
@@ -1173,6 +1174,17 @@ class _DeferredAuthRepository implements AuthRepository {
   }) {
     throw UnimplementedError();
   }
+
+  @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  void synchronizeUser(AuthUser user) {}
 
   @override
   Future<void> signOut() async {}

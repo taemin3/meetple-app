@@ -59,6 +59,20 @@ void main() {
     expect(await repository.restoreSession(), isNull);
   });
 
+  test('keeps a synchronized profile image in the mock session', () async {
+    final repository = MockAuthRepository();
+    final user = mockAuthUser.copyWith(
+      profileImageUrl: 'https://example.com/profile/new.png',
+    );
+
+    repository.synchronizeUser(user);
+
+    expect(
+      (await repository.refreshSession())?.user.profileImageUrl,
+      'https://example.com/profile/new.png',
+    );
+  });
+
   test('throws auth exception for blank sign in fields', () {
     final repository = MockAuthRepository();
 

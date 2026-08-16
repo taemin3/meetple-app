@@ -204,6 +204,53 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
+  }) async {
+    final normalizedNickname = nickname.trim();
+    final normalizedIntroduction = introduction.trim();
+    if (normalizedNickname.length < 2 || normalizedNickname.length > 20) {
+      throw const AuthException('닉네임은 2자 이상 20자 이하여야 합니다.');
+    }
+    if (normalizedIntroduction.length > 30) {
+      throw const AuthException('한줄 소개는 30자 이하여야 합니다.');
+    }
+
+    try {
+      final response = await _apiClient.patchJson(
+        '/api/v1/users/me',
+        body: {
+          'nickname': normalizedNickname,
+          'introduction': normalizedIntroduction,
+        },
+      );
+      final user = _userFromJson(_readData(response));
+      synchronizeUser(user);
+      return user;
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    } on FormatException {
+      throw const AuthException('프로필 응답 형식이 올바르지 않습니다.');
+    }
+  }
+
+  @override
+  void synchronizeUser(AuthUser user) {
+    final session = _session;
+    if (session == null) {
+      return;
+    }
+    _session = AuthSession(
+      user: user,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    );
+  }
+
+  @override
   Future<void> signOut() async {
     await _deactivatePushBeforeSignOut();
     await _tokenRefreshCoordinator.prepareForSignOut();
@@ -335,6 +382,7 @@ class ApiAuthRepository implements AuthRepository {
       handle: _handleFrom(nickname, email),
       email: email,
       profileImageUrl: _readNullableString(json['profileImageUrl']),
+      introduction: _readNullableString(json['introduction']),
       createdMeetingsCount: _readInt(json['createdMeetingsCount']),
       joinedMeetingsCount: _readInt(json['joinedMeetingsCount']),
       likedMeetingsCount: _readInt(json['likedMeetingsCount']),

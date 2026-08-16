@@ -4,6 +4,8 @@ abstract interface class ImageUploadRepository {
   Future<List<UploadedImage>> uploadMeetingImages(List<ImageUploadFile> images);
 
   Future<UploadedImage> uploadProfileImage(ImageUploadFile image);
+
+  Future<void> deleteProfileImage();
 }
 
 class UploadedImage {
