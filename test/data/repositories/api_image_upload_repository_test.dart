@@ -130,6 +130,21 @@ void main() {
     expect(uploadedImage.fileUrl, 'https://cdn.example.com/avatar.png');
   });
 
+  test('deletes the current profile image link', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {'profileImageUrl': null},
+      },
+    );
+    final repository = ApiImageUploadRepository(apiClient: apiClient);
+
+    await repository.deleteProfileImage();
+
+    expect(apiClient.deletePath, '/api/v1/users/me/profile-image');
+  });
+
   test('throws ImageUploadException when storage upload fails', () async {
     final repository = ApiImageUploadRepository(
       apiClient: FakeApiClient(
@@ -171,6 +186,7 @@ class FakeApiClient extends ApiClient {
   Map<String, dynamic>? body;
   String? patchPath;
   Map<String, dynamic>? patchBody;
+  String? deletePath;
 
   @override
   Future<Map<String, dynamic>> getJson(
@@ -199,5 +215,11 @@ class FakeApiClient extends ApiClient {
     patchPath = path;
     patchBody = body;
     return patchResponse ?? response;
+  }
+
+  @override
+  Future<Map<String, dynamic>> deleteJson(String path) async {
+    deletePath = path;
+    return response;
   }
 }

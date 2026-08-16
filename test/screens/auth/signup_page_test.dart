@@ -283,6 +283,9 @@ class _RecordingImageUploadRepository implements ImageUploadRepository {
   int uploadCount = 0;
 
   @override
+  Future<void> deleteProfileImage() async {}
+
+  @override
   Future<List<UploadedImage>> uploadMeetingImages(
     List<ImageUploadFile> images,
   ) async {

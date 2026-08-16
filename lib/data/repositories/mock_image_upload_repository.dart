@@ -23,4 +23,7 @@ class MockImageUploadRepository implements ImageUploadRepository {
       fileUrl: 'https://example.com/profile/mock-profile-image.jpg',
     );
   }
+
+  @override
+  Future<void> deleteProfileImage() async {}
 }

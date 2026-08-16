@@ -27,6 +27,7 @@ class AuthUser {
     String? handle,
     String? email,
     String? profileImageUrl,
+    bool clearProfileImageUrl = false,
     String? introduction,
     int? createdMeetingsCount,
     int? joinedMeetingsCount,
@@ -37,7 +38,8 @@ class AuthUser {
       nickname: nickname ?? this.nickname,
       handle: handle ?? this.handle,
       email: email ?? this.email,
-      profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      profileImageUrl:
+          clearProfileImageUrl ? null : profileImageUrl ?? this.profileImageUrl,
       introduction: introduction ?? this.introduction,
       createdMeetingsCount: createdMeetingsCount ?? this.createdMeetingsCount,
       joinedMeetingsCount: joinedMeetingsCount ?? this.joinedMeetingsCount,

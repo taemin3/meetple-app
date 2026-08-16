@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/repositories/image_upload_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
+import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/screens/profile/profile_edit_page.dart';
 import 'package:meetple/screens/profile/profile_page.dart';
@@ -48,6 +49,8 @@ void main() {
       '주말 산책을 좋아해요',
     );
     await tester.tap(find.byKey(const Key('profile_edit_image_picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('profile_edit_change_image')));
     await tester.pumpAndSettle();
 
     expect(
@@ -112,12 +115,75 @@ void main() {
 
     await tester.tap(find.byKey(const Key('profile_edit_image_picker')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('profile_edit_change_image')));
+    await tester.pumpAndSettle();
 
     expect(
       find.text('JPG, PNG, WEBP 이미지만 선택할 수 있습니다.'),
       findsOneWidget,
     );
     expect(imageRepository.uploadCount, 0);
+  });
+
+  testWidgets('changes an existing profile image to the default image', (
+    tester,
+  ) async {
+    final imageRepository = _RecordingImageUploadRepository();
+    final user = mockAuthUser.copyWith(
+      profileImageUrl: 'https://cdn.example.com/profile/current.png',
+    );
+    final authRepository = _RecordingAuthRepository.withSession(
+      AuthSession(
+        user: user,
+        accessToken: mockAuthSession.accessToken,
+        refreshToken: mockAuthSession.refreshToken,
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfilePage(
+            authRepository: authRepository,
+            imageUploadRepository: imageRepository,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('profile_avatar_image')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('profile_image_edit_open')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('profile_edit_current_preview')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('profile_edit_image_picker')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('사진 변경'), findsOneWidget);
+    expect(find.text('기본 이미지로 변경'), findsOneWidget);
+    expect(find.text('취소'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('profile_edit_use_default_image')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('profile_edit_current_preview')),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const Key('profile_edit_complete')));
+    await tester.pumpAndSettle();
+
+    expect(imageRepository.deleteCount, 1);
+    expect(imageRepository.uploadCount, 0);
+    expect(find.byKey(const Key('profile_avatar_image')), findsNothing);
+    expect(find.text('프로필을 수정했습니다.'), findsOneWidget);
   });
 }
 
@@ -133,6 +199,11 @@ Future<XFile?> _pickPng() async {
 }
 
 class _RecordingAuthRepository extends MockAuthRepository {
+  _RecordingAuthRepository() : super();
+
+  _RecordingAuthRepository.withSession(AuthSession session)
+      : super(session: session);
+
   int updateCount = 0;
   String? updatedNickname;
   String? updatedIntroduction;
@@ -155,6 +226,12 @@ class _RecordingAuthRepository extends MockAuthRepository {
 class _RecordingImageUploadRepository implements ImageUploadRepository {
   ImageUploadFile? uploadedImage;
   int uploadCount = 0;
+  int deleteCount = 0;
+
+  @override
+  Future<void> deleteProfileImage() async {
+    deleteCount += 1;
+  }
 
   @override
   Future<List<UploadedImage>> uploadMeetingImages(

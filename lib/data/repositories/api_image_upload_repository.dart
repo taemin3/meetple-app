@@ -109,6 +109,14 @@ class ApiImageUploadRepository implements ImageUploadRepository {
     return UploadedImage(objectKey: upload.objectKey, fileUrl: upload.fileUrl);
   }
 
+  @override
+  Future<void> deleteProfileImage() async {
+    final response = await _apiClient.deleteJson(
+      '/api/v1/users/me/profile-image',
+    );
+    _ensureSuccess(response);
+  }
+
   Future<void> _uploadImage(
     _UploadUrlContract upload,
     ImageUploadFile image,

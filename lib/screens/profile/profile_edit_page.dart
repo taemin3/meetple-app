@@ -11,6 +11,8 @@ import '../../widgets/network_image_with_skeleton.dart';
 
 typedef ProfileImagePicker = Future<XFile?> Function();
 
+enum _ProfileImageAction { change, useDefault }
+
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({
     super.key,
@@ -33,10 +35,16 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   late final TextEditingController _nicknameController;
   late final TextEditingController _introductionController;
   ImageUploadFile? _selectedImage;
+  bool _deleteProfileImage = false;
   bool _isPicking = false;
   bool _isSaving = false;
 
   bool get _isBusy => _isPicking || _isSaving;
+  bool get _hasOriginalProfileImage =>
+      widget.user.profileImageUrl?.trim().isNotEmpty == true;
+  bool get _hasVisibleProfileImage =>
+      _selectedImage != null ||
+      (!_deleteProfileImage && _hasOriginalProfileImage);
 
   @override
   void initState() {
@@ -108,9 +116,11 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
                 Align(
                   child: _EditableProfileImage(
                     imageBytes: _selectedImage?.bytes,
-                    imageUrl: widget.user.profileImageUrl,
+                    imageUrl: _deleteProfileImage
+                        ? null
+                        : widget.user.profileImageUrl,
                     isPicking: _isPicking,
-                    onTap: _isBusy ? null : _pickImage,
+                    onTap: _isBusy ? null : _showImageActions,
                   ),
                 ),
                 const SizedBox(height: 36),
@@ -136,6 +146,64 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _showImageActions() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final action = await showModalBottomSheet<_ProfileImageAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const Key('profile_edit_change_image'),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('사진 변경'),
+              onTap: () => Navigator.of(sheetContext).pop(
+                _ProfileImageAction.change,
+              ),
+            ),
+            if (_hasVisibleProfileImage)
+              ListTile(
+                key: const Key('profile_edit_use_default_image'),
+                leading: const Icon(
+                  Icons.person_remove_outlined,
+                  color: AppColors.error,
+                ),
+                title: const Text(
+                  '기본 이미지로 변경',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                onTap: () => Navigator.of(sheetContext).pop(
+                  _ProfileImageAction.useDefault,
+                ),
+              ),
+            ListTile(
+              key: const Key('profile_edit_cancel_image_action'),
+              leading: const Icon(Icons.close_rounded),
+              title: const Text('취소'),
+              onTap: () => Navigator.of(sheetContext).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (!mounted || action == null) {
+      return;
+    }
+
+    switch (action) {
+      case _ProfileImageAction.change:
+        await _pickImage();
+      case _ProfileImageAction.useDefault:
+        setState(() {
+          _selectedImage = null;
+          _deleteProfileImage = _hasOriginalProfileImage;
+        });
+    }
   }
 
   Future<void> _pickImage() async {
@@ -177,6 +245,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
       _isPicking = false;
       if (selectedImage != null) {
         _selectedImage = selectedImage;
+        _deleteProfileImage = false;
       }
     });
 
@@ -211,6 +280,9 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         final uploadedImage = await widget.imageUploadRepository
             .uploadProfileImage(selectedImage);
         profileImageUrl = uploadedImage.fileUrl;
+      } else if (_deleteProfileImage) {
+        await widget.imageUploadRepository.deleteProfileImage();
+        profileImageUrl = null;
       }
 
       final updatedUser = await widget.authRepository.updateProfile(
@@ -221,7 +293,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         return;
       }
       Navigator.of(context).pop(
-        updatedUser.copyWith(profileImageUrl: profileImageUrl),
+        updatedUser.copyWith(
+          profileImageUrl: profileImageUrl,
+          clearProfileImageUrl: _deleteProfileImage,
+        ),
       );
     } on Exception catch (error) {
       if (!mounted) {
