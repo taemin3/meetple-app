@@ -603,7 +603,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('\uAE40\uBAA8\uC784'), findsOneWidget);
-    expect(find.text('@gather_together'), findsOneWidget);
+    expect(find.text('@gather_together'), findsNothing);
   });
 
   testWidgets('shows login first when no session is restored', (

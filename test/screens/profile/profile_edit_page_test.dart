@@ -14,6 +14,26 @@ import 'package:meetple/screens/profile/profile_edit_page.dart';
 import 'package:meetple/screens/profile/profile_page.dart';
 
 void main() {
+  testWidgets('shows introduction instead of handle in the profile header', (
+    tester,
+  ) async {
+    const introduction = '주말 산책을 좋아해요';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfileHeader(
+            user: mockAuthUser.copyWith(introduction: introduction),
+            onEditProfileImage: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text(introduction), findsOneWidget);
+    expect(find.text('@${mockAuthUser.handle}'), findsNothing);
+  });
+
   testWidgets('updates image nickname and introduction from the profile page', (
     tester,
   ) async {

@@ -368,6 +368,8 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final introduction = user.introduction?.trim();
+
     return Row(
       children: [
         _ProfileAvatar(profileImageUrl: user.profileImageUrl),
@@ -384,18 +386,10 @@ class ProfileHeader extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                '@${user.handle}',
-                style: const TextStyle(
-                  color: AppColors.muted,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (user.introduction?.isNotEmpty == true) ...[
-                const SizedBox(height: 6),
+              if (introduction != null && introduction.isNotEmpty) ...[
+                const SizedBox(height: 4),
                 Text(
-                  user.introduction!,
+                  introduction,
                   style: const TextStyle(
                     color: AppColors.muted,
                     fontSize: 13,
