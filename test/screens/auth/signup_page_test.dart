@@ -262,6 +262,14 @@ class _SignUpAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> signOut() async {
     _session = null;
   }

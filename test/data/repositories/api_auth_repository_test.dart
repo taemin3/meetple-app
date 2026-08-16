@@ -222,6 +222,37 @@ void main() {
     expect(apiClient.requests, isEmpty);
   });
 
+  test('updates nickname and introduction through the profile API', () async {
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: _profileJson(
+            nickname: '새 닉네임',
+            introduction: '주말 산책을 좋아해요',
+          ),
+        ),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    final user = await repository.updateProfile(
+      nickname: ' 새 닉네임 ',
+      introduction: ' 주말 산책을 좋아해요 ',
+    );
+
+    expect(apiClient.requests.single.method, 'PATCH');
+    expect(apiClient.requests.single.path, '/api/v1/users/me');
+    expect(apiClient.requests.single.body, {
+      'nickname': '새 닉네임',
+      'introduction': '주말 산책을 좋아해요',
+    });
+    expect(user.nickname, '새 닉네임');
+    expect(user.introduction, '주말 산책을 좋아해요');
+  });
+
   test('restores session by reissuing tokens after unauthorized profile API',
       () async {
     final tokenStore = MemoryAuthTokenStore(
@@ -694,11 +725,13 @@ Map<String, dynamic> _profileJson({
   int id = 1,
   String email = 'user@example.com',
   String nickname = '민지',
+  String? introduction,
 }) {
   return {
     'id': id,
     'email': email,
     'nickname': nickname,
+    'introduction': introduction,
     'profileImageUrl': 'https://example.com/profile.png',
     'region': '서울',
     'role': 'USER',
@@ -772,6 +805,24 @@ class FakeApiClient extends ApiClient {
         queryParameters: const {},
         body: body,
         includeAuthorization: includeAuthorization,
+      ),
+    );
+
+    return _nextResponse();
+  }
+
+  @override
+  Future<Map<String, dynamic>> patchJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) async {
+    requests.add(
+      RecordedApiRequest(
+        method: 'PATCH',
+        path: path,
+        queryParameters: const {},
+        body: body,
+        includeAuthorization: true,
       ),
     );
 

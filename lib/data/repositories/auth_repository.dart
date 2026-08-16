@@ -1,4 +1,5 @@
 import '../../models/auth_session.dart';
+import '../../models/auth_user.dart';
 
 abstract interface class AuthRepository {
   Future<AuthSession?> restoreSession();
@@ -14,6 +15,11 @@ abstract interface class AuthRepository {
     required String nickname,
     required String email,
     required String password,
+  });
+
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
   });
 
   Future<void> signOut();

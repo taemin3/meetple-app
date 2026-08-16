@@ -5,6 +5,7 @@ class AuthUser {
     required this.handle,
     required this.email,
     this.profileImageUrl,
+    this.introduction,
     this.createdMeetingsCount = 0,
     this.joinedMeetingsCount = 0,
     this.likedMeetingsCount = 0,
@@ -15,6 +16,7 @@ class AuthUser {
   final String handle;
   final String email;
   final String? profileImageUrl;
+  final String? introduction;
   final int createdMeetingsCount;
   final int joinedMeetingsCount;
   final int likedMeetingsCount;
@@ -25,6 +27,7 @@ class AuthUser {
     String? handle,
     String? email,
     String? profileImageUrl,
+    String? introduction,
     int? createdMeetingsCount,
     int? joinedMeetingsCount,
     int? likedMeetingsCount,
@@ -35,6 +38,7 @@ class AuthUser {
       handle: handle ?? this.handle,
       email: email ?? this.email,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      introduction: introduction ?? this.introduction,
       createdMeetingsCount: createdMeetingsCount ?? this.createdMeetingsCount,
       joinedMeetingsCount: joinedMeetingsCount ?? this.joinedMeetingsCount,
       likedMeetingsCount: likedMeetingsCount ?? this.likedMeetingsCount,

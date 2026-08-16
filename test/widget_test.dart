@@ -16,6 +16,7 @@ import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/auth_session.dart';
+import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/models/app_notification.dart';
 import 'package:meetple/models/chat_room.dart';
 import 'package:meetple/models/location_search_result.dart';
@@ -1170,6 +1171,14 @@ class _DeferredAuthRepository implements AuthRepository {
     required String nickname,
     required String email,
     required String password,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
   }) {
     throw UnimplementedError();
   }

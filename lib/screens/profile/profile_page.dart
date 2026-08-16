@@ -23,7 +23,7 @@ import '../notifications/notifications_page.dart';
 import 'bookmarked_meetings_page.dart';
 import 'my_applications_page.dart';
 import 'my_meetings_page.dart';
-import 'profile_image_edit_page.dart';
+import 'profile_edit_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
@@ -116,8 +116,8 @@ class _ProfilePageState extends State<ProfilePage> {
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
           onSignedOut: _showSignedOut,
-          onProfileImageUpdated: (profileImageUrl) {
-            _showProfileImage(session, profileImageUrl);
+          onProfileUpdated: (user) {
+            _showProfile(session, user);
           },
           onMeetingChanged: widget.onMeetingChanged,
         );
@@ -138,16 +138,16 @@ class _ProfilePageState extends State<ProfilePage> {
     widget.onSignedOut?.call();
   }
 
-  void _showProfileImage(AuthSession session, String profileImageUrl) {
+  void _showProfile(AuthSession session, AuthUser user) {
     _showSession(
       AuthSession(
-        user: session.user.copyWith(profileImageUrl: profileImageUrl),
+        user: user,
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       ),
     );
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('프로필 사진을 변경했습니다.')),
+      const SnackBar(content: Text('프로필을 수정했습니다.')),
     );
   }
 }
@@ -162,7 +162,7 @@ class ProfileContent extends StatefulWidget {
     required this.meetingRepository,
     required this.notificationRepository,
     required this.onSignedOut,
-    required this.onProfileImageUpdated,
+    required this.onProfileUpdated,
     this.onMeetingChanged,
   });
 
@@ -173,7 +173,7 @@ class ProfileContent extends StatefulWidget {
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
   final VoidCallback onSignedOut;
-  final ValueChanged<String> onProfileImageUpdated;
+  final ValueChanged<AuthUser> onProfileUpdated;
   final VoidCallback? onMeetingChanged;
 
   @override
@@ -319,20 +319,21 @@ class _ProfileContentState extends State<ProfileContent> {
   }
 
   Future<void> _openProfileImageEditor() async {
-    final profileImageUrl = await Navigator.of(context).push<String>(
+    final updatedUser = await Navigator.of(context).push<AuthUser>(
       MaterialPageRoute(
-        builder: (_) => ProfileImageEditPage(
-          currentImageUrl: widget.user.profileImageUrl,
+        builder: (_) => ProfileEditPage(
+          user: widget.user,
+          authRepository: widget.authRepository,
           imageUploadRepository: widget.imageUploadRepository,
           pickProfileImage: widget.pickProfileImage,
         ),
       ),
     );
-    if (!mounted || profileImageUrl == null) {
+    if (!mounted || updatedUser == null) {
       return;
     }
 
-    widget.onProfileImageUpdated(profileImageUrl);
+    widget.onProfileUpdated(updatedUser);
   }
 
   void _openMeetings({
@@ -391,6 +392,17 @@ class ProfileHeader extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
+              if (user.introduction?.isNotEmpty == true) ...[
+                const SizedBox(height: 6),
+                Text(
+                  user.introduction!,
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

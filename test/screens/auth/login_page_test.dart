@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/models/auth_session.dart';
+import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 import 'package:meetple/widgets/primary_button.dart';
 
@@ -78,6 +79,14 @@ class _DeferredSignInRepository implements AuthRepository {
     required String password,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
+  }) {
+    throw UnimplementedError();
+  }
 
   @override
   Future<void> signOut() async {}
