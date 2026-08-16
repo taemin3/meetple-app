@@ -89,5 +89,8 @@ class _DeferredSignInRepository implements AuthRepository {
   }
 
   @override
+  void synchronizeUser(AuthUser user) {}
+
+  @override
   Future<void> signOut() async {}
 }

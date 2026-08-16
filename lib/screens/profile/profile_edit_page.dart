@@ -13,6 +13,13 @@ typedef ProfileImagePicker = Future<XFile?> Function();
 
 enum _ProfileImageAction { change, useDefault }
 
+class ProfileEditResult {
+  const ProfileEditResult({required this.user, required this.message});
+
+  final AuthUser user;
+  final String message;
+}
+
 class ProfileEditPage extends StatefulWidget {
   const ProfileEditPage({
     super.key,
@@ -75,72 +82,75 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          key: const Key('profile_edit_back'),
-          onPressed: _isBusy ? null : () => Navigator.of(context).maybePop(),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-        ),
-        title: const Text(
-          '프로필 수정',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
-        actions: [
-          TextButton(
-            key: const Key('profile_edit_complete'),
-            onPressed: _isBusy ? null : _saveProfile,
-            child: _isSaving
-                ? const SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text(
-                    '완료',
-                    style: TextStyle(fontWeight: FontWeight.w900),
-                  ),
+    return PopScope(
+      canPop: !_isBusy,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            key: const Key('profile_edit_back'),
+            onPressed: _isBusy ? null : () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      backgroundColor: AppColors.surface,
-      body: SafeArea(
-        top: false,
-        child: GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  child: _EditableProfileImage(
-                    imageBytes: _selectedImage?.bytes,
-                    imageUrl: _deleteProfileImage
-                        ? null
-                        : widget.user.profileImageUrl,
-                    isPicking: _isPicking,
-                    onTap: _isBusy ? null : _showImageActions,
+          title: const Text(
+            '프로필 수정',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          actions: [
+            TextButton(
+              key: const Key('profile_edit_complete'),
+              onPressed: _isBusy ? null : _saveProfile,
+              child: _isSaving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text(
+                      '완료',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        backgroundColor: AppColors.surface,
+        body: SafeArea(
+          top: false,
+          child: GestureDetector(
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    child: _EditableProfileImage(
+                      imageBytes: _selectedImage?.bytes,
+                      imageUrl: _deleteProfileImage
+                          ? null
+                          : widget.user.profileImageUrl,
+                      isPicking: _isPicking,
+                      onTap: _isBusy ? null : _showImageActions,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 36),
-                _ProfileTextField(
-                  fieldKey: const Key('profile_edit_nickname'),
-                  label: '닉네임',
-                  controller: _nicknameController,
-                  maxLength: 20,
-                  hintText: '닉네임을 입력해 주세요.',
-                ),
-                const SizedBox(height: 24),
-                _ProfileTextField(
-                  fieldKey: const Key('profile_edit_introduction'),
-                  label: '한줄 소개',
-                  controller: _introductionController,
-                  maxLength: 30,
-                  hintText: '자신을 한줄로 소개해 주세요.',
-                  maxLines: 3,
-                ),
-              ],
+                  const SizedBox(height: 36),
+                  _ProfileTextField(
+                    fieldKey: const Key('profile_edit_nickname'),
+                    label: '닉네임',
+                    controller: _nicknameController,
+                    maxLength: 20,
+                    hintText: '닉네임을 입력해 주세요.',
+                  ),
+                  const SizedBox(height: 24),
+                  _ProfileTextField(
+                    fieldKey: const Key('profile_edit_introduction'),
+                    label: '한줄 소개',
+                    controller: _introductionController,
+                    maxLength: 30,
+                    hintText: '자신을 한줄로 소개해 주세요.',
+                    maxLines: 3,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -273,6 +283,17 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _isSaving = true);
 
+    late final AuthUser updatedUser;
+    try {
+      updatedUser = await widget.authRepository.updateProfile(
+        nickname: nickname,
+        introduction: introduction,
+      );
+    } on Exception catch (error) {
+      _handleSaveFailure(error);
+      return;
+    }
+
     try {
       var profileImageUrl = widget.user.profileImageUrl;
       final selectedImage = _selectedImage;
@@ -285,31 +306,47 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         profileImageUrl = null;
       }
 
-      final updatedUser = await widget.authRepository.updateProfile(
-        nickname: nickname,
-        introduction: introduction,
-      );
-      if (!mounted) {
-        return;
-      }
-      Navigator.of(context).pop(
+      await _completeProfileEdit(
         updatedUser.copyWith(
           profileImageUrl: profileImageUrl,
           clearProfileImageUrl: _deleteProfileImage,
         ),
+        '프로필을 수정했습니다.',
       );
-    } on Exception catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() => _isSaving = false);
-      final message = switch (error) {
-        ImageUploadException(:final message) => message,
-        AuthException(:final message) => message,
-        _ => '프로필을 저장하지 못했습니다.',
-      };
-      _showMessage(message);
+    } on Exception {
+      await _completeProfileEdit(
+        updatedUser,
+        '프로필 정보는 저장했지만 사진을 변경하지 못했습니다.',
+      );
     }
+  }
+
+  Future<void> _completeProfileEdit(AuthUser user, String message) async {
+    if (!mounted) {
+      return;
+    }
+    widget.authRepository.synchronizeUser(user);
+    setState(() => _isSaving = false);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pop(
+      ProfileEditResult(user: user, message: message),
+    );
+  }
+
+  void _handleSaveFailure(Exception error) {
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isSaving = false);
+    final message = switch (error) {
+      ImageUploadException(:final message) => message,
+      AuthException(:final message) => message,
+      _ => '프로필을 저장하지 못했습니다.',
+    };
+    _showMessage(message);
   }
 
   void _showMessage(String message) {
@@ -319,11 +356,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
   }
 
   String? _resolveImageContentType(String? mimeType, String fileName) {
-    final normalizedMimeType = mimeType?.toLowerCase();
-    if (normalizedMimeType == 'image/jpeg' ||
-        normalizedMimeType == 'image/png' ||
-        normalizedMimeType == 'image/webp') {
-      return normalizedMimeType;
+    final normalizedMimeType = mimeType?.trim().toLowerCase();
+    if (normalizedMimeType != null && normalizedMimeType.isNotEmpty) {
+      return switch (normalizedMimeType) {
+        'image/jpeg' || 'image/png' || 'image/webp' => normalizedMimeType,
+        _ => null,
+      };
     }
 
     final extension = fileName.split('.').last.toLowerCase();
@@ -378,6 +416,8 @@ class _EditableProfileImage extends StatelessWidget {
                       imageBytes!,
                       key: const Key('profile_edit_selected_preview'),
                       fit: BoxFit.cover,
+                      cacheWidth: 272,
+                      cacheHeight: 272,
                     )
                   : currentImageUrl != null && currentImageUrl.isNotEmpty
                       ? NetworkImageWithSkeleton(

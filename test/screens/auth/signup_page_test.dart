@@ -270,6 +270,9 @@ class _SignUpAuthRepository implements AuthRepository {
   }
 
   @override
+  void synchronizeUser(AuthUser user) {}
+
+  @override
   Future<void> signOut() async {
     _session = null;
   }

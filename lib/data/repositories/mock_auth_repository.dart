@@ -87,12 +87,21 @@ class MockAuthRepository implements AuthRepository {
       handle: normalizedNickname,
       introduction: normalizedIntroduction,
     );
+    synchronizeUser(user);
+    return user;
+  }
+
+  @override
+  void synchronizeUser(AuthUser user) {
+    final session = _session;
+    if (session == null) {
+      return;
+    }
     _session = AuthSession(
       user: user,
       accessToken: session.accessToken,
       refreshToken: session.refreshToken,
     );
-    return user;
   }
 
   @override

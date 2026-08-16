@@ -1184,6 +1184,9 @@ class _DeferredAuthRepository implements AuthRepository {
   }
 
   @override
+  void synchronizeUser(AuthUser user) {}
+
+  @override
   Future<void> signOut() async {}
 }
 

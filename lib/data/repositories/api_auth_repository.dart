@@ -226,14 +226,7 @@ class ApiAuthRepository implements AuthRepository {
         },
       );
       final user = _userFromJson(_readData(response));
-      final session = _session;
-      if (session != null) {
-        _session = AuthSession(
-          user: user,
-          accessToken: session.accessToken,
-          refreshToken: session.refreshToken,
-        );
-      }
+      synchronizeUser(user);
       return user;
     } on AuthException {
       rethrow;
@@ -242,6 +235,19 @@ class ApiAuthRepository implements AuthRepository {
     } on FormatException {
       throw const AuthException('프로필 응답 형식이 올바르지 않습니다.');
     }
+  }
+
+  @override
+  void synchronizeUser(AuthUser user) {
+    final session = _session;
+    if (session == null) {
+      return;
+    }
+    _session = AuthSession(
+      user: user,
+      accessToken: session.accessToken,
+      refreshToken: session.refreshToken,
+    );
   }
 
   @override

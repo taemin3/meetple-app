@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -16,8 +17,11 @@ void main() {
   testWidgets('updates image nickname and introduction from the profile page', (
     tester,
   ) async {
-    final authRepository = _RecordingAuthRepository();
-    final imageRepository = _RecordingImageUploadRepository();
+    final saveEvents = <String>[];
+    final authRepository = _RecordingAuthRepository(saveEvents: saveEvents);
+    final imageRepository = _RecordingImageUploadRepository(
+      saveEvents: saveEvents,
+    );
 
     await tester.pumpWidget(
       MaterialApp(
@@ -65,10 +69,15 @@ void main() {
     expect(authRepository.updatedNickname, '산책친구');
     expect(authRepository.updatedIntroduction, '주말 산책을 좋아해요');
     expect(imageRepository.uploadedImage?.name, 'profile.png');
+    expect(saveEvents, ['profile', 'image']);
     expect(find.text('산책친구'), findsOneWidget);
     expect(find.text('주말 산책을 좋아해요'), findsOneWidget);
     expect(find.byKey(const Key('profile_avatar_image')), findsOneWidget);
     expect(find.text('프로필을 수정했습니다.'), findsOneWidget);
+    expect(
+      (await authRepository.refreshSession())?.user.profileImageUrl,
+      'https://cdn.example.com/profile/new.png',
+    );
   });
 
   testWidgets('rejects an invalid nickname before saving', (tester) async {
@@ -95,7 +104,9 @@ void main() {
     expect(authRepository.updateCount, 0);
   });
 
-  testWidgets('rejects an unsupported image before upload', (tester) async {
+  testWidgets('rejects a known unsupported MIME despite a valid extension', (
+    tester,
+  ) async {
     final imageRepository = _RecordingImageUploadRepository();
 
     await tester.pumpWidget(
@@ -106,7 +117,7 @@ void main() {
           imageUploadRepository: imageRepository,
           pickProfileImage: () async => XFile.fromData(
             Uint8List.fromList([1, 2, 3]),
-            name: 'avatar.gif',
+            name: 'avatar.jpg',
             mimeType: 'image/gif',
           ),
         ),
@@ -184,6 +195,91 @@ void main() {
     expect(imageRepository.uploadCount, 0);
     expect(find.byKey(const Key('profile_avatar_image')), findsNothing);
     expect(find.text('프로필을 수정했습니다.'), findsOneWidget);
+    expect(
+      (await authRepository.refreshSession())?.user.profileImageUrl,
+      isNull,
+    );
+  });
+
+  testWidgets('keeps saved text when the image update fails', (tester) async {
+    final authRepository = _RecordingAuthRepository();
+    final imageRepository = _RecordingImageUploadRepository(failUpload: true);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfilePage(
+            authRepository: authRepository,
+            imageUploadRepository: imageRepository,
+            pickProfileImage: _pickPng,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('profile_image_edit_open')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('profile_edit_nickname')),
+      '정보저장완료',
+    );
+    await tester.tap(find.byKey(const Key('profile_edit_image_picker')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('profile_edit_change_image')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('profile_edit_complete')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('정보저장완료'), findsOneWidget);
+    expect(
+      find.text('프로필 정보는 저장했지만 사진을 변경하지 못했습니다.'),
+      findsOneWidget,
+    );
+    expect(
+      (await authRepository.refreshSession())?.user.nickname,
+      '정보저장완료',
+    );
+  });
+
+  testWidgets('blocks the system back action while saving', (tester) async {
+    final authRepository = _DeferredProfileAuthRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              key: const Key('open_profile_edit'),
+              onPressed: () => Navigator.of(context).push<ProfileEditResult>(
+                MaterialPageRoute(
+                  builder: (_) => ProfileEditPage(
+                    user: mockAuthUser,
+                    authRepository: authRepository,
+                    imageUploadRepository: _RecordingImageUploadRepository(),
+                  ),
+                ),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('open_profile_edit')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('profile_edit_complete')));
+    await tester.pump();
+
+    expect(authRepository.updateStarted.isCompleted, isTrue);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.text('프로필 수정'), findsOneWidget);
+
+    authRepository.allowUpdate.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('프로필 수정'), findsNothing);
   });
 }
 
@@ -199,14 +295,16 @@ Future<XFile?> _pickPng() async {
 }
 
 class _RecordingAuthRepository extends MockAuthRepository {
-  _RecordingAuthRepository() : super();
+  _RecordingAuthRepository({this.saveEvents}) : super();
 
   _RecordingAuthRepository.withSession(AuthSession session)
-      : super(session: session);
+      : saveEvents = null,
+        super(session: session);
 
   int updateCount = 0;
   String? updatedNickname;
   String? updatedIntroduction;
+  final List<String>? saveEvents;
 
   @override
   Future<AuthUser> updateProfile({
@@ -216,6 +314,25 @@ class _RecordingAuthRepository extends MockAuthRepository {
     updateCount += 1;
     updatedNickname = nickname;
     updatedIntroduction = introduction;
+    saveEvents?.add('profile');
+    return super.updateProfile(
+      nickname: nickname,
+      introduction: introduction,
+    );
+  }
+}
+
+class _DeferredProfileAuthRepository extends MockAuthRepository {
+  final updateStarted = Completer<void>();
+  final allowUpdate = Completer<void>();
+
+  @override
+  Future<AuthUser> updateProfile({
+    required String nickname,
+    required String introduction,
+  }) async {
+    updateStarted.complete();
+    await allowUpdate.future;
     return super.updateProfile(
       nickname: nickname,
       introduction: introduction,
@@ -224,9 +341,16 @@ class _RecordingAuthRepository extends MockAuthRepository {
 }
 
 class _RecordingImageUploadRepository implements ImageUploadRepository {
+  _RecordingImageUploadRepository({
+    this.failUpload = false,
+    this.saveEvents,
+  });
+
   ImageUploadFile? uploadedImage;
   int uploadCount = 0;
   int deleteCount = 0;
+  final bool failUpload;
+  final List<String>? saveEvents;
 
   @override
   Future<void> deleteProfileImage() async {
@@ -244,6 +368,10 @@ class _RecordingImageUploadRepository implements ImageUploadRepository {
   Future<UploadedImage> uploadProfileImage(ImageUploadFile image) async {
     uploadCount += 1;
     uploadedImage = image;
+    saveEvents?.add('image');
+    if (failUpload) {
+      throw const ImageUploadException('프로필 이미지 업로드에 실패했습니다.');
+    }
     return const UploadedImage(
       objectKey: 'images/profile/1/new.png',
       fileUrl: 'https://cdn.example.com/profile/new.png',

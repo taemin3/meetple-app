@@ -116,8 +116,8 @@ class _ProfilePageState extends State<ProfilePage> {
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
           onSignedOut: _showSignedOut,
-          onProfileUpdated: (user) {
-            _showProfile(session, user);
+          onProfileUpdated: (result) {
+            _showProfile(session, result);
           },
           onMeetingChanged: widget.onMeetingChanged,
         );
@@ -138,16 +138,16 @@ class _ProfilePageState extends State<ProfilePage> {
     widget.onSignedOut?.call();
   }
 
-  void _showProfile(AuthSession session, AuthUser user) {
+  void _showProfile(AuthSession session, ProfileEditResult result) {
     _showSession(
       AuthSession(
-        user: user,
+        user: result.user,
         accessToken: session.accessToken,
         refreshToken: session.refreshToken,
       ),
     );
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('프로필을 수정했습니다.')),
+      SnackBar(content: Text(result.message)),
     );
   }
 }
@@ -173,7 +173,7 @@ class ProfileContent extends StatefulWidget {
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
   final VoidCallback onSignedOut;
-  final ValueChanged<AuthUser> onProfileUpdated;
+  final ValueChanged<ProfileEditResult> onProfileUpdated;
   final VoidCallback? onMeetingChanged;
 
   @override
@@ -319,7 +319,7 @@ class _ProfileContentState extends State<ProfileContent> {
   }
 
   Future<void> _openProfileImageEditor() async {
-    final updatedUser = await Navigator.of(context).push<AuthUser>(
+    final result = await Navigator.of(context).push<ProfileEditResult>(
       MaterialPageRoute(
         builder: (_) => ProfileEditPage(
           user: widget.user,
@@ -329,11 +329,11 @@ class _ProfileContentState extends State<ProfileContent> {
         ),
       ),
     );
-    if (!mounted || updatedUser == null) {
+    if (!mounted || result == null) {
       return;
     }
 
-    widget.onProfileUpdated(updatedUser);
+    widget.onProfileUpdated(result);
   }
 
   void _openMeetings({

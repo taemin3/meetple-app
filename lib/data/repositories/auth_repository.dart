@@ -22,6 +22,8 @@ abstract interface class AuthRepository {
     required String introduction,
   });
 
+  void synchronizeUser(AuthUser user);
+
   Future<void> signOut();
 }
 
