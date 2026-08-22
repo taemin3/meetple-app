@@ -119,6 +119,58 @@ void main() {
     expect(sendButton.onPressed, isNotNull);
   });
 
+  testWidgets('discards a confirm response when the email changes in flight', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final confirmCompleter = Completer<SignupEmailVerification>();
+    final authRepository = _SignUpAuthRepository(
+      confirmVerificationCodeCompleter: confirmCompleter,
+    );
+
+    await _openSignUp(
+      tester,
+      authRepository: authRepository,
+      imageUploadRepository: _RecordingImageUploadRepository(),
+      pickProfileImage: () async => null,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email')),
+      'first@example.com',
+    );
+    await tester.tap(find.byKey(const Key('sign_up_send_verification_code')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email_verification_code')),
+      '123456',
+    );
+    await tester.tap(
+      find.byKey(const Key('sign_up_confirm_verification_code')),
+    );
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email')),
+      'second@example.com',
+    );
+
+    confirmCompleter.complete(
+      const SignupEmailVerification(
+        token: 'stale-signup-verification-token',
+        expiresIn: Duration(minutes: 15),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('이메일 인증이 완료됐어요.'), findsNothing);
+    expect(
+      find.byKey(const Key('sign_up_email_verification_code')),
+      findsNothing,
+    );
+    expect(find.text('인증번호 받기'), findsOneWidget);
+  });
+
   testWidgets('refreshes the resend cooldown from its expiry on resume', (
     tester,
   ) async {
@@ -442,10 +494,12 @@ class _SignUpAuthRepository implements AuthRepository {
   _SignUpAuthRepository({
     this.profileImageUrl,
     this.sendVerificationCodeCompleter,
+    this.confirmVerificationCodeCompleter,
   });
 
   final String? profileImageUrl;
   final Completer<void>? sendVerificationCodeCompleter;
+  final Completer<SignupEmailVerification>? confirmVerificationCodeCompleter;
   int signUpCount = 0;
   int sendVerificationCodeCount = 0;
   int confirmVerificationCodeCount = 0;
@@ -479,6 +533,10 @@ class _SignUpAuthRepository implements AuthRepository {
     required String code,
   }) async {
     confirmVerificationCodeCount += 1;
+    final completer = confirmVerificationCodeCompleter;
+    if (completer != null) {
+      return completer.future;
+    }
     return const SignupEmailVerification(
       token: 'signup-verification-token',
       expiresIn: Duration(minutes: 15),

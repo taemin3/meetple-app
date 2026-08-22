@@ -383,7 +383,7 @@ class _SignUpPageState extends State<SignUpPage> with WidgetsBindingObserver {
     try {
       final verification = await widget.authRepository
           .confirmSignupEmailVerificationCode(email: email, code: code);
-      if (!mounted) {
+      if (!mounted || _normalizedEmail != email) {
         return;
       }
       _emailVerificationResendTimer?.cancel();
@@ -397,7 +397,7 @@ class _SignUpPageState extends State<SignUpPage> with WidgetsBindingObserver {
         _errorMessage = null;
       });
     } on Exception catch (error) {
-      if (!mounted) {
+      if (!mounted || _normalizedEmail != email) {
         return;
       }
       setState(() {
