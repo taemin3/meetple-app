@@ -416,9 +416,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
                     const SizedBox(height: 12),
                     MeetingLocationCard(meeting: meeting),
                     const SizedBox(height: 28),
-                    const DetailSectionTitle('참여 멤버'),
-                    const SizedBox(height: 14),
-                    MemberAvatars(
+                    MeetingMembersSection(
                       meeting: meeting,
                       members: engagement?.members ?? const [],
                     ),
@@ -1292,6 +1290,31 @@ class MeetingLocationCard extends StatelessWidget {
   double get _longitude => meeting.longitude ?? 126.9326;
 }
 
+class MeetingMembersSection extends StatelessWidget {
+  const MeetingMembersSection({
+    super.key,
+    required this.meeting,
+    this.members = const [],
+  });
+
+  final Meeting meeting;
+  final List<MeetingMember> members;
+
+  @override
+  Widget build(BuildContext context) {
+    final memberCount = members.isEmpty ? meeting.joined : members.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DetailSectionTitle('참여 멤버 $memberCount / ${meeting.capacity}'),
+        const SizedBox(height: 14),
+        MemberAvatars(meeting: meeting, members: members),
+      ],
+    );
+  }
+}
+
 class MemberAvatars extends StatelessWidget {
   const MemberAvatars({
     super.key,
@@ -1301,6 +1324,13 @@ class MemberAvatars extends StatelessWidget {
 
   final Meeting meeting;
   final List<MeetingMember> members;
+
+  static const _avatarColors = [
+    AppColors.primary,
+    AppColors.orange,
+    AppColors.blue,
+    AppColors.mint,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -1315,69 +1345,263 @@ class MemberAvatars extends StatelessWidget {
       );
     }
 
-    final colors = [
-      AppColors.primary,
-      AppColors.orange,
-      AppColors.blue,
-      AppColors.mint,
-    ];
-    final memberCount = members.isEmpty ? meeting.joined : members.length;
+    final orderedMembers = _orderedMembers;
+    final memberCount =
+        orderedMembers.isEmpty ? meeting.joined : orderedMembers.length;
     final visibleCount = math.min(memberCount, 5);
     final remainingCount = memberCount - visibleCount;
+    final avatarClusterWidth =
+        visibleCount == 0 ? 0.0 : 40.0 + ((visibleCount - 1) * 28.0);
 
-    return Row(
-      children: [
-        for (var index = 0; index < visibleCount; index++) ...[
-          Container(
-            width: 40,
-            height: 40,
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors[index % colors.length].withOpacity(0.14),
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x1817151F),
-                  blurRadius: 8,
-                  offset: Offset(0, 3),
+    return Semantics(
+      button: members.isNotEmpty,
+      label: members.isNotEmpty ? '전체 참여 멤버 보기' : null,
+      child: InkWell(
+        key: const Key('meeting-members-summary'),
+        onTap: members.isEmpty ? null : () => _showMemberList(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              SizedBox(
+                width: avatarClusterWidth,
+                height: 40,
+                child: Stack(
+                  children: [
+                    for (var index = 0; index < visibleCount; index++)
+                      Positioned(
+                        left: index * 28,
+                        child: _MemberAvatar(
+                          key: ValueKey('meeting-member-avatar-$index'),
+                          member: orderedMembers.isEmpty
+                              ? null
+                              : orderedMembers[index],
+                          fallbackHost: index == 0,
+                          color: _avatarColors[index % _avatarColors.length],
+                          size: 40,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (remainingCount > 0) ...[
+                const SizedBox(width: 8),
+                Text(
+                  '+$remainingCount',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+              if (members.isNotEmpty) ...[
+                const Spacer(),
+                const Text(
+                  '전체보기',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.primary,
+                  size: 18,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMemberList(BuildContext context) {
+    final orderedMembers = _orderedMembers;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return FractionallySizedBox(
+          heightFactor: 0.68,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.line,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 12, 10),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '참여 멤버 ${orderedMembers.length}명',
+                          key: const Key('meeting-members-sheet-title'),
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        key: const Key('meeting-members-sheet-close'),
+                        onPressed: () => Navigator.of(sheetContext).pop(),
+                        icon: const Icon(Icons.close_rounded),
+                        color: AppColors.muted,
+                        tooltip: '닫기',
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1, color: AppColors.line),
+                Expanded(
+                  child: ListView.separated(
+                    key: const Key('meeting-members-list'),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: orderedMembers.length,
+                    separatorBuilder: (_, __) => const Divider(
+                      height: 1,
+                      indent: 80,
+                      color: AppColors.line,
+                    ),
+                    itemBuilder: (context, index) {
+                      final member = orderedMembers[index];
+                      return ListTile(
+                        key: ValueKey('meeting-member-row-${member.memberId}'),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 4,
+                        ),
+                        leading: _MemberAvatar(
+                          member: member,
+                          color: _avatarColors[index % _avatarColors.length],
+                          size: 44,
+                        ),
+                        title: Text(
+                          member.nickname,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        trailing: member.isHost
+                            ? Container(
+                                key: const Key('meeting-member-host-badge'),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.softSurface,
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: const Text(
+                                  '모임장',
+                                  style: TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
-            child: members.isNotEmpty &&
-                    members[index].profileImageUrl?.isNotEmpty == true
-                ? ClipOval(
-                    child: Image.network(
-                      members[index].profileImageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Icon(
-                        members[index].isHost
-                            ? Icons.workspace_premium_rounded
-                            : Icons.person_rounded,
-                        color: colors[index % colors.length],
-                        size: 21,
-                      ),
-                    ),
-                  )
-                : Icon(
-                    members.isNotEmpty && members[index].isHost
-                        ? Icons.workspace_premium_rounded
-                        : Icons.person_rounded,
-                    color: colors[index % colors.length],
-                    size: 21,
-                  ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<MeetingMember> get _orderedMembers => [
+        ...members.where((member) => member.isHost),
+        ...members.where((member) => !member.isHost),
+      ];
+}
+
+class _MemberAvatar extends StatelessWidget {
+  const _MemberAvatar({
+    super.key,
+    this.member,
+    this.fallbackHost = false,
+    required this.color,
+    required this.size,
+  });
+
+  final MeetingMember? member;
+  final bool fallbackHost;
+  final Color color;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final profileImageUrl = member?.profileImageUrl?.trim();
+    final isHost = member?.isHost ?? fallbackHost;
+    final placeholder = Container(
+      width: size,
+      height: size,
+      color: color.withOpacity(0.14),
+      alignment: Alignment.center,
+      child: Icon(
+        isHost ? Icons.workspace_premium_rounded : Icons.person_rounded,
+        color: color,
+        size: size * 0.52,
+      ),
+    );
+
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1817151F),
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
         ],
-        if (remainingCount > 0)
-          Text(
-            '+$remainingCount',
-            style: const TextStyle(
-              color: AppColors.muted,
-              fontSize: 13,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-      ],
+      ),
+      child: ClipOval(
+        child: profileImageUrl == null || profileImageUrl.isEmpty
+            ? placeholder
+            : NetworkImageWithSkeleton(
+                imageUrl: profileImageUrl,
+                width: size,
+                height: size,
+                fit: BoxFit.cover,
+                cacheWidth: (size * 3).round(),
+                cacheHeight: (size * 3).round(),
+                skeleton: placeholder,
+                errorWidget: placeholder,
+              ),
+      ),
     );
   }
 }

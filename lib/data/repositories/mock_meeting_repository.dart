@@ -105,12 +105,38 @@ class MockMeetingRepository extends MeetingRepository {
 
   @override
   Future<MeetingEngagement> getEngagement(int meetingId) async {
-    return const MeetingEngagement(
+    final meeting = mockMeetings.firstWhere(
+      (meeting) => meeting.id == meetingId,
+      orElse: () => mockMeetings.first,
+    );
+    const participantNicknames = [
+      '서연',
+      '지우',
+      '도윤',
+      '하린',
+      '준호',
+      '수빈',
+      '예진',
+      '현우',
+      '유나',
+      '태영',
+      '가은',
+    ];
+
+    return MeetingEngagement(
       isHost: false,
       isBookmarked: false,
-      members: [
-        MeetingMember(memberId: 1, nickname: '모임장', isHost: true),
-      ],
+      members: List.generate(
+        meeting.joined,
+        (index) => MeetingMember(
+          memberId: index + 1,
+          nickname: index == 0
+              ? meeting.host
+              : participantNicknames[(index - 1) % participantNicknames.length],
+          isHost: index == 0,
+        ),
+        growable: false,
+      ),
     );
   }
 

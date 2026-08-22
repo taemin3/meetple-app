@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/models/meeting.dart';
+import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
 import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
@@ -76,6 +77,49 @@ void main() {
     );
     expect(image.imageUrl, profileImageUrl);
   });
+
+  testWidgets('shows member summary and opens the full member list',
+      (tester) async {
+    const members = [
+      MeetingMember(memberId: 2, nickname: '서연', isHost: false),
+      MeetingMember(memberId: 1, nickname: '민준', isHost: true),
+      MeetingMember(memberId: 3, nickname: '지우', isHost: false),
+      MeetingMember(memberId: 4, nickname: '도윤', isHost: false),
+      MeetingMember(memberId: 5, nickname: '하린', isHost: false),
+      MeetingMember(memberId: 6, nickname: '준호', isHost: false),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingMembersSection(
+            meeting: _meeting(joined: 6),
+            members: members,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('참여 멤버 6 / 10'), findsOneWidget);
+    expect(find.text('+1'), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-avatar-0')), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-avatar-4')), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-avatar-5')), findsNothing);
+
+    await tester.tap(find.text('전체보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('참여 멤버 6명'), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-host-badge')), findsOneWidget);
+    expect(find.text('민준'), findsOneWidget);
+    expect(find.text('서연'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const Key('meeting-members-list')),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('준호'), findsOneWidget);
+    expect(find.text('프로필 보기'), findsNothing);
+  });
 }
 
 Meeting _meeting({
@@ -85,6 +129,7 @@ Meeting _meeting({
   String time = '14:00',
   String? hostProfileImageUrl,
   String? hostIntroduction,
+  int joined = 3,
 }) {
   return Meeting(
     id: 10,
@@ -96,7 +141,7 @@ Meeting _meeting({
     time: time,
     distance: '1km',
     capacity: 10,
-    joined: 3,
+    joined: joined,
     host: '모임장',
     hostProfileImageUrl: hostProfileImageUrl,
     hostIntroduction: hostIntroduction,
