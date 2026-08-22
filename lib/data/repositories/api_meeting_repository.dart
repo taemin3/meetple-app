@@ -441,6 +441,8 @@ class ApiMeetingRepository extends MeetingRepository {
       capacity: _readInt(json['capacity']),
       joined: _readInt(json['currentPeople']),
       host: _readString(json['hostNickname'], fallback: '호스트'),
+      hostProfileImageUrl: _readNullableString(json['hostProfileImageUrl']),
+      hostIntroduction: _readNullableString(json['hostIntroduction']),
       description: _readString(json['description']),
       fee: '참가비 미정',
       rating: 0,
@@ -476,6 +478,7 @@ class ApiMeetingRepository extends MeetingRepository {
     return MeetingMember(
       memberId: _readInt(json['memberId']),
       nickname: _readString(json['nickname'], fallback: '알 수 없는 사용자'),
+      introduction: _readNullableString(json['introduction']),
       profileImageUrl: _readNullableString(json['profileImageUrl']),
       isHost: json['host'] == true,
     );

@@ -10,11 +10,15 @@ class MeetingLocationMap extends StatelessWidget {
     required this.enabled,
     required this.latitude,
     required this.longitude,
+    this.interactive = false,
+    this.showMarker = false,
   });
 
   final bool enabled;
   final double latitude;
   final double longitude;
+  final bool interactive;
+  final bool showMarker;
 
   @override
   Widget build(BuildContext context) {

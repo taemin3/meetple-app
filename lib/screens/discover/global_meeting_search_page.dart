@@ -362,7 +362,7 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
                 !_isLoading &&
                 _loadError == null)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
                     Expanded(

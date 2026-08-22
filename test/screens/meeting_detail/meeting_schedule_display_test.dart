@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
+import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
+import 'package:meetple/widgets/map/meeting_location_map.dart';
+import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
 void main() {
   testWidgets('shows unknown end time in meeting information', (tester) async {
@@ -48,6 +52,189 @@ void main() {
     expect(find.text('내일 (토) 07:00 ~ 08:30'), findsOneWidget);
     expect(find.textContaining('종료 미정'), findsNothing);
   });
+
+  testWidgets('shows host information without profile navigation',
+      (tester) async {
+    const profileImageUrl = 'https://example.com/profile.png';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HostInfoCard(
+            meeting: _meeting(
+              hostProfileImageUrl: profileImageUrl,
+              hostIntroduction: '함께 즐겁게 걸어요.',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('meeting-host-info-card')), findsOneWidget);
+    expect(find.text('모임장'), findsNWidgets(2));
+    expect(find.text('함께 즐겁게 걸어요.'), findsOneWidget);
+    expect(find.text('프로필 보기'), findsNothing);
+    expect(find.textContaining('후기'), findsNothing);
+    final image = tester.widget<NetworkImageWithSkeleton>(
+      find.byType(NetworkImageWithSkeleton),
+    );
+    expect(image.imageUrl, profileImageUrl);
+  });
+
+  testWidgets('shows schedule once without a review summary', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingDetailPage(meeting: _meeting()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('8/22 14:00 시작 · 종료 미정'), findsOneWidget);
+    expect(find.textContaining('후기'), findsNothing);
+  });
+
+  testWidgets('enables gestures only on the full map', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingLocationCard(meeting: _meeting()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<MeetingLocationMap>(find.byType(MeetingLocationMap).first)
+          .interactive,
+      isFalse,
+    );
+
+    final fullMapButton = find.byKey(
+      const Key('meeting-location-full-map-button'),
+    );
+    await tester.tap(fullMapButton);
+    await tester.pumpAndSettle();
+
+    final maps = tester
+        .widgetList<MeetingLocationMap>(
+          find.byType(MeetingLocationMap),
+        )
+        .toList(growable: false);
+    expect(maps.map((map) => map.interactive), containsAll([false, true]));
+    expect(maps.singleWhere((map) => map.interactive).showMarker, isTrue);
+  });
+
+  testWidgets('shows member summary and opens the full member list',
+      (tester) async {
+    const members = [
+      MeetingMember(
+        memberId: 2,
+        nickname: '서연',
+        introduction: '새로운 취미를 함께 즐겨요.',
+        isHost: false,
+      ),
+      MeetingMember(
+        memberId: 1,
+        nickname: '민준',
+        introduction: '즐거운 모임을 만들어요.',
+        isHost: true,
+      ),
+      MeetingMember(memberId: 3, nickname: '지우', isHost: false),
+      MeetingMember(memberId: 4, nickname: '도윤', isHost: false),
+      MeetingMember(memberId: 5, nickname: '하린', isHost: false),
+      MeetingMember(memberId: 6, nickname: '준호', isHost: false),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingMembersSection(
+            meeting: _meeting(joined: 6),
+            members: members,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('참여 멤버 6 / 10'), findsOneWidget);
+    expect(find.text('+1'), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-avatar-0')), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-avatar-4')), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-avatar-5')), findsNothing);
+
+    await tester.tap(find.text('전체보기'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('참여 멤버 6명'), findsOneWidget);
+    expect(find.byKey(const Key('meeting-member-host-badge')), findsOneWidget);
+    expect(find.text('민준'), findsOneWidget);
+    expect(find.text('즐거운 모임을 만들어요.'), findsOneWidget);
+    expect(find.text('서연'), findsOneWidget);
+    expect(find.text('새로운 취미를 함께 즐겨요.'), findsOneWidget);
+    expect(find.byType(Divider), findsNothing);
+    await tester.drag(
+      find.byKey(const Key('meeting-members-list')),
+      const Offset(0, -180),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('준호'), findsOneWidget);
+    expect(find.text('프로필 보기'), findsNothing);
+  });
+
+  testWidgets('removes an approved member immediately after cancellation',
+      (tester) async {
+    final repository = _ApprovedParticipationRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingDetailPage(
+          meeting: _meeting(joined: 2),
+          meetingRepository: repository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('참여 멤버 2 / 10'), findsOneWidget);
+    await tester.tap(find.text('참여 확정 · 참여 취소'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '참여 취소'));
+    await tester.pumpAndSettle();
+
+    expect(repository.cancelCount, 1);
+    expect(find.text('참여 멤버 1 / 10'), findsOneWidget);
+    expect(find.text('1 / 10명'), findsOneWidget);
+    expect(find.text('참여 신청하기'), findsOneWidget);
+    final memberAvatars = tester.widget<MemberAvatars>(
+      find.byType(MemberAvatars),
+    );
+    expect(memberAvatars.members.map((member) => member.memberId), [1]);
+  });
+
+  testWidgets('keeps approved members after canceling a pending request',
+      (tester) async {
+    final repository = _PendingParticipationRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingDetailPage(
+          meeting: _meeting(joined: 2),
+          meetingRepository: repository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('승인 대기 중 · 신청 취소'));
+    await tester.pumpAndSettle();
+
+    expect(repository.cancelCount, 1);
+    expect(find.text('참여 멤버 2 / 10'), findsOneWidget);
+    expect(find.text('2 / 10명'), findsOneWidget);
+    final memberAvatars = tester.widget<MemberAvatars>(
+      find.byType(MemberAvatars),
+    );
+    expect(memberAvatars.members.map((member) => member.memberId), [1, 2]);
+  });
 }
 
 Meeting _meeting({
@@ -55,6 +242,9 @@ Meeting _meeting({
   bool hasStructuredSchedule = true,
   String date = '8/22',
   String time = '14:00',
+  String? hostProfileImageUrl,
+  String? hostIntroduction,
+  int joined = 3,
 }) {
   return Meeting(
     id: 10,
@@ -66,8 +256,10 @@ Meeting _meeting({
     time: time,
     distance: '1km',
     capacity: 10,
-    joined: 3,
+    joined: joined,
     host: '모임장',
+    hostProfileImageUrl: hostProfileImageUrl,
+    hostIntroduction: hostIntroduction,
     description: '함께 걸어요.',
     fee: '무료',
     rating: 0,
@@ -75,4 +267,60 @@ Meeting _meeting({
     scheduledAt: hasStructuredSchedule ? DateTime(2026, 8, 22, 14) : null,
     endsAt: endsAt,
   );
+}
+
+class _ApprovedParticipationRepository extends MockMeetingRepository {
+  int cancelCount = 0;
+
+  @override
+  Future<MeetingEngagement> getEngagement(int meetingId) async {
+    return const MeetingEngagement(
+      isHost: false,
+      isBookmarked: false,
+      participation: MeetingParticipation(
+        id: 100,
+        memberId: 2,
+        memberNickname: '서연',
+        status: ParticipationStatus.approved,
+      ),
+      members: [
+        MeetingMember(memberId: 1, nickname: '민준', isHost: true),
+        MeetingMember(memberId: 2, nickname: '서연', isHost: false),
+      ],
+    );
+  }
+
+  @override
+  Future<MeetingParticipation> cancelParticipation(
+    int meetingId,
+    int participationId,
+  ) async {
+    cancelCount++;
+    return const MeetingParticipation(
+      id: 100,
+      memberId: 2,
+      memberNickname: '서연',
+      status: ParticipationStatus.canceled,
+    );
+  }
+}
+
+class _PendingParticipationRepository extends _ApprovedParticipationRepository {
+  @override
+  Future<MeetingEngagement> getEngagement(int meetingId) async {
+    return const MeetingEngagement(
+      isHost: false,
+      isBookmarked: false,
+      participation: MeetingParticipation(
+        id: 100,
+        memberId: 2,
+        memberNickname: '나',
+        status: ParticipationStatus.pending,
+      ),
+      members: [
+        MeetingMember(memberId: 1, nickname: '민준', isHost: true),
+        MeetingMember(memberId: 2, nickname: '서연', isHost: false),
+      ],
+    );
+  }
 }

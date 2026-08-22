@@ -15,6 +15,8 @@ class Meeting {
     required this.capacity,
     required this.joined,
     required this.host,
+    this.hostProfileImageUrl,
+    this.hostIntroduction,
     required this.description,
     required this.fee,
     required this.rating,
@@ -43,6 +45,8 @@ class Meeting {
   final int capacity;
   final int joined;
   final String host;
+  final String? hostProfileImageUrl;
+  final String? hostIntroduction;
   final String description;
   final String fee;
   final double rating;
@@ -88,6 +92,10 @@ class Meeting {
     int? capacity,
     int? joined,
     String? host,
+    String? hostProfileImageUrl,
+    bool clearHostProfileImageUrl = false,
+    String? hostIntroduction,
+    bool clearHostIntroduction = false,
     String? description,
     String? fee,
     double? rating,
@@ -118,6 +126,12 @@ class Meeting {
       capacity: capacity ?? this.capacity,
       joined: joined ?? this.joined,
       host: host ?? this.host,
+      hostProfileImageUrl: clearHostProfileImageUrl
+          ? null
+          : hostProfileImageUrl ?? this.hostProfileImageUrl,
+      hostIntroduction: clearHostIntroduction
+          ? null
+          : hostIntroduction ?? this.hostIntroduction,
       description: description ?? this.description,
       fee: fee ?? this.fee,
       rating: rating ?? this.rating,

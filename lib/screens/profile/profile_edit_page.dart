@@ -118,7 +118,7 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
           child: GestureDetector(
             onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
+              padding: const EdgeInsets.fromLTRB(16, 22, 16, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
