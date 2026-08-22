@@ -16,6 +16,7 @@ import '../requests/meeting_participation_management_page.dart';
 import 'meeting_edit_page.dart';
 import '../../widgets/map/meeting_location_map.dart';
 import '../../widgets/meeting_image_gallery.dart';
+import '../../widgets/network_image_with_skeleton.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/secondary_button.dart';
 
@@ -409,7 +410,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
                     const SizedBox(height: 28),
                     const DetailSectionTitle('모임장'),
                     const SizedBox(height: 12),
-                    HostProfileCard(meeting: meeting),
+                    HostInfoCard(meeting: meeting),
                     const SizedBox(height: 28),
                     const DetailSectionTitle('모임 위치'),
                     const SizedBox(height: 12),
@@ -968,14 +969,27 @@ class DetailSectionTitle extends StatelessWidget {
   }
 }
 
-class HostProfileCard extends StatelessWidget {
-  const HostProfileCard({super.key, required this.meeting});
+class HostInfoCard extends StatelessWidget {
+  const HostInfoCard({super.key, required this.meeting});
 
   final Meeting meeting;
 
   @override
   Widget build(BuildContext context) {
+    final profileImageUrl = meeting.hostProfileImageUrl?.trim();
+    final introduction = meeting.hostIntroduction?.trim();
+    const avatarPlaceholder = CircleAvatar(
+      radius: 28,
+      backgroundColor: AppColors.softSurface,
+      child: Icon(
+        Icons.person_rounded,
+        color: AppColors.primary,
+        size: 30,
+      ),
+    );
+
     return Container(
+      key: const Key('meeting-host-info-card'),
       padding: const EdgeInsets.all(16),
       decoration: detailCardDecoration,
       child: Row(
@@ -983,14 +997,27 @@ class HostProfileCard extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              const CircleAvatar(
-                radius: 28,
-                backgroundColor: AppColors.softSurface,
-                child: Icon(
-                  Icons.person_rounded,
-                  color: AppColors.primary,
-                  size: 30,
-                ),
+              SizedBox(
+                width: 56,
+                height: 56,
+                child: profileImageUrl == null || profileImageUrl.isEmpty
+                    ? const KeyedSubtree(
+                        key: Key('meeting-host-profile-placeholder'),
+                        child: avatarPlaceholder,
+                      )
+                    : ClipOval(
+                        child: NetworkImageWithSkeleton(
+                          imageKey: const Key('meeting-host-profile-image'),
+                          imageUrl: profileImageUrl,
+                          width: 56,
+                          height: 56,
+                          fit: BoxFit.cover,
+                          cacheWidth: 168,
+                          cacheHeight: 168,
+                          skeleton: avatarPlaceholder,
+                          errorWidget: avatarPlaceholder,
+                        ),
+                      ),
               ),
               Positioned(
                 right: -2,
@@ -1052,60 +1079,21 @@ class HostProfileCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  '함께 즐거운 모임을 만들어가요.',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                if (introduction != null && introduction.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    introduction,
+                    key: const Key('meeting-host-introduction'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.star_rounded,
-                      color: AppColors.orange,
-                      size: 16,
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      meeting.reviewCount == 0
-                          ? '아직 받은 후기가 없어요'
-                          : '평점 ${meeting.rating} · 후기 ${meeting.reviewCount}개',
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
+                ],
               ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('모임장 프로필은 준비 중입니다.')),
-              );
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.muted,
-              side: const BorderSide(color: AppColors.line),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              minimumSize: const Size(0, 38),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: const Text(
-              '프로필 보기',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
             ),
           ),
         ],

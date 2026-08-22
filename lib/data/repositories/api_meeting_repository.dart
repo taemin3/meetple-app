@@ -441,6 +441,8 @@ class ApiMeetingRepository extends MeetingRepository {
       capacity: _readInt(json['capacity']),
       joined: _readInt(json['currentPeople']),
       host: _readString(json['hostNickname'], fallback: '호스트'),
+      hostProfileImageUrl: _readNullableString(json['hostProfileImageUrl']),
+      hostIntroduction: _readNullableString(json['hostIntroduction']),
       description: _readString(json['description']),
       fee: '참가비 미정',
       rating: 0,

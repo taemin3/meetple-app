@@ -19,6 +19,8 @@ void main() {
               'id': 10,
               'hostId': 1,
               'hostNickname': '민준',
+              'hostProfileImageUrl': 'https://example.com/profile.png',
+              'hostIntroduction': '천천히 오래 달려요.',
               'categoryId': 2,
               'categoryName': '운동',
               'title': '한강 러닝 크루',
@@ -69,6 +71,9 @@ void main() {
     expect(meetings.single.capacity, 20);
     expect(meetings.single.joined, 12);
     expect(meetings.single.host, '민준');
+    expect(
+        meetings.single.hostProfileImageUrl, 'https://example.com/profile.png');
+    expect(meetings.single.hostIntroduction, '천천히 오래 달려요.');
     expect(
         meetings.single.thumbnailImageUrl, 'https://example.com/meeting.png');
   });
