@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
@@ -133,6 +134,34 @@ void main() {
     expect(find.text('준호'), findsOneWidget);
     expect(find.text('프로필 보기'), findsNothing);
   });
+
+  testWidgets('removes an approved member immediately after cancellation',
+      (tester) async {
+    final repository = _ApprovedParticipationRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingDetailPage(
+          meeting: _meeting(joined: 2),
+          meetingRepository: repository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('참여 멤버 2 / 10'), findsOneWidget);
+    await tester.tap(find.text('참여 확정 · 참여 취소'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '참여 취소'));
+    await tester.pumpAndSettle();
+
+    expect(repository.cancelCount, 1);
+    expect(find.text('참여 멤버 1 / 10'), findsOneWidget);
+    expect(find.text('참여 신청하기'), findsOneWidget);
+    final memberAvatars = tester.widget<MemberAvatars>(
+      find.byType(MemberAvatars),
+    );
+    expect(memberAvatars.members.map((member) => member.memberId), [1]);
+  });
 }
 
 Meeting _meeting({
@@ -165,4 +194,40 @@ Meeting _meeting({
     scheduledAt: hasStructuredSchedule ? DateTime(2026, 8, 22, 14) : null,
     endsAt: endsAt,
   );
+}
+
+class _ApprovedParticipationRepository extends MockMeetingRepository {
+  int cancelCount = 0;
+
+  @override
+  Future<MeetingEngagement> getEngagement(int meetingId) async {
+    return const MeetingEngagement(
+      isHost: false,
+      isBookmarked: false,
+      participation: MeetingParticipation(
+        id: 100,
+        memberId: 2,
+        memberNickname: '서연',
+        status: ParticipationStatus.approved,
+      ),
+      members: [
+        MeetingMember(memberId: 1, nickname: '민준', isHost: true),
+        MeetingMember(memberId: 2, nickname: '서연', isHost: false),
+      ],
+    );
+  }
+
+  @override
+  Future<MeetingParticipation> cancelParticipation(
+    int meetingId,
+    int participationId,
+  ) async {
+    cancelCount++;
+    return const MeetingParticipation(
+      id: 100,
+      memberId: 2,
+      memberNickname: '서연',
+      status: ParticipationStatus.canceled,
+    );
+  }
 }

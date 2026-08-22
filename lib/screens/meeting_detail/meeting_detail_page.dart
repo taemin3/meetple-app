@@ -178,7 +178,13 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
         meetingId,
         participation.id,
       );
-      _engagement = _engagement?.copyWith(participation: canceled);
+      final engagement = _engagement;
+      _engagement = engagement?.copyWith(
+        participation: canceled,
+        members: engagement.members
+            .where((member) => member.memberId != participation.memberId)
+            .toList(growable: false),
+      );
     }, successMessage: '참여 신청이 취소되었습니다.');
   }
 
