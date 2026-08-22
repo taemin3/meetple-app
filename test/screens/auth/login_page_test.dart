@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
+import 'package:meetple/data/mock/mock_legal_documents.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
+import 'package:meetple/models/legal_document.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 import 'package:meetple/widgets/primary_button.dart';
 
@@ -77,8 +79,14 @@ class _DeferredSignInRepository implements AuthRepository {
     required String nickname,
     required String email,
     required String password,
+    required List<LegalDocument> legalDocuments,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<List<LegalDocument>> getSignupLegalDocuments() async {
+    return mockSignupLegalDocuments;
+  }
 
   @override
   Future<AuthUser> updateProfile({
