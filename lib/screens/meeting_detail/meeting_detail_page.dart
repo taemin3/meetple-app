@@ -398,8 +398,6 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    MeetingMetaSummary(meeting: meeting),
-                    const SizedBox(height: 24),
                     MeetingInfoSection(meeting: meeting),
                     const SizedBox(height: 28),
                     const DetailSectionTitle('모임 소개'),
@@ -772,50 +770,6 @@ class HeroTagPill extends StatelessWidget {
   }
 }
 
-class MeetingMetaSummary extends StatelessWidget {
-  const MeetingMetaSummary({super.key, required this.meeting});
-
-  final Meeting meeting;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Icon(
-          Icons.calendar_today_outlined,
-          color: AppColors.muted,
-          size: 16,
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            _meetingScheduleLabel(meeting),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.muted,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const Icon(Icons.star_rounded, color: AppColors.orange, size: 18),
-        const SizedBox(width: 4),
-        Text(
-          meeting.reviewCount == 0
-              ? '후기 없음'
-              : '${meeting.rating} (${meeting.reviewCount})',
-          style: const TextStyle(
-            color: AppColors.muted,
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class MeetingInfoSection extends StatelessWidget {
   const MeetingInfoSection({super.key, required this.meeting});
 
@@ -1128,6 +1082,7 @@ class MeetingLocationCard extends StatelessWidget {
                 enabled: _isLiveMapEnabled,
                 latitude: _latitude,
                 longitude: _longitude,
+                interactive: false,
               ),
               Align(
                 alignment: const Alignment(0, -0.16),
@@ -1265,6 +1220,7 @@ class MeetingLocationCard extends StatelessWidget {
                             enabled: _isLiveMapEnabled,
                             latitude: _latitude,
                             longitude: _longitude,
+                            interactive: true,
                           ),
                           const Center(
                             child: Icon(

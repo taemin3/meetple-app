@@ -4,6 +4,7 @@ import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
+import 'package:meetple/widgets/map/meeting_location_map.dart';
 import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
 void main() {
@@ -77,6 +78,49 @@ void main() {
       find.byType(NetworkImageWithSkeleton),
     );
     expect(image.imageUrl, profileImageUrl);
+  });
+
+  testWidgets('shows schedule once without a review summary', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingDetailPage(meeting: _meeting()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('8/22 14:00 시작 · 종료 미정'), findsOneWidget);
+    expect(find.textContaining('후기'), findsNothing);
+  });
+
+  testWidgets('enables gestures only on the full map', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MeetingLocationCard(meeting: _meeting()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<MeetingLocationMap>(find.byType(MeetingLocationMap).first)
+          .interactive,
+      isFalse,
+    );
+
+    final fullMapButton = find.byKey(
+      const Key('meeting-location-full-map-button'),
+    );
+    await tester.tap(fullMapButton);
+    await tester.pumpAndSettle();
+
+    final maps = tester.widgetList<MeetingLocationMap>(
+      find.byType(MeetingLocationMap),
+    );
+    expect(maps.map((map) => map.interactive), containsAll([false, true]));
   });
 
   testWidgets('shows member summary and opens the full member list',
