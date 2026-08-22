@@ -7,6 +7,7 @@ import 'package:meetple/core/push/push_notification_message.dart';
 import 'package:meetple/core/push/push_notification_service.dart';
 import 'package:meetple/core/map/nearby_location_provider.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
+import 'package:meetple/data/mock/mock_legal_documents.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/category_repository.dart';
 import 'package:meetple/data/repositories/location_repository.dart';
@@ -17,6 +18,7 @@ import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
+import 'package:meetple/models/legal_document.dart';
 import 'package:meetple/models/app_notification.dart';
 import 'package:meetple/models/chat_room.dart';
 import 'package:meetple/models/location_search_result.dart';
@@ -973,7 +975,7 @@ void main() {
     await tester.tap(find.text('\uD68C\uC6D0\uAC00\uC785'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('sign_up_all_terms')), findsOneWidget);
+    expect(find.byKey(const Key('sign_up_age_confirmation')), findsOneWidget);
     expect(find.text('\uB2E4\uC74C'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
@@ -981,7 +983,7 @@ void main() {
     await tester.enterText(find.byType(TextField).at(2), 'password1!');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('sign_up_all_terms')));
+    await tester.tap(find.byKey(const Key('sign_up_age_confirmation')));
     await tester.pump();
     await tester.tap(find.text('\uB2E4\uC74C'));
     await tester.pumpAndSettle();
@@ -1171,8 +1173,14 @@ class _DeferredAuthRepository implements AuthRepository {
     required String nickname,
     required String email,
     required String password,
+    required List<LegalDocument> legalDocuments,
   }) {
     throw UnimplementedError();
+  }
+
+  @override
+  Future<List<LegalDocument>> getSignupLegalDocuments() async {
+    return mockSignupLegalDocuments;
   }
 
   @override

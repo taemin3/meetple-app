@@ -8,6 +8,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/image_upload_repository.dart';
 import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../models/auth_session.dart';
+import '../../models/legal_document.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
 
@@ -38,24 +39,22 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isSubmitting = false;
   bool _isPasswordVisible = false;
   bool _isPasswordConfirmVisible = false;
-  bool _isServiceTermsAgreed = false;
-  bool _isPrivacyTermsAgreed = false;
-  bool _isAgeAgreed = false;
+  bool _isAgeConfirmed = false;
+  bool _isLoadingLegalDocuments = true;
   bool _isPickingProfileImage = false;
   bool _isProfileImageUploaded = false;
   ImageUploadFile? _profileImage;
   AuthSession? _createdSession;
-  DateTime? _birthDate;
+  List<LegalDocument>? _legalDocuments;
+  String? _legalDocumentsError;
   String? _errorMessage;
-
-  bool get _isAllTermsAgreed =>
-      _isServiceTermsAgreed && _isPrivacyTermsAgreed && _isAgeAgreed;
 
   @override
   void initState() {
     super.initState();
     _nicknameController.addListener(_rebuildCounter);
     _introController.addListener(_rebuildCounter);
+    _loadLegalDocuments();
   }
 
   @override
@@ -129,12 +128,11 @@ class _SignUpPageState extends State<SignUpPage> {
                                       isPasswordVisible: _isPasswordVisible,
                                       isPasswordConfirmVisible:
                                           _isPasswordConfirmVisible,
-                                      isAllTermsAgreed: _isAllTermsAgreed,
-                                      isServiceTermsAgreed:
-                                          _isServiceTermsAgreed,
-                                      isPrivacyTermsAgreed:
-                                          _isPrivacyTermsAgreed,
-                                      isAgeAgreed: _isAgeAgreed,
+                                      legalDocuments: _legalDocuments,
+                                      isLoadingLegalDocuments:
+                                          _isLoadingLegalDocuments,
+                                      legalDocumentsError: _legalDocumentsError,
+                                      isAgeConfirmed: _isAgeConfirmed,
                                       errorMessage: _errorMessage,
                                       togglePasswordVisibility: () {
                                         setState(() {
@@ -148,22 +146,11 @@ class _SignUpPageState extends State<SignUpPage> {
                                               !_isPasswordConfirmVisible;
                                         });
                                       },
-                                      toggleAllTerms: _toggleAllTerms,
-                                      toggleServiceTerms: () {
+                                      retryLegalDocuments: _loadLegalDocuments,
+                                      showLegalDocument: _showLegalDocument,
+                                      toggleAgeConfirmation: () {
                                         setState(() {
-                                          _isServiceTermsAgreed =
-                                              !_isServiceTermsAgreed;
-                                        });
-                                      },
-                                      togglePrivacyTerms: () {
-                                        setState(() {
-                                          _isPrivacyTermsAgreed =
-                                              !_isPrivacyTermsAgreed;
-                                        });
-                                      },
-                                      toggleAgeTerms: () {
-                                        setState(() {
-                                          _isAgeAgreed = !_isAgeAgreed;
+                                          _isAgeConfirmed = !_isAgeConfirmed;
                                         });
                                       },
                                     )
@@ -174,12 +161,10 @@ class _SignUpPageState extends State<SignUpPage> {
                                       profileImage: _profileImage,
                                       isPickingProfileImage:
                                           _isPickingProfileImage,
-                                      birthDate: _birthDate,
                                       isSubmitting: _isSubmitting,
                                       errorMessage: _errorMessage,
                                       pickProfilePhoto: _pickProfilePhoto,
                                       removeProfilePhoto: _removeProfilePhoto,
-                                      selectBirthDate: _selectBirthDate,
                                     ),
                             ),
                           ],
@@ -203,6 +188,8 @@ class _SignUpPageState extends State<SignUpPage> {
                       child: _SignUpStickyFooter(
                         step: _step,
                         isSubmitting: _isSubmitting,
+                        legalDocuments: _legalDocuments,
+                        showLegalDocument: _showLegalDocument,
                         onPrimaryPressed: _step == 0
                             ? _goToProfileStep
                             : (_isSubmitting || _isPickingProfileImage
@@ -244,15 +231,6 @@ class _SignUpPageState extends State<SignUpPage> {
     });
   }
 
-  void _toggleAllTerms() {
-    setState(() {
-      final nextValue = !_isAllTermsAgreed;
-      _isServiceTermsAgreed = nextValue;
-      _isPrivacyTermsAgreed = nextValue;
-      _isAgeAgreed = nextValue;
-    });
-  }
-
   void _goToProfileStep() {
     final message = _accountStepErrorMessage();
     if (message != null) {
@@ -284,25 +262,64 @@ class _SignUpPageState extends State<SignUpPage> {
       return '비밀번호가 일치하지 않습니다.';
     }
 
-    if (!_isAllTermsAgreed) {
-      return '필수 약관에 모두 동의해 주세요.';
+    if (_legalDocuments == null) {
+      return '약관 정보를 불러온 후 다시 시도해 주세요.';
+    }
+
+    if (!_isAgeConfirmed) {
+      return '만 14세 이상임을 확인해 주세요.';
     }
 
     return null;
   }
 
-  Future<void> _selectBirthDate() async {
-    final now = DateTime.now();
-    final selectedDate = await showDatePicker(
-      context: context,
-      initialDate: _birthDate ?? DateTime(now.year - 20, now.month, now.day),
-      firstDate: DateTime(now.year - 100),
-      lastDate: DateTime(now.year - 14, now.month, now.day),
-    );
+  Future<void> _loadLegalDocuments() async {
+    setState(() {
+      _isLoadingLegalDocuments = true;
+      _legalDocumentsError = null;
+    });
 
-    if (selectedDate != null) {
-      setState(() => _birthDate = selectedDate);
+    try {
+      final documents = await widget.authRepository.getSignupLegalDocuments();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _legalDocuments = documents;
+        _isLoadingLegalDocuments = false;
+        _legalDocumentsError = null;
+      });
+    } on Exception catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _legalDocuments = null;
+        _isLoadingLegalDocuments = false;
+        _legalDocumentsError = authErrorMessage(error);
+      });
     }
+  }
+
+  void _showLegalDocument(LegalDocumentType type) {
+    LegalDocument? selectedDocument;
+    for (final document in _legalDocuments ?? const <LegalDocument>[]) {
+      if (document.type == type) {
+        selectedDocument = document;
+        break;
+      }
+    }
+    if (selectedDocument == null) {
+      _showSnackBar('약관 정보를 불러온 후 다시 시도해 주세요.');
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LegalDocumentSheet(document: selectedDocument!),
+    );
   }
 
   Future<void> _pickProfilePhoto() async {
@@ -395,6 +412,7 @@ class _SignUpPageState extends State<SignUpPage> {
           nickname: _nicknameController.text,
           email: _emailController.text,
           password: _passwordController.text,
+          legalDocuments: _legalDocuments!,
         );
         _createdSession = session;
       }
@@ -649,17 +667,16 @@ class _AccountStep extends StatelessWidget {
     required this.passwordConfirmController,
     required this.isPasswordVisible,
     required this.isPasswordConfirmVisible,
-    required this.isAllTermsAgreed,
-    required this.isServiceTermsAgreed,
-    required this.isPrivacyTermsAgreed,
-    required this.isAgeAgreed,
+    required this.legalDocuments,
+    required this.isLoadingLegalDocuments,
+    required this.legalDocumentsError,
+    required this.isAgeConfirmed,
     required this.errorMessage,
     required this.togglePasswordVisibility,
     required this.togglePasswordConfirmVisibility,
-    required this.toggleAllTerms,
-    required this.toggleServiceTerms,
-    required this.togglePrivacyTerms,
-    required this.toggleAgeTerms,
+    required this.retryLegalDocuments,
+    required this.showLegalDocument,
+    required this.toggleAgeConfirmation,
   });
 
   final TextEditingController emailController;
@@ -667,17 +684,16 @@ class _AccountStep extends StatelessWidget {
   final TextEditingController passwordConfirmController;
   final bool isPasswordVisible;
   final bool isPasswordConfirmVisible;
-  final bool isAllTermsAgreed;
-  final bool isServiceTermsAgreed;
-  final bool isPrivacyTermsAgreed;
-  final bool isAgeAgreed;
+  final List<LegalDocument>? legalDocuments;
+  final bool isLoadingLegalDocuments;
+  final String? legalDocumentsError;
+  final bool isAgeConfirmed;
   final String? errorMessage;
   final VoidCallback togglePasswordVisibility;
   final VoidCallback togglePasswordConfirmVisibility;
-  final VoidCallback toggleAllTerms;
-  final VoidCallback toggleServiceTerms;
-  final VoidCallback togglePrivacyTerms;
-  final VoidCallback toggleAgeTerms;
+  final VoidCallback retryLegalDocuments;
+  final ValueChanged<LegalDocumentType> showLegalDocument;
+  final VoidCallback toggleAgeConfirmation;
 
   @override
   Widget build(BuildContext context) {
@@ -734,15 +750,14 @@ class _AccountStep extends StatelessWidget {
         const SizedBox(height: 18),
         const _FieldLabel('약관 동의'),
         const SizedBox(height: 8),
-        _TermsCard(
-          isAllTermsAgreed: isAllTermsAgreed,
-          isServiceTermsAgreed: isServiceTermsAgreed,
-          isPrivacyTermsAgreed: isPrivacyTermsAgreed,
-          isAgeAgreed: isAgeAgreed,
-          toggleAllTerms: toggleAllTerms,
-          toggleServiceTerms: toggleServiceTerms,
-          togglePrivacyTerms: togglePrivacyTerms,
-          toggleAgeTerms: toggleAgeTerms,
+        _LegalDocumentsCard(
+          documents: legalDocuments,
+          isLoading: isLoadingLegalDocuments,
+          errorMessage: legalDocumentsError,
+          isAgeConfirmed: isAgeConfirmed,
+          onRetry: retryLegalDocuments,
+          onShowDocument: showLegalDocument,
+          onToggleAgeConfirmation: toggleAgeConfirmation,
         ),
         if (errorMessage != null) ...[
           const SizedBox(height: 14),
@@ -760,24 +775,20 @@ class _ProfileStep extends StatelessWidget {
     required this.introController,
     required this.profileImage,
     required this.isPickingProfileImage,
-    required this.birthDate,
     required this.isSubmitting,
     required this.errorMessage,
     required this.pickProfilePhoto,
     required this.removeProfilePhoto,
-    required this.selectBirthDate,
   });
 
   final TextEditingController nicknameController;
   final TextEditingController introController;
   final ImageUploadFile? profileImage;
   final bool isPickingProfileImage;
-  final DateTime? birthDate;
   final bool isSubmitting;
   final String? errorMessage;
   final VoidCallback pickProfilePhoto;
   final VoidCallback removeProfilePhoto;
-  final VoidCallback selectBirthDate;
 
   @override
   Widget build(BuildContext context) {
@@ -840,13 +851,6 @@ class _ProfileStep extends StatelessWidget {
           maxLines: 4,
           trailingText: '${introController.text.length}/30',
         ),
-        const SizedBox(height: 18),
-        _PickerField(
-          label: '생년월일',
-          icon: Icons.calendar_today_outlined,
-          text: birthDate == null ? '생년월일을 선택해주세요' : _formatDate(birthDate!),
-          onTap: selectBirthDate,
-        ),
         if (errorMessage != null) ...[
           const SizedBox(height: 14),
           AuthErrorText(message: errorMessage!),
@@ -854,23 +858,21 @@ class _ProfileStep extends StatelessWidget {
       ],
     );
   }
-
-  static String _formatDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}.$month.$day';
-  }
 }
 
 class _SignUpStickyFooter extends StatelessWidget {
   const _SignUpStickyFooter({
     required this.step,
     required this.isSubmitting,
+    required this.legalDocuments,
+    required this.showLegalDocument,
     required this.onPrimaryPressed,
   });
 
   final int step;
   final bool isSubmitting;
+  final List<LegalDocument>? legalDocuments;
+  final ValueChanged<LegalDocumentType> showLegalDocument;
   final VoidCallback? onPrimaryPressed;
 
   @override
@@ -901,6 +903,12 @@ class _SignUpStickyFooter extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (isProfileStep && legalDocuments != null) ...[
+                      _LegalAgreementNotice(
+                        onShowDocument: showLegalDocument,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                     PrimaryButton(
                       label: isProfileStep ? '가입 완료' : '다음',
                       onPressed: onPrimaryPressed,
@@ -1137,87 +1145,24 @@ class _SignUpField extends StatelessWidget {
   }
 }
 
-class _PickerField extends StatelessWidget {
-  const _PickerField({
-    required this.label,
-    required this.icon,
-    required this.text,
-    required this.onTap,
+class _LegalDocumentsCard extends StatelessWidget {
+  const _LegalDocumentsCard({
+    required this.documents,
+    required this.isLoading,
+    required this.errorMessage,
+    required this.isAgeConfirmed,
+    required this.onRetry,
+    required this.onShowDocument,
+    required this.onToggleAgeConfirmation,
   });
 
-  final String label;
-  final IconData icon;
-  final String text;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label),
-        const SizedBox(height: 7),
-        Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              height: 52,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.line, width: 1.4),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
-                children: [
-                  Icon(icon, color: AppColors.muted),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      text,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    color: AppColors.muted,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _TermsCard extends StatelessWidget {
-  const _TermsCard({
-    required this.isAllTermsAgreed,
-    required this.isServiceTermsAgreed,
-    required this.isPrivacyTermsAgreed,
-    required this.isAgeAgreed,
-    required this.toggleAllTerms,
-    required this.toggleServiceTerms,
-    required this.togglePrivacyTerms,
-    required this.toggleAgeTerms,
-  });
-
-  final bool isAllTermsAgreed;
-  final bool isServiceTermsAgreed;
-  final bool isPrivacyTermsAgreed;
-  final bool isAgeAgreed;
-  final VoidCallback toggleAllTerms;
-  final VoidCallback toggleServiceTerms;
-  final VoidCallback togglePrivacyTerms;
-  final VoidCallback toggleAgeTerms;
+  final List<LegalDocument>? documents;
+  final bool isLoading;
+  final String? errorMessage;
+  final bool isAgeConfirmed;
+  final VoidCallback onRetry;
+  final ValueChanged<LegalDocumentType> onShowDocument;
+  final VoidCallback onToggleAgeConfirmation;
 
   @override
   Widget build(BuildContext context) {
@@ -1233,55 +1178,72 @@ class _TermsCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        children: [
-          _TermsRow(
-            key: const Key('sign_up_all_terms'),
-            label: '모든 약관에 동의합니다',
-            isChecked: isAllTermsAgreed,
-            onTap: toggleAllTerms,
-            isStrong: true,
-          ),
-          const Divider(height: 1),
-          _TermsRow(
-            label: '서비스 이용약관 동의 (필수)',
-            isChecked: isServiceTermsAgreed,
-            onTap: toggleServiceTerms,
-            showChevron: true,
-          ),
-          _TermsRow(
-            label: '개인정보 수집 및 이용 동의 (필수)',
-            isChecked: isPrivacyTermsAgreed,
-            onTap: togglePrivacyTerms,
-            showChevron: true,
-          ),
-          _TermsRow(
-            label: '만 14세 이상입니다 (필수)',
-            isChecked: isAgeAgreed,
-            onTap: toggleAgeTerms,
-            showChevron: true,
-          ),
-        ],
-      ),
+      child: _buildContent(),
+    );
+  }
+
+  Widget _buildContent() {
+    if (isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (documents == null) {
+      return Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          children: [
+            Text(
+              errorMessage ?? '약관 정보를 불러오지 못했습니다.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.muted,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            TextButton(
+              key: const Key('sign_up_legal_documents_retry'),
+              onPressed: onRetry,
+              child: const Text('다시 불러오기'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        _LegalDocumentRow(
+          key: const Key('sign_up_service_terms'),
+          label: '서비스 이용약관',
+          onTap: () => onShowDocument(LegalDocumentType.serviceTerms),
+        ),
+        _LegalDocumentRow(
+          key: const Key('sign_up_privacy_policy'),
+          label: '개인정보 처리방침',
+          onTap: () => onShowDocument(LegalDocumentType.privacyPolicy),
+        ),
+        const Divider(height: 1),
+        _AgeConfirmationRow(
+          isChecked: isAgeConfirmed,
+          onTap: onToggleAgeConfirmation,
+        ),
+      ],
     );
   }
 }
 
-class _TermsRow extends StatelessWidget {
-  const _TermsRow({
+class _LegalDocumentRow extends StatelessWidget {
+  const _LegalDocumentRow({
     super.key,
     required this.label,
-    required this.isChecked,
     required this.onTap,
-    this.isStrong = false,
-    this.showChevron = false,
   });
 
   final String label;
-  final bool isChecked;
   final VoidCallback onTap;
-  final bool isStrong;
-  final bool showChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -1289,31 +1251,55 @@ class _TermsRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(18),
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          18,
-          isStrong ? 11 : 5,
-          16,
-          isStrong ? 11 : 5,
+        padding: const EdgeInsets.fromLTRB(18, 12, 16, 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _AgeConfirmationRow extends StatelessWidget {
+  const _AgeConfirmationRow({required this.isChecked, required this.onTap});
+
+  final bool isChecked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: const Key('sign_up_age_confirmation'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 12, 16, 12),
         child: Row(
           children: [
             _RoundCheck(isChecked: isChecked),
             const SizedBox(width: 14),
-            Expanded(
+            const Expanded(
               child: Text(
-                label,
+                '만 14세 이상입니다 (필수)',
                 style: TextStyle(
-                  color: isStrong ? AppColors.ink : AppColors.muted,
-                  fontSize: isStrong ? 14 : 13,
-                  fontWeight: isStrong ? FontWeight.w900 : FontWeight.w800,
+                  color: AppColors.ink,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
-            if (showChevron)
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.muted,
-              ),
           ],
         ),
       ),
@@ -1346,6 +1332,125 @@ class _RoundCheck extends StatelessWidget {
               size: 15,
             )
           : null,
+    );
+  }
+}
+
+class _LegalAgreementNotice extends StatelessWidget {
+  const _LegalAgreementNotice({required this.onShowDocument});
+
+  final ValueChanged<LegalDocumentType> onShowDocument;
+
+  @override
+  Widget build(BuildContext context) {
+    const textStyle = TextStyle(
+      color: AppColors.muted,
+      fontSize: 11,
+      fontWeight: FontWeight.w700,
+      height: 1.4,
+    );
+    const linkStyle = TextStyle(
+      color: AppColors.primary,
+      fontSize: 11,
+      fontWeight: FontWeight.w900,
+      decoration: TextDecoration.underline,
+    );
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        const Text('회원가입하면 ', style: textStyle),
+        InkWell(
+          key: const Key('sign_up_footer_service_terms'),
+          onTap: () => onShowDocument(LegalDocumentType.serviceTerms),
+          child: const Text('서비스 이용약관', style: linkStyle),
+        ),
+        const Text('에 동의하고 ', style: textStyle),
+        InkWell(
+          key: const Key('sign_up_footer_privacy_policy'),
+          onTap: () => onShowDocument(LegalDocumentType.privacyPolicy),
+          child: const Text('개인정보 처리방침', style: linkStyle),
+        ),
+        const Text('을 확인한 것으로 봅니다.', style: textStyle),
+      ],
+    );
+  }
+}
+
+class _LegalDocumentSheet extends StatelessWidget {
+  const _LegalDocumentSheet({required this.document});
+
+  final LegalDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      heightFactor: 0.85,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 10, 8),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            document.title,
+                            style: const TextStyle(
+                              color: AppColors.ink,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '버전 ${document.version}',
+                            style: const TextStyle(
+                              color: AppColors.muted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: '닫기',
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Text(
+                    document.content,
+                    style: const TextStyle(
+                      color: AppColors.ink,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      height: 1.7,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

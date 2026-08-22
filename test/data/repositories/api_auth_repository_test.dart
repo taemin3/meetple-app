@@ -4,12 +4,58 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:meetple/core/network/api_client.dart';
+import 'package:meetple/data/mock/mock_legal_documents.dart';
 import 'package:meetple/data/repositories/api_auth_repository.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/auth_token_refresh_coordinator.dart';
 import 'package:meetple/data/repositories/auth_token_store.dart';
+import 'package:meetple/models/legal_document.dart';
 
 void main() {
+  test('loads the current signup legal documents', () async {
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: [
+            {
+              'type': 'SERVICE_TERMS',
+              'version': '2026-08-22',
+              'title': '서비스 이용약관',
+              'content': '서비스 약관 내용',
+              'effectiveAt': '2026-08-22T00:00:00',
+            },
+            {
+              'type': 'PRIVACY_POLICY',
+              'version': '2026-08-22',
+              'title': '개인정보 처리방침',
+              'content': '개인정보 처리방침 내용',
+              'effectiveAt': '2026-08-22T00:00:00',
+            },
+            {
+              'type': 'AGE_14_CONFIRMATION',
+              'version': '2026-08-22',
+              'title': '만 14세 이상 확인',
+              'content': '만 14세 이상 확인 내용',
+              'effectiveAt': '2026-08-22T00:00:00',
+            },
+          ],
+        ),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    final documents = await repository.getSignupLegalDocuments();
+
+    expect(apiClient.requests.single.method, 'GET');
+    expect(apiClient.requests.single.path, '/api/v1/legal-documents/signup');
+    expect(
+        documents.map((document) => document.type), LegalDocumentType.values);
+    expect(documents.first.version, '2026-08-22');
+  });
+
   test('signs in with backend login and profile APIs', () async {
     final tokenStore = MemoryAuthTokenStore();
     final apiClient = FakeApiClient(
@@ -154,6 +200,7 @@ void main() {
       nickname: ' 새회원 ',
       email: ' new@example.com ',
       password: 'password123',
+      legalDocuments: mockSignupLegalDocuments,
     );
 
     expect(apiClient.requests.map((request) => request.path), [
@@ -165,6 +212,11 @@ void main() {
       'email': 'new@example.com',
       'password': 'password123',
       'nickname': '새회원',
+      'legalDocuments': [
+        {'type': 'SERVICE_TERMS', 'version': '2026-08-22'},
+        {'type': 'PRIVACY_POLICY', 'version': '2026-08-22'},
+        {'type': 'AGE_14_CONFIRMATION', 'version': '2026-08-22'},
+      ],
     });
     expect(session.user.nickname, '새회원');
     expect(session.accessToken, 'new-access-token');
@@ -182,6 +234,7 @@ void main() {
         nickname: ' ',
         email: 'new@example.com',
         password: 'password123',
+        legalDocuments: mockSignupLegalDocuments,
       ),
       throwsA(
         isA<AuthException>().having(
@@ -196,6 +249,7 @@ void main() {
         nickname: '새회원',
         email: ' ',
         password: 'password123',
+        legalDocuments: mockSignupLegalDocuments,
       ),
       throwsA(
         isA<AuthException>().having(
@@ -210,6 +264,7 @@ void main() {
         nickname: '새회원',
         email: 'new@example.com',
         password: ' ',
+        legalDocuments: mockSignupLegalDocuments,
       ),
       throwsA(
         isA<AuthException>().having(

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
+import 'package:meetple/data/mock/mock_legal_documents.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 
@@ -42,6 +43,7 @@ void main() {
       nickname: '밋플러',
       email: 'new@example.com',
       password: 'password',
+      legalDocuments: mockSignupLegalDocuments,
     );
 
     expect(session.user.nickname, '밋플러');

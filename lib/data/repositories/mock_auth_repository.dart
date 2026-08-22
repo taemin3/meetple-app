@@ -1,6 +1,8 @@
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
+import '../../models/legal_document.dart';
 import '../mock/mock_auth.dart';
+import '../mock/mock_legal_documents.dart';
 import 'auth_repository.dart';
 
 class MockAuthRepository implements AuthRepository {
@@ -36,14 +38,23 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<List<LegalDocument>> getSignupLegalDocuments() async {
+    return mockSignupLegalDocuments;
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
     required String password,
+    required List<LegalDocument> legalDocuments,
   }) async {
     _ensureNotBlank(nickname, '닉네임을 입력해 주세요.');
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
+    if (legalDocuments.length != LegalDocumentType.values.length) {
+      throw const AuthException('최신 약관을 확인해 주세요.');
+    }
 
     final session = AuthSession(
       user: mockAuthUser.copyWith(

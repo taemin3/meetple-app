@@ -2,6 +2,7 @@ import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
+import '../../models/legal_document.dart';
 import 'auth_repository.dart';
 import 'auth_token_refresh_coordinator.dart';
 import 'auth_token_store.dart';
@@ -172,14 +173,47 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<List<LegalDocument>> getSignupLegalDocuments() async {
+    try {
+      final response = await _apiClient.getJson(
+        '/api/v1/legal-documents/signup',
+      );
+      _ensureSuccess(response);
+      final data = response['data'];
+      if (data is! List) {
+        throw const FormatException('Legal document data must be a list.');
+      }
+      final documents = data
+          .map((item) => _legalDocumentFromJson(_readMap(item, 'document')))
+          .toList(growable: false);
+      if (documents.length != LegalDocumentType.values.length ||
+          documents.map((document) => document.type).toSet().length !=
+              LegalDocumentType.values.length) {
+        throw const FormatException('Required legal documents are missing.');
+      }
+      return documents;
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    } on FormatException {
+      throw const AuthException('약관 정보를 불러오지 못했습니다.');
+    }
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
     required String password,
+    required List<LegalDocument> legalDocuments,
   }) async {
     _ensureNotBlank(nickname, '닉네임을 입력해 주세요.');
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
+    if (legalDocuments.length != LegalDocumentType.values.length) {
+      throw const AuthException('최신 약관을 확인해 주세요.');
+    }
 
     try {
       final response = await _apiClient.postJson(
@@ -189,6 +223,9 @@ class ApiAuthRepository implements AuthRepository {
           'email': email.trim(),
           'password': password,
           'nickname': nickname.trim(),
+          'legalDocuments': legalDocuments
+              .map((document) => document.toSignupJson())
+              .toList(growable: false),
         },
       );
       _ensureSuccess(response);
@@ -386,6 +423,27 @@ class ApiAuthRepository implements AuthRepository {
       createdMeetingsCount: _readInt(json['createdMeetingsCount']),
       joinedMeetingsCount: _readInt(json['joinedMeetingsCount']),
       likedMeetingsCount: _readInt(json['likedMeetingsCount']),
+    );
+  }
+
+  LegalDocument _legalDocumentFromJson(Map<String, dynamic> json) {
+    final type = LegalDocumentType.fromWireName(_readString(json['type']));
+    final version = _readString(json['version']);
+    final title = _readString(json['title']);
+    final content = _readString(json['content']);
+    final effectiveAt = DateTime.tryParse(_readString(json['effectiveAt']));
+    if (version.isEmpty ||
+        title.isEmpty ||
+        content.isEmpty ||
+        effectiveAt == null) {
+      throw const FormatException('Legal document fields are missing.');
+    }
+    return LegalDocument(
+      type: type,
+      version: version,
+      title: title,
+      content: content,
+      effectiveAt: effectiveAt,
     );
   }
 
