@@ -151,8 +151,9 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     final participation = _engagement?.participation;
     final meetingId = widget.meeting.id;
     if (participation == null || meetingId == null) return;
+    final wasApproved = participation.status == ParticipationStatus.approved;
 
-    if (participation.status == ParticipationStatus.approved) {
+    if (wasApproved) {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -181,9 +182,11 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
       final engagement = _engagement;
       _engagement = engagement?.copyWith(
         participation: canceled,
-        members: engagement.members
-            .where((member) => member.memberId != participation.memberId)
-            .toList(growable: false),
+        members: wasApproved
+            ? engagement.members
+                .where((member) => member.memberId != participation.memberId)
+                .toList(growable: false)
+            : engagement.members,
       );
     }, successMessage: '참여 신청이 취소되었습니다.');
   }
@@ -384,6 +387,9 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     final meeting = widget.meeting;
     final engagement = _engagement;
     final isHost = engagement?.isHost == true;
+    final joined = engagement != null && engagement.members.isNotEmpty
+        ? engagement.members.length
+        : meeting.joined;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -398,7 +404,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    MeetingInfoSection(meeting: meeting),
+                    MeetingInfoSection(meeting: meeting, joined: joined),
                     const SizedBox(height: 28),
                     const DetailSectionTitle('모임 소개'),
                     const SizedBox(height: 10),
@@ -771,9 +777,10 @@ class HeroTagPill extends StatelessWidget {
 }
 
 class MeetingInfoSection extends StatelessWidget {
-  const MeetingInfoSection({super.key, required this.meeting});
+  const MeetingInfoSection({super.key, required this.meeting, this.joined});
 
   final Meeting meeting;
+  final int? joined;
 
   @override
   Widget build(BuildContext context) {
@@ -796,7 +803,7 @@ class MeetingInfoSection extends StatelessWidget {
         DetailInfoItem(
           icon: Icons.group_outlined,
           label: '모집 인원',
-          value: '${meeting.joined} / ${meeting.capacity}명',
+          value: '${joined ?? meeting.joined} / ${meeting.capacity}명',
         ),
         DetailInfoItem(
           icon: Icons.payments_outlined,
@@ -1221,14 +1228,16 @@ class MeetingLocationCard extends StatelessWidget {
                             latitude: _latitude,
                             longitude: _longitude,
                             interactive: true,
+                            showMarker: true,
                           ),
-                          const Center(
-                            child: Icon(
-                              Icons.location_on_rounded,
-                              color: AppColors.primary,
-                              size: 48,
+                          if (!_isLiveMapEnabled)
+                            const Center(
+                              child: Icon(
+                                Icons.location_on_rounded,
+                                color: AppColors.primary,
+                                size: 48,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),

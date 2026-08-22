@@ -117,10 +117,13 @@ void main() {
     await tester.tap(fullMapButton);
     await tester.pumpAndSettle();
 
-    final maps = tester.widgetList<MeetingLocationMap>(
-      find.byType(MeetingLocationMap),
-    );
+    final maps = tester
+        .widgetList<MeetingLocationMap>(
+          find.byType(MeetingLocationMap),
+        )
+        .toList(growable: false);
     expect(maps.map((map) => map.interactive), containsAll([false, true]));
+    expect(maps.singleWhere((map) => map.interactive).showMarker, isTrue);
   });
 
   testWidgets('shows member summary and opens the full member list',
@@ -200,11 +203,37 @@ void main() {
 
     expect(repository.cancelCount, 1);
     expect(find.text('참여 멤버 1 / 10'), findsOneWidget);
+    expect(find.text('1 / 10명'), findsOneWidget);
     expect(find.text('참여 신청하기'), findsOneWidget);
     final memberAvatars = tester.widget<MemberAvatars>(
       find.byType(MemberAvatars),
     );
     expect(memberAvatars.members.map((member) => member.memberId), [1]);
+  });
+
+  testWidgets('keeps approved members after canceling a pending request',
+      (tester) async {
+    final repository = _PendingParticipationRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingDetailPage(
+          meeting: _meeting(joined: 2),
+          meetingRepository: repository,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('승인 대기 중 · 신청 취소'));
+    await tester.pumpAndSettle();
+
+    expect(repository.cancelCount, 1);
+    expect(find.text('참여 멤버 2 / 10'), findsOneWidget);
+    expect(find.text('2 / 10명'), findsOneWidget);
+    final memberAvatars = tester.widget<MemberAvatars>(
+      find.byType(MemberAvatars),
+    );
+    expect(memberAvatars.members.map((member) => member.memberId), [1, 2]);
   });
 }
 
@@ -272,6 +301,26 @@ class _ApprovedParticipationRepository extends MockMeetingRepository {
       memberId: 2,
       memberNickname: '서연',
       status: ParticipationStatus.canceled,
+    );
+  }
+}
+
+class _PendingParticipationRepository extends _ApprovedParticipationRepository {
+  @override
+  Future<MeetingEngagement> getEngagement(int meetingId) async {
+    return const MeetingEngagement(
+      isHost: false,
+      isBookmarked: false,
+      participation: MeetingParticipation(
+        id: 100,
+        memberId: 2,
+        memberNickname: '나',
+        status: ParticipationStatus.pending,
+      ),
+      members: [
+        MeetingMember(memberId: 1, nickname: '민준', isHost: true),
+        MeetingMember(memberId: 2, nickname: '서연', isHost: false),
+      ],
     );
   }
 }
