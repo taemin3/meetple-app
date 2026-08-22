@@ -63,6 +63,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(authRepository.confirmVerificationCodeCount, 1);
     expect(find.text('이메일 인증이 완료됐어요.'), findsOneWidget);
+    expect(find.text('이메일 인증을 완료해 주세요.'), findsNothing);
 
     await tester.enterText(
       find.byKey(const Key('sign_up_email')),
@@ -74,6 +75,87 @@ void main() {
       findsNothing,
     );
     expect(find.text('이메일 인증이 완료됐어요.'), findsNothing);
+  });
+
+  testWidgets('discards a send response when the email changes in flight', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final sendCompleter = Completer<void>();
+    final authRepository = _SignUpAuthRepository(
+      sendVerificationCodeCompleter: sendCompleter,
+    );
+
+    await _openSignUp(
+      tester,
+      authRepository: authRepository,
+      imageUploadRepository: _RecordingImageUploadRepository(),
+      pickProfileImage: () async => null,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email')),
+      'first@example.com',
+    );
+    await tester.tap(find.byKey(const Key('sign_up_send_verification_code')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email')),
+      'second@example.com',
+    );
+
+    sendCompleter.complete();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('sign_up_email_verification_code')),
+      findsNothing,
+    );
+    expect(find.text('인증번호 받기'), findsOneWidget);
+    final sendButton = tester.widget<TextButton>(
+      find.byKey(const Key('sign_up_send_verification_code')),
+    );
+    expect(sendButton.onPressed, isNotNull);
+  });
+
+  testWidgets('refreshes the resend cooldown from its expiry on resume', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var now = DateTime(2026, 8, 23, 1);
+
+    await _openSignUp(
+      tester,
+      authRepository: _SignUpAuthRepository(),
+      imageUploadRepository: _RecordingImageUploadRepository(),
+      pickProfileImage: () async => null,
+      now: () => now,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email')),
+      'user@example.com',
+    );
+    await tester.tap(find.byKey(const Key('sign_up_send_verification_code')));
+    await tester.pump();
+    expect(find.text('60초'), findsOneWidget);
+
+    tester.binding.handleAppLifecycleStateChanged(
+      AppLifecycleState.paused,
+    );
+    now = now.add(const Duration(seconds: 61));
+    tester.binding.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+    await tester.pump();
+
+    expect(find.text('재전송'), findsOneWidget);
+    final sendButton = tester.widget<TextButton>(
+      find.byKey(const Key('sign_up_send_verification_code')),
+    );
+    expect(sendButton.onPressed, isNotNull);
   });
 
   testWidgets('shows legal content and requires only the age confirmation', (
@@ -293,6 +375,7 @@ Future<void> _openSignUp(
   required ImageUploadRepository imageUploadRepository,
   required Future<XFile?> Function() pickProfileImage,
   ValueChanged<AuthSession?>? onCompleted,
+  DateTime Function()? now,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -307,6 +390,7 @@ Future<void> _openSignUp(
                       authRepository: authRepository,
                       imageUploadRepository: imageUploadRepository,
                       pickProfileImage: pickProfileImage,
+                      now: now,
                     ),
                   ),
                 );
@@ -355,9 +439,13 @@ Future<void> _verifyEmail(
 }
 
 class _SignUpAuthRepository implements AuthRepository {
-  _SignUpAuthRepository({this.profileImageUrl});
+  _SignUpAuthRepository({
+    this.profileImageUrl,
+    this.sendVerificationCodeCompleter,
+  });
 
   final String? profileImageUrl;
+  final Completer<void>? sendVerificationCodeCompleter;
   int signUpCount = 0;
   int sendVerificationCodeCount = 0;
   int confirmVerificationCodeCount = 0;
@@ -382,6 +470,7 @@ class _SignUpAuthRepository implements AuthRepository {
   @override
   Future<void> sendSignupEmailVerificationCode({required String email}) async {
     sendVerificationCodeCount += 1;
+    await sendVerificationCodeCompleter?.future;
   }
 
   @override

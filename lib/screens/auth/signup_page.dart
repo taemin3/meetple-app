@@ -18,17 +18,19 @@ class SignUpPage extends StatefulWidget {
     required this.authRepository,
     this.imageUploadRepository = const MockImageUploadRepository(),
     this.pickProfileImage,
+    this.now,
   });
 
   final AuthRepository authRepository;
   final ImageUploadRepository imageUploadRepository;
   final Future<XFile?> Function()? pickProfileImage;
+  final DateTime Function()? now;
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
+class _SignUpPageState extends State<SignUpPage> with WidgetsBindingObserver {
   final _emailController = TextEditingController();
   final _emailVerificationCodeController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -51,6 +53,7 @@ class _SignUpPageState extends State<SignUpPage> {
   AuthSession? _createdSession;
   List<LegalDocument>? _legalDocuments;
   Timer? _emailVerificationResendTimer;
+  DateTime? _emailVerificationResendExpiresAt;
   String? _emailVerificationRequestedEmail;
   String? _verifiedEmail;
   String? _signupVerificationToken;
@@ -63,6 +66,7 @@ class _SignUpPageState extends State<SignUpPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _emailController.addListener(_handleEmailChanged);
     _nicknameController.addListener(_rebuildCounter);
     _introController.addListener(_rebuildCounter);
@@ -71,6 +75,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _emailVerificationResendTimer?.cancel();
     _emailController.removeListener(_handleEmailChanged);
     _emailController.dispose();
@@ -80,6 +85,13 @@ class _SignUpPageState extends State<SignUpPage> {
     _nicknameController.dispose();
     _introController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshEmailVerificationResendCountdown();
+    }
   }
 
   @override
@@ -250,12 +262,14 @@ class _SignUpPageState extends State<SignUpPage> {
 
   String get _normalizedEmail => _emailController.text.trim().toLowerCase();
 
+  DateTime get _now => widget.now?.call() ?? DateTime.now();
+
   bool get _isEmailVerified {
     final expiresAt = _signupVerificationExpiresAt;
     return _signupVerificationToken != null &&
         _verifiedEmail == _normalizedEmail &&
         expiresAt != null &&
-        expiresAt.isAfter(DateTime.now());
+        expiresAt.isAfter(_now);
   }
 
   void _handleEmailChanged() {
@@ -271,6 +285,7 @@ class _SignUpPageState extends State<SignUpPage> {
       _verifiedEmail = null;
       _signupVerificationToken = null;
       _signupVerificationExpiresAt = null;
+      _emailVerificationResendExpiresAt = null;
       _emailVerificationResendSeconds = 0;
       _emailVerificationMessage = null;
       _emailVerificationError = null;
@@ -305,21 +320,23 @@ class _SignUpPageState extends State<SignUpPage> {
       await widget.authRepository.sendSignupEmailVerificationCode(
         email: email,
       );
-      if (!mounted) {
+      if (!mounted || _normalizedEmail != email) {
         return;
       }
       _emailVerificationCodeController.clear();
+      final resendExpiresAt = _now.add(const Duration(seconds: 60));
       setState(() {
         _emailVerificationRequestedEmail = email;
         _verifiedEmail = null;
         _signupVerificationToken = null;
         _signupVerificationExpiresAt = null;
+        _emailVerificationResendExpiresAt = resendExpiresAt;
         _emailVerificationMessage = '인증번호를 전송했어요.';
         _emailVerificationResendSeconds = 60;
       });
       _startEmailVerificationResendTimer();
     } on Exception catch (error) {
-      if (!mounted) {
+      if (!mounted || _normalizedEmail != email) {
         return;
       }
       setState(() {
@@ -373,10 +390,11 @@ class _SignUpPageState extends State<SignUpPage> {
       setState(() {
         _verifiedEmail = email;
         _signupVerificationToken = verification.token;
-        _signupVerificationExpiresAt =
-            DateTime.now().add(verification.expiresIn);
+        _signupVerificationExpiresAt = _now.add(verification.expiresIn);
+        _emailVerificationResendExpiresAt = null;
         _emailVerificationResendSeconds = 0;
         _emailVerificationMessage = '이메일 인증이 완료됐어요.';
+        _errorMessage = null;
       });
     } on Exception catch (error) {
       if (!mounted) {
@@ -396,19 +414,30 @@ class _SignUpPageState extends State<SignUpPage> {
     _emailVerificationResendTimer?.cancel();
     _emailVerificationResendTimer = Timer.periodic(
       const Duration(seconds: 1),
-      (timer) {
-        if (!mounted) {
-          timer.cancel();
-          return;
-        }
-        if (_emailVerificationResendSeconds <= 1) {
-          timer.cancel();
-          setState(() => _emailVerificationResendSeconds = 0);
-          return;
-        }
-        setState(() => _emailVerificationResendSeconds -= 1);
-      },
+      (_) => _refreshEmailVerificationResendCountdown(),
     );
+  }
+
+  void _refreshEmailVerificationResendCountdown() {
+    if (!mounted) {
+      _emailVerificationResendTimer?.cancel();
+      return;
+    }
+
+    final expiresAt = _emailVerificationResendExpiresAt;
+    final remainingMilliseconds =
+        expiresAt?.difference(_now).inMilliseconds ?? 0;
+    final remainingSeconds = remainingMilliseconds <= 0
+        ? 0
+        : (remainingMilliseconds / Duration.millisecondsPerSecond).ceil();
+
+    if (remainingSeconds == 0) {
+      _emailVerificationResendTimer?.cancel();
+      _emailVerificationResendExpiresAt = null;
+    }
+    if (_emailVerificationResendSeconds != remainingSeconds) {
+      setState(() => _emailVerificationResendSeconds = remainingSeconds);
+    }
   }
 
   bool _looksLikeEmail(String email) {
