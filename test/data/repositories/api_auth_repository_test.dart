@@ -165,6 +165,63 @@ void main() {
     expect(apiClient.requests, isEmpty);
   });
 
+  test('requests a signup email verification code without authorization',
+      () async {
+    final apiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await repository.sendSignupEmailVerificationCode(
+      email: ' user@example.com ',
+    );
+
+    expect(apiClient.requests.single.method, 'POST');
+    expect(
+      apiClient.requests.single.path,
+      '/api/v1/auth/email-verifications',
+    );
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {'email': 'user@example.com'});
+  });
+
+  test('confirms a signup email code and returns the one-time token', () async {
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'signupVerificationToken': 'signup-verification-token',
+            'expiresIn': 900,
+          },
+        ),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    final verification = await repository.confirmSignupEmailVerificationCode(
+      email: ' user@example.com ',
+      code: '123456',
+    );
+
+    expect(
+      apiClient.requests.single.path,
+      '/api/v1/auth/email-verifications/confirm',
+    );
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {
+      'email': 'user@example.com',
+      'code': '123456',
+    });
+    expect(verification.token, 'signup-verification-token');
+    expect(verification.expiresIn, const Duration(minutes: 15));
+  });
+
   test('signs up and then signs in to create an app session', () async {
     final apiClient = FakeApiClient(
       responses: [
@@ -200,6 +257,7 @@ void main() {
       nickname: ' 새회원 ',
       email: ' new@example.com ',
       password: 'password123',
+      signupVerificationToken: 'signup-verification-token',
       legalDocuments: mockSignupLegalDocuments,
     );
 
@@ -212,6 +270,7 @@ void main() {
       'email': 'new@example.com',
       'password': 'password123',
       'nickname': '새회원',
+      'signupVerificationToken': 'signup-verification-token',
       'legalDocuments': [
         {'type': 'SERVICE_TERMS', 'version': '2026-08-22'},
         {'type': 'PRIVACY_POLICY', 'version': '2026-08-22'},
@@ -234,6 +293,7 @@ void main() {
         nickname: ' ',
         email: 'new@example.com',
         password: 'password123',
+        signupVerificationToken: 'signup-verification-token',
         legalDocuments: mockSignupLegalDocuments,
       ),
       throwsA(
@@ -249,6 +309,7 @@ void main() {
         nickname: '새회원',
         email: ' ',
         password: 'password123',
+        signupVerificationToken: 'signup-verification-token',
         legalDocuments: mockSignupLegalDocuments,
       ),
       throwsA(
@@ -264,6 +325,7 @@ void main() {
         nickname: '새회원',
         email: 'new@example.com',
         password: ' ',
+        signupVerificationToken: 'signup-verification-token',
         legalDocuments: mockSignupLegalDocuments,
       ),
       throwsA(

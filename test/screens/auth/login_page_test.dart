@@ -8,6 +8,7 @@ import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/models/legal_document.dart';
+import 'package:meetple/models/signup_email_verification.dart';
 import 'package:meetple/screens/auth/login_page.dart';
 import 'package:meetple/widgets/primary_button.dart';
 
@@ -75,10 +76,24 @@ class _DeferredSignInRepository implements AuthRepository {
       _signInCompleter.future;
 
   @override
+  Future<void> sendSignupEmailVerificationCode({required String email}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SignupEmailVerification> confirmSignupEmailVerificationCode({
+    required String email,
+    required String code,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
     required String password,
+    required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
   }) =>
       throw UnimplementedError();

@@ -1,6 +1,7 @@
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/legal_document.dart';
+import '../../models/signup_email_verification.dart';
 
 abstract interface class AuthRepository {
   Future<AuthSession?> restoreSession();
@@ -14,10 +15,18 @@ abstract interface class AuthRepository {
 
   Future<List<LegalDocument>> getSignupLegalDocuments();
 
+  Future<void> sendSignupEmailVerificationCode({required String email});
+
+  Future<SignupEmailVerification> confirmSignupEmailVerificationCode({
+    required String email,
+    required String code,
+  });
+
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
     required String password,
+    required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
   });
 

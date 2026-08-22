@@ -43,6 +43,7 @@ void main() {
       nickname: '밋플러',
       email: 'new@example.com',
       password: 'password',
+      signupVerificationToken: 'signup-verification-token',
       legalDocuments: mockSignupLegalDocuments,
     );
 

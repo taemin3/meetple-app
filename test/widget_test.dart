@@ -19,6 +19,7 @@ import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/models/legal_document.dart';
+import 'package:meetple/models/signup_email_verification.dart';
 import 'package:meetple/models/app_notification.dart';
 import 'package:meetple/models/chat_room.dart';
 import 'package:meetple/models/location_search_result.dart';
@@ -978,9 +979,28 @@ void main() {
     expect(find.byKey(const Key('sign_up_age_confirmation')), findsOneWidget);
     expect(find.text('\uB2E4\uC74C'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField).at(0), 'user@example.com');
-    await tester.enterText(find.byType(TextField).at(1), 'password1!');
-    await tester.enterText(find.byType(TextField).at(2), 'password1!');
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email')),
+      'user@example.com',
+    );
+    await tester.tap(find.byKey(const Key('sign_up_send_verification_code')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('sign_up_email_verification_code')),
+      '123456',
+    );
+    await tester.tap(
+      find.byKey(const Key('sign_up_confirm_verification_code')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('sign_up_password')),
+      'password1!',
+    );
+    await tester.enterText(
+      find.byKey(const Key('sign_up_password_confirm')),
+      'password1!',
+    );
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('sign_up_age_confirmation')));
@@ -1169,10 +1189,24 @@ class _DeferredAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> sendSignupEmailVerificationCode({required String email}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<SignupEmailVerification> confirmSignupEmailVerificationCode({
+    required String email,
+    required String code,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
     required String password,
+    required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
   }) {
     throw UnimplementedError();

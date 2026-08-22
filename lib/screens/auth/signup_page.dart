@@ -1,6 +1,6 @@
-import 'dart:typed_data';
-
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/theme/app_colors.dart';
@@ -18,18 +18,21 @@ class SignUpPage extends StatefulWidget {
     required this.authRepository,
     this.imageUploadRepository = const MockImageUploadRepository(),
     this.pickProfileImage,
+    this.now,
   });
 
   final AuthRepository authRepository;
   final ImageUploadRepository imageUploadRepository;
   final Future<XFile?> Function()? pickProfileImage;
+  final DateTime Function()? now;
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _SignUpPageState extends State<SignUpPage> {
+class _SignUpPageState extends State<SignUpPage> with WidgetsBindingObserver {
   final _emailController = TextEditingController();
+  final _emailVerificationCodeController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordConfirmController = TextEditingController();
   final _nicknameController = TextEditingController();
@@ -43,15 +46,28 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isLoadingLegalDocuments = true;
   bool _isPickingProfileImage = false;
   bool _isProfileImageUploaded = false;
+  bool _isSendingEmailVerificationCode = false;
+  bool _isConfirmingEmailVerificationCode = false;
+  int _emailVerificationResendSeconds = 0;
   ImageUploadFile? _profileImage;
   AuthSession? _createdSession;
   List<LegalDocument>? _legalDocuments;
+  Timer? _emailVerificationResendTimer;
+  DateTime? _emailVerificationResendExpiresAt;
+  String? _emailVerificationRequestedEmail;
+  String? _verifiedEmail;
+  String? _signupVerificationToken;
+  DateTime? _signupVerificationExpiresAt;
+  String? _emailVerificationMessage;
+  String? _emailVerificationError;
   String? _legalDocumentsError;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _emailController.addListener(_handleEmailChanged);
     _nicknameController.addListener(_rebuildCounter);
     _introController.addListener(_rebuildCounter);
     _loadLegalDocuments();
@@ -59,12 +75,23 @@ class _SignUpPageState extends State<SignUpPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _emailVerificationResendTimer?.cancel();
+    _emailController.removeListener(_handleEmailChanged);
     _emailController.dispose();
+    _emailVerificationCodeController.dispose();
     _passwordController.dispose();
     _passwordConfirmController.dispose();
     _nicknameController.dispose();
     _introController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshEmailVerificationResendCountdown();
+    }
   }
 
   @override
@@ -122,6 +149,22 @@ class _SignUpPageState extends State<SignUpPage> {
                                   ? _AccountStep(
                                       key: const ValueKey('account-step'),
                                       emailController: _emailController,
+                                      emailVerificationCodeController:
+                                          _emailVerificationCodeController,
+                                      isSendingEmailVerificationCode:
+                                          _isSendingEmailVerificationCode,
+                                      isConfirmingEmailVerificationCode:
+                                          _isConfirmingEmailVerificationCode,
+                                      emailVerificationRequested:
+                                          _emailVerificationRequestedEmail !=
+                                              null,
+                                      isEmailVerified: _isEmailVerified,
+                                      emailVerificationResendSeconds:
+                                          _emailVerificationResendSeconds,
+                                      emailVerificationMessage:
+                                          _emailVerificationMessage,
+                                      emailVerificationError:
+                                          _emailVerificationError,
                                       passwordController: _passwordController,
                                       passwordConfirmController:
                                           _passwordConfirmController,
@@ -146,6 +189,10 @@ class _SignUpPageState extends State<SignUpPage> {
                                               !_isPasswordConfirmVisible;
                                         });
                                       },
+                                      sendEmailVerificationCode:
+                                          _sendEmailVerificationCode,
+                                      confirmEmailVerificationCode:
+                                          _confirmEmailVerificationCode,
                                       retryLegalDocuments: _loadLegalDocuments,
                                       showLegalDocument: _showLegalDocument,
                                       toggleAgeConfirmation: () {
@@ -213,6 +260,190 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
+  String get _normalizedEmail => _emailController.text.trim().toLowerCase();
+
+  DateTime get _now => widget.now?.call() ?? DateTime.now();
+
+  bool get _isEmailVerified {
+    final expiresAt = _signupVerificationExpiresAt;
+    return _signupVerificationToken != null &&
+        _verifiedEmail == _normalizedEmail &&
+        expiresAt != null &&
+        expiresAt.isAfter(_now);
+  }
+
+  void _handleEmailChanged() {
+    final requestedEmail = _emailVerificationRequestedEmail;
+    if (requestedEmail == null || requestedEmail == _normalizedEmail) {
+      return;
+    }
+
+    _emailVerificationResendTimer?.cancel();
+    _emailVerificationCodeController.clear();
+    setState(() {
+      _emailVerificationRequestedEmail = null;
+      _verifiedEmail = null;
+      _signupVerificationToken = null;
+      _signupVerificationExpiresAt = null;
+      _emailVerificationResendExpiresAt = null;
+      _emailVerificationResendSeconds = 0;
+      _emailVerificationMessage = null;
+      _emailVerificationError = null;
+    });
+  }
+
+  Future<void> _sendEmailVerificationCode() async {
+    if (_isSendingEmailVerificationCode ||
+        _isConfirmingEmailVerificationCode ||
+        _emailVerificationResendSeconds > 0 ||
+        _isEmailVerified) {
+      return;
+    }
+
+    final email = _normalizedEmail;
+    if (!_looksLikeEmail(email)) {
+      setState(() {
+        _emailVerificationError =
+            email.isEmpty ? '이메일을 입력해 주세요.' : '올바른 이메일 형식으로 입력해 주세요.';
+        _emailVerificationMessage = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSendingEmailVerificationCode = true;
+      _emailVerificationError = null;
+      _emailVerificationMessage = null;
+    });
+
+    try {
+      await widget.authRepository.sendSignupEmailVerificationCode(
+        email: email,
+      );
+      if (!mounted || _normalizedEmail != email) {
+        return;
+      }
+      _emailVerificationCodeController.clear();
+      final resendExpiresAt = _now.add(const Duration(seconds: 60));
+      setState(() {
+        _emailVerificationRequestedEmail = email;
+        _verifiedEmail = null;
+        _signupVerificationToken = null;
+        _signupVerificationExpiresAt = null;
+        _emailVerificationResendExpiresAt = resendExpiresAt;
+        _emailVerificationMessage = '인증번호를 전송했어요.';
+        _emailVerificationResendSeconds = 60;
+      });
+      _startEmailVerificationResendTimer();
+    } on Exception catch (error) {
+      if (!mounted || _normalizedEmail != email) {
+        return;
+      }
+      setState(() {
+        _emailVerificationError = authErrorMessage(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isSendingEmailVerificationCode = false);
+      }
+    }
+  }
+
+  Future<void> _confirmEmailVerificationCode() async {
+    if (_isSendingEmailVerificationCode ||
+        _isConfirmingEmailVerificationCode ||
+        _isEmailVerified) {
+      return;
+    }
+
+    final email = _normalizedEmail;
+    if (_emailVerificationRequestedEmail != email) {
+      setState(() {
+        _emailVerificationError = '현재 이메일로 인증번호를 먼저 받아주세요.';
+        _emailVerificationMessage = null;
+      });
+      return;
+    }
+
+    final code = _emailVerificationCodeController.text.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      setState(() {
+        _emailVerificationError = '인증번호 6자리를 입력해 주세요.';
+        _emailVerificationMessage = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _isConfirmingEmailVerificationCode = true;
+      _emailVerificationError = null;
+      _emailVerificationMessage = null;
+    });
+
+    try {
+      final verification = await widget.authRepository
+          .confirmSignupEmailVerificationCode(email: email, code: code);
+      if (!mounted || _normalizedEmail != email) {
+        return;
+      }
+      _emailVerificationResendTimer?.cancel();
+      setState(() {
+        _verifiedEmail = email;
+        _signupVerificationToken = verification.token;
+        _signupVerificationExpiresAt = _now.add(verification.expiresIn);
+        _emailVerificationResendExpiresAt = null;
+        _emailVerificationResendSeconds = 0;
+        _emailVerificationMessage = '이메일 인증이 완료됐어요.';
+        _errorMessage = null;
+      });
+    } on Exception catch (error) {
+      if (!mounted || _normalizedEmail != email) {
+        return;
+      }
+      setState(() {
+        _emailVerificationError = authErrorMessage(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _isConfirmingEmailVerificationCode = false);
+      }
+    }
+  }
+
+  void _startEmailVerificationResendTimer() {
+    _emailVerificationResendTimer?.cancel();
+    _emailVerificationResendTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _refreshEmailVerificationResendCountdown(),
+    );
+  }
+
+  void _refreshEmailVerificationResendCountdown() {
+    if (!mounted) {
+      _emailVerificationResendTimer?.cancel();
+      return;
+    }
+
+    final expiresAt = _emailVerificationResendExpiresAt;
+    final remainingMilliseconds =
+        expiresAt?.difference(_now).inMilliseconds ?? 0;
+    final remainingSeconds = remainingMilliseconds <= 0
+        ? 0
+        : (remainingMilliseconds / Duration.millisecondsPerSecond).ceil();
+
+    if (remainingSeconds == 0) {
+      _emailVerificationResendTimer?.cancel();
+      _emailVerificationResendExpiresAt = null;
+    }
+    if (_emailVerificationResendSeconds != remainingSeconds) {
+      setState(() => _emailVerificationResendSeconds = remainingSeconds);
+    }
+  }
+
+  bool _looksLikeEmail(String email) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
+  }
+
   void _handleBackPressed() {
     final createdSession = _createdSession;
     if (createdSession != null) {
@@ -248,6 +479,16 @@ class _SignUpPageState extends State<SignUpPage> {
   String? _accountStepErrorMessage() {
     if (_emailController.text.trim().isEmpty) {
       return '이메일을 입력해 주세요.';
+    }
+
+    if (!_looksLikeEmail(_normalizedEmail)) {
+      return '올바른 이메일 형식으로 입력해 주세요.';
+    }
+
+    if (!_isEmailVerified) {
+      return _signupVerificationToken == null
+          ? '이메일 인증을 완료해 주세요.'
+          : '이메일 인증이 만료됐어요. 다시 인증해 주세요.';
     }
 
     if (_passwordController.text.isEmpty) {
@@ -408,10 +649,20 @@ class _SignUpPageState extends State<SignUpPage> {
     try {
       var session = _createdSession;
       if (session == null) {
+        if (!_isEmailVerified) {
+          setState(() {
+            _step = 0;
+            _signupVerificationToken = null;
+            _signupVerificationExpiresAt = null;
+            _errorMessage = '이메일 인증이 만료됐어요. 다시 인증해 주세요.';
+          });
+          return;
+        }
         session = await widget.authRepository.signUp(
           nickname: _nicknameController.text,
           email: _emailController.text,
           password: _passwordController.text,
+          signupVerificationToken: _signupVerificationToken!,
           legalDocuments: _legalDocuments!,
         );
         _createdSession = session;
@@ -663,6 +914,14 @@ class _AccountStep extends StatelessWidget {
   const _AccountStep({
     super.key,
     required this.emailController,
+    required this.emailVerificationCodeController,
+    required this.isSendingEmailVerificationCode,
+    required this.isConfirmingEmailVerificationCode,
+    required this.emailVerificationRequested,
+    required this.isEmailVerified,
+    required this.emailVerificationResendSeconds,
+    required this.emailVerificationMessage,
+    required this.emailVerificationError,
     required this.passwordController,
     required this.passwordConfirmController,
     required this.isPasswordVisible,
@@ -674,12 +933,22 @@ class _AccountStep extends StatelessWidget {
     required this.errorMessage,
     required this.togglePasswordVisibility,
     required this.togglePasswordConfirmVisibility,
+    required this.sendEmailVerificationCode,
+    required this.confirmEmailVerificationCode,
     required this.retryLegalDocuments,
     required this.showLegalDocument,
     required this.toggleAgeConfirmation,
   });
 
   final TextEditingController emailController;
+  final TextEditingController emailVerificationCodeController;
+  final bool isSendingEmailVerificationCode;
+  final bool isConfirmingEmailVerificationCode;
+  final bool emailVerificationRequested;
+  final bool isEmailVerified;
+  final int emailVerificationResendSeconds;
+  final String? emailVerificationMessage;
+  final String? emailVerificationError;
   final TextEditingController passwordController;
   final TextEditingController passwordConfirmController;
   final bool isPasswordVisible;
@@ -691,6 +960,8 @@ class _AccountStep extends StatelessWidget {
   final String? errorMessage;
   final VoidCallback togglePasswordVisibility;
   final VoidCallback togglePasswordConfirmVisibility;
+  final VoidCallback sendEmailVerificationCode;
+  final VoidCallback confirmEmailVerificationCode;
   final VoidCallback retryLegalDocuments;
   final ValueChanged<LegalDocumentType> showLegalDocument;
   final VoidCallback toggleAgeConfirmation;
@@ -706,14 +977,84 @@ class _AccountStep extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         _SignUpField(
+          fieldKey: const Key('sign_up_email'),
           label: '이메일',
           controller: emailController,
           icon: Icons.mail_outline_rounded,
           hintText: '이메일을 입력해주세요',
           keyboardType: TextInputType.emailAddress,
+          suffix: TextButton(
+            key: const Key('sign_up_send_verification_code'),
+            onPressed: isSendingEmailVerificationCode ||
+                    isConfirmingEmailVerificationCode ||
+                    emailVerificationResendSeconds > 0 ||
+                    isEmailVerified
+                ? null
+                : sendEmailVerificationCode,
+            child: isSendingEmailVerificationCode
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Text(
+                    isEmailVerified
+                        ? '인증 완료'
+                        : emailVerificationResendSeconds > 0
+                            ? '$emailVerificationResendSeconds초'
+                            : emailVerificationRequested
+                                ? '재전송'
+                                : '인증번호 받기',
+                  ),
+          ),
         ),
+        if (emailVerificationRequested) ...[
+          const SizedBox(height: 12),
+          _SignUpField(
+            fieldKey: const Key('sign_up_email_verification_code'),
+            label: '인증번호',
+            controller: emailVerificationCodeController,
+            icon: Icons.verified_outlined,
+            hintText: '6자리 인증번호',
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            suffix: TextButton(
+              key: const Key('sign_up_confirm_verification_code'),
+              onPressed: isConfirmingEmailVerificationCode || isEmailVerified
+                  ? null
+                  : confirmEmailVerificationCode,
+              child: isConfirmingEmailVerificationCode
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(isEmailVerified ? '확인 완료' : '확인'),
+            ),
+          ),
+        ],
+        if (emailVerificationMessage != null) ...[
+          const SizedBox(height: 7),
+          Text(
+            emailVerificationMessage!,
+            key: const Key('sign_up_email_verification_message'),
+            style: TextStyle(
+              color:
+                  isEmailVerified ? const Color(0xFF16803C) : AppColors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+        if (emailVerificationError != null) ...[
+          const SizedBox(height: 7),
+          AuthErrorText(
+            key: const Key('sign_up_email_verification_error'),
+            message: emailVerificationError!,
+          ),
+        ],
         const SizedBox(height: 12),
         _SignUpField(
+          fieldKey: const Key('sign_up_password'),
           label: '비밀번호',
           controller: passwordController,
           icon: Icons.lock_outline_rounded,
@@ -732,6 +1073,7 @@ class _AccountStep extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _SignUpField(
+          fieldKey: const Key('sign_up_password_confirm'),
           label: '비밀번호 확인',
           controller: passwordConfirmController,
           icon: Icons.lock_outline_rounded,
@@ -834,6 +1176,7 @@ class _ProfileStep extends StatelessWidget {
         ),
         const SizedBox(height: 24),
         _SignUpField(
+          fieldKey: const Key('sign_up_nickname'),
           label: '닉네임',
           controller: nicknameController,
           icon: Icons.person_outline_rounded,
@@ -843,6 +1186,7 @@ class _ProfileStep extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         _SignUpField(
+          fieldKey: const Key('sign_up_introduction'),
           label: '한줄 소개',
           controller: introController,
           icon: Icons.edit_outlined,
@@ -986,6 +1330,7 @@ class _FieldLabel extends StatelessWidget {
 
 class _SignUpField extends StatelessWidget {
   const _SignUpField({
+    this.fieldKey,
     required this.label,
     required this.controller,
     required this.icon,
@@ -997,8 +1342,10 @@ class _SignUpField extends StatelessWidget {
     this.helperText,
     this.trailingText,
     this.suffix,
+    this.inputFormatters,
   });
 
+  final Key? fieldKey;
   final String label;
   final TextEditingController controller;
   final IconData icon;
@@ -1010,6 +1357,7 @@ class _SignUpField extends StatelessWidget {
   final String? helperText;
   final String? trailingText;
   final Widget? suffix;
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   Widget build(BuildContext context) {
@@ -1031,6 +1379,7 @@ class _SignUpField extends StatelessWidget {
             child: Stack(
               children: [
                 TextField(
+                  key: fieldKey,
                   controller: controller,
                   keyboardType: obscureText
                       ? TextInputType.visiblePassword
@@ -1040,6 +1389,7 @@ class _SignUpField extends StatelessWidget {
                   autocorrect: !obscureText,
                   maxLength: maxLength,
                   maxLines: maxLines,
+                  inputFormatters: inputFormatters,
                   scrollPadding: const EdgeInsets.fromLTRB(20, 24, 20, 240),
                   onTap: () => _ensureVisible(context),
                   style: const TextStyle(
@@ -1076,6 +1426,9 @@ class _SignUpField extends StatelessWidget {
                               child: suffix!,
                             ),
                           ),
+                    suffixIconConstraints: suffix == null
+                        ? null
+                        : const BoxConstraints(minHeight: 48),
                     suffixIconColor: AppColors.muted,
                     filled: false,
                     isDense: false,

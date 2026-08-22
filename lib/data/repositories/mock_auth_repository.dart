@@ -1,6 +1,7 @@
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/legal_document.dart';
+import '../../models/signup_email_verification.dart';
 import '../mock/mock_auth.dart';
 import '../mock/mock_legal_documents.dart';
 import 'auth_repository.dart';
@@ -43,15 +44,37 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> sendSignupEmailVerificationCode({required String email}) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+  }
+
+  @override
+  Future<SignupEmailVerification> confirmSignupEmailVerificationCode({
+    required String email,
+    required String code,
+  }) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    if (!RegExp(r'^\d{6}$').hasMatch(code.trim())) {
+      throw const AuthException('인증번호는 6자리 숫자로 입력해 주세요.');
+    }
+    return const SignupEmailVerification(
+      token: 'mock-signup-verification-token',
+      expiresIn: Duration(minutes: 15),
+    );
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
     required String password,
+    required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
   }) async {
     _ensureNotBlank(nickname, '닉네임을 입력해 주세요.');
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
+    _ensureNotBlank(signupVerificationToken, '이메일 인증을 완료해 주세요.');
     if (legalDocuments.length != LegalDocumentType.values.length) {
       throw const AuthException('최신 약관을 확인해 주세요.');
     }
