@@ -4,6 +4,40 @@ import 'package:meetple/data/repositories/api_meeting_repository.dart';
 import 'package:meetple/data/repositories/meeting_repository.dart';
 
 void main() {
+  test('maps meeting member introductions from engagement response', () async {
+    final apiClient = FakeApiClient(
+      response: {
+        'status': 200,
+        'success': true,
+        'data': {
+          'host': false,
+          'bookmarked': false,
+          'participation': null,
+          'members': [
+            {
+              'memberId': 1,
+              'nickname': '민준',
+              'introduction': '즐거운 모임을 만들어요.',
+              'profileImageUrl': 'https://example.com/profile.png',
+              'host': true,
+            },
+          ],
+        },
+      },
+    );
+    final repository = ApiMeetingRepository(apiClient: apiClient);
+
+    final engagement = await repository.getEngagement(10);
+
+    expect(apiClient.path, '/api/v1/meetings/10/engagement');
+    expect(engagement.members.single.nickname, '민준');
+    expect(engagement.members.single.introduction, '즐거운 모임을 만들어요.');
+    expect(
+      engagement.members.single.profileImageUrl,
+      'https://example.com/profile.png',
+    );
+  });
+
   test('maps paged meeting API response to meetings', () async {
     final scheduledAt = DateTime.utc(2026, 5, 30, 0, 30);
     final localScheduledAt = scheduledAt.toLocal();

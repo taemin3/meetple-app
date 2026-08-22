@@ -133,6 +133,11 @@ class MockMeetingRepository extends MeetingRepository {
           nickname: index == 0
               ? meeting.host
               : participantNicknames[(index - 1) % participantNicknames.length],
+          introduction: index == 0
+              ? meeting.hostIntroduction
+              : index.isEven
+                  ? '새로운 사람들과 함께하는 시간을 좋아해요.'
+                  : null,
           isHost: index == 0,
         ),
         growable: false,

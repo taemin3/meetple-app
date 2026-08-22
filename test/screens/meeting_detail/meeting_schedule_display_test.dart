@@ -81,8 +81,18 @@ void main() {
   testWidgets('shows member summary and opens the full member list',
       (tester) async {
     const members = [
-      MeetingMember(memberId: 2, nickname: '서연', isHost: false),
-      MeetingMember(memberId: 1, nickname: '민준', isHost: true),
+      MeetingMember(
+        memberId: 2,
+        nickname: '서연',
+        introduction: '새로운 취미를 함께 즐겨요.',
+        isHost: false,
+      ),
+      MeetingMember(
+        memberId: 1,
+        nickname: '민준',
+        introduction: '즐거운 모임을 만들어요.',
+        isHost: true,
+      ),
       MeetingMember(memberId: 3, nickname: '지우', isHost: false),
       MeetingMember(memberId: 4, nickname: '도윤', isHost: false),
       MeetingMember(memberId: 5, nickname: '하린', isHost: false),
@@ -111,7 +121,10 @@ void main() {
     expect(find.text('참여 멤버 6명'), findsOneWidget);
     expect(find.byKey(const Key('meeting-member-host-badge')), findsOneWidget);
     expect(find.text('민준'), findsOneWidget);
+    expect(find.text('즐거운 모임을 만들어요.'), findsOneWidget);
     expect(find.text('서연'), findsOneWidget);
+    expect(find.text('새로운 취미를 함께 즐겨요.'), findsOneWidget);
+    expect(find.byType(Divider), findsNothing);
     await tester.drag(
       find.byKey(const Key('meeting-members-list')),
       const Offset(0, -180),

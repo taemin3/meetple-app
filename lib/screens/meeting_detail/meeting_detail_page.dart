@@ -1471,19 +1471,14 @@ class MemberAvatars extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: AppColors.line),
                 Expanded(
-                  child: ListView.separated(
+                  child: ListView.builder(
                     key: const Key('meeting-members-list'),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 16),
                     itemCount: orderedMembers.length,
-                    separatorBuilder: (_, __) => const Divider(
-                      height: 1,
-                      indent: 80,
-                      color: AppColors.line,
-                    ),
                     itemBuilder: (context, index) {
                       final member = orderedMembers[index];
+                      final introduction = member.introduction?.trim();
                       return ListTile(
                         key: ValueKey('meeting-member-row-${member.memberId}'),
                         contentPadding: const EdgeInsets.symmetric(
@@ -1505,6 +1500,21 @@ class MemberAvatars extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
+                        subtitle: introduction == null || introduction.isEmpty
+                            ? null
+                            : Text(
+                                introduction,
+                                key: ValueKey(
+                                  'meeting-member-introduction-${member.memberId}',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: AppColors.muted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                         trailing: member.isHost
                             ? Container(
                                 key: const Key('meeting-member-host-badge'),

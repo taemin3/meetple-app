@@ -478,6 +478,7 @@ class ApiMeetingRepository extends MeetingRepository {
     return MeetingMember(
       memberId: _readInt(json['memberId']),
       nickname: _readString(json['nickname'], fallback: '알 수 없는 사용자'),
+      introduction: _readNullableString(json['introduction']),
       profileImageUrl: _readNullableString(json['profileImageUrl']),
       isHost: json['host'] == true,
     );

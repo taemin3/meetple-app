@@ -37,12 +37,14 @@ class MeetingMember {
   const MeetingMember({
     required this.memberId,
     required this.nickname,
+    this.introduction,
     this.profileImageUrl,
     required this.isHost,
   });
 
   final int memberId;
   final String nickname;
+  final String? introduction;
   final String? profileImageUrl;
   final bool isHost;
 }
