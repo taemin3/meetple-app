@@ -3,6 +3,7 @@ import '../../core/network/api_client.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/legal_document.dart';
+import '../../models/signup_email_verification.dart';
 import 'auth_repository.dart';
 import 'auth_token_refresh_coordinator.dart';
 import 'auth_token_store.dart';
@@ -202,15 +203,76 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> sendSignupEmailVerificationCode({required String email}) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+
+    try {
+      final response = await _apiClient.postJson(
+        '/api/v1/auth/email-verifications',
+        includeAuthorization: false,
+        body: {'email': email.trim()},
+      );
+      _ensureSuccess(response);
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    }
+  }
+
+  @override
+  Future<SignupEmailVerification> confirmSignupEmailVerificationCode({
+    required String email,
+    required String code,
+  }) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    _ensureNotBlank(code, '인증번호를 입력해 주세요.');
+    if (!RegExp(r'^\d{6}$').hasMatch(code.trim())) {
+      throw const AuthException('인증번호는 6자리 숫자로 입력해 주세요.');
+    }
+
+    try {
+      final response = await _apiClient.postJson(
+        '/api/v1/auth/email-verifications/confirm',
+        includeAuthorization: false,
+        body: {
+          'email': email.trim(),
+          'code': code.trim(),
+        },
+      );
+      final data = _readData(response);
+      final token = _readString(data['signupVerificationToken']);
+      final expiresInSeconds = _readInt(data['expiresIn']);
+      if (token.isEmpty || expiresInSeconds <= 0) {
+        throw const FormatException(
+          'Email verification response is missing required fields.',
+        );
+      }
+      return SignupEmailVerification(
+        token: token,
+        expiresIn: Duration(seconds: expiresInSeconds),
+      );
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    } on FormatException {
+      throw const AuthException('이메일 인증 응답 형식이 올바르지 않습니다.');
+    }
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
     required String password,
+    required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
   }) async {
     _ensureNotBlank(nickname, '닉네임을 입력해 주세요.');
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
+    _ensureNotBlank(signupVerificationToken, '이메일 인증을 완료해 주세요.');
     if (legalDocuments.length != LegalDocumentType.values.length) {
       throw const AuthException('최신 약관을 확인해 주세요.');
     }
@@ -223,6 +285,7 @@ class ApiAuthRepository implements AuthRepository {
           'email': email.trim(),
           'password': password,
           'nickname': nickname.trim(),
+          'signupVerificationToken': signupVerificationToken,
           'legalDocuments': legalDocuments
               .map((document) => document.toSignupJson())
               .toList(growable: false),
