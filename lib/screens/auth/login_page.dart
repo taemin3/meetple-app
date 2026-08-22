@@ -63,8 +63,7 @@ class _LoginPageState extends State<LoginPage> {
             builder: (context, constraints) {
               final isCompact = constraints.maxHeight < 800;
               final isExtraCompact = constraints.maxHeight < 620;
-              final horizontalPadding =
-                  constraints.maxWidth < 380 ? 24.0 : 36.0;
+              const horizontalPadding = 16.0;
               final topSpacing = isExtraCompact
                   ? 10.0
                   : (constraints.maxHeight * 0.06).clamp(28.0, 58.0);

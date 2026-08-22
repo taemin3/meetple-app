@@ -88,8 +88,7 @@ class _SignUpPageState extends State<SignUpPage> {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final horizontalPadding =
-                  constraints.maxWidth < 380 ? 24.0 : 36.0;
+              const horizontalPadding = 16.0;
               final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
               return Stack(

@@ -400,7 +400,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
             children: [
               DetailHero(meeting: meeting),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 36),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
