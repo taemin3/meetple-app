@@ -1,6 +1,7 @@
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/legal_document.dart';
+import '../../models/password_reset_verification.dart';
 import '../../models/signup_email_verification.dart';
 
 abstract interface class AuthRepository {
@@ -20,6 +21,19 @@ abstract interface class AuthRepository {
   Future<SignupEmailVerification> confirmSignupEmailVerificationCode({
     required String email,
     required String code,
+  });
+
+  Future<void> sendPasswordResetVerificationCode({required String email});
+
+  Future<PasswordResetVerification> confirmPasswordResetVerificationCode({
+    required String email,
+    required String code,
+  });
+
+  Future<void> resetPassword({
+    required String email,
+    required String passwordResetToken,
+    required String newPassword,
   });
 
   Future<AuthSession> signUp({

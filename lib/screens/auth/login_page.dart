@@ -8,6 +8,7 @@ import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../models/auth_session.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
+import 'password_reset_page.dart';
 import 'signup_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -137,9 +138,8 @@ class _LoginPageState extends State<LoginPage> {
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
-                            onPressed: () {
-                              FocusScope.of(context).unfocus();
-                            },
+                            key: const Key('login_password_reset_button'),
+                            onPressed: _openPasswordReset,
                             style: TextButton.styleFrom(
                               foregroundColor: AppColors.ink,
                               padding: const EdgeInsets.symmetric(
@@ -231,6 +231,26 @@ class _LoginPageState extends State<LoginPage> {
     if (session != null) {
       _complete(session);
     }
+  }
+
+  Future<void> _openPasswordReset() async {
+    FocusScope.of(context).unfocus();
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        settings: const RouteSettings(name: AppRouteNames.passwordReset),
+        builder: (_) => PasswordResetPage(
+          authRepository: widget.authRepository,
+          initialEmail: _emailController.text,
+        ),
+      ),
+    );
+    if (!mounted || changed != true) {
+      return;
+    }
+    _passwordController.clear();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('비밀번호가 변경됐어요. 새 비밀번호로 로그인해주세요.')),
+    );
   }
 
   void _complete(AuthSession session) {

@@ -19,6 +19,7 @@ import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/models/legal_document.dart';
+import 'package:meetple/models/password_reset_verification.dart';
 import 'package:meetple/models/signup_email_verification.dart';
 import 'package:meetple/models/app_notification.dart';
 import 'package:meetple/models/chat_room.dart';
@@ -1197,6 +1198,28 @@ class _DeferredAuthRepository implements AuthRepository {
   Future<SignupEmailVerification> confirmSignupEmailVerificationCode({
     required String email,
     required String code,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> sendPasswordResetVerificationCode({required String email}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PasswordResetVerification> confirmPasswordResetVerificationCode({
+    required String email,
+    required String code,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String passwordResetToken,
+    required String newPassword,
   }) {
     throw UnimplementedError();
   }

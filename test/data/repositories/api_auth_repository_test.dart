@@ -222,6 +222,89 @@ void main() {
     expect(verification.expiresIn, const Duration(minutes: 15));
   });
 
+  test('requests a password reset code without authorization', () async {
+    final apiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await repository.sendPasswordResetVerificationCode(
+      email: ' user@example.com ',
+    );
+
+    expect(apiClient.requests.single.method, 'POST');
+    expect(
+      apiClient.requests.single.path,
+      '/api/v1/auth/password-resets/email-verifications',
+    );
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {'email': 'user@example.com'});
+  });
+
+  test('confirms a password reset code and returns the one-time token',
+      () async {
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'passwordResetToken': 'password-reset-token',
+            'expiresIn': 900,
+          },
+        ),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    final verification = await repository.confirmPasswordResetVerificationCode(
+      email: ' user@example.com ',
+      code: '123456',
+    );
+
+    expect(
+      apiClient.requests.single.path,
+      '/api/v1/auth/password-resets/email-verifications/confirm',
+    );
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {
+      'email': 'user@example.com',
+      'code': '123456',
+    });
+    expect(verification.token, 'password-reset-token');
+    expect(verification.expiresIn, const Duration(minutes: 15));
+  });
+
+  test('resets password without authorization using the one-time token',
+      () async {
+    final apiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await repository.resetPassword(
+      email: ' user@example.com ',
+      passwordResetToken: 'password-reset-token',
+      newPassword: 'new-password123',
+    );
+
+    expect(apiClient.requests.single.method, 'POST');
+    expect(apiClient.requests.single.path, '/api/v1/auth/password-resets');
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {
+      'email': 'user@example.com',
+      'passwordResetToken': 'password-reset-token',
+      'newPassword': 'new-password123',
+    });
+  });
+
   test('signs up and then signs in to create an app session', () async {
     final apiClient = FakeApiClient(
       responses: [
