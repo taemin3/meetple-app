@@ -496,8 +496,10 @@ class _SignUpPageState extends State<SignUpPage> with WidgetsBindingObserver {
       return '비밀번호를 입력해 주세요.';
     }
 
-    if (_passwordController.text.length < 8) {
-      return '비밀번호는 8자 이상으로 입력해 주세요.';
+    final passwordValidationMessage =
+        newPasswordValidationMessage(_passwordController.text);
+    if (passwordValidationMessage != null) {
+      return passwordValidationMessage;
     }
 
     if (_passwordController.text != _passwordConfirmController.text) {
@@ -1064,7 +1066,7 @@ class _AccountStep extends StatelessWidget {
           obscureText: !isPasswordVisible,
           enableSuggestions: false,
           autocorrect: false,
-          helperText: '8자 이상, 영문/숫자/특수문자 조합',
+          helperText: '영문과 숫자를 포함해 8자 이상 입력해주세요',
           suffix: IconButton(
             tooltip: isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
             onPressed: togglePasswordVisibility,

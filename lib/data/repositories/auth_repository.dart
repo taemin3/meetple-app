@@ -1,8 +1,28 @@
+import 'dart:convert';
+
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/legal_document.dart';
 import '../../models/password_reset_verification.dart';
 import '../../models/signup_email_verification.dart';
+
+const passwordLengthErrorMessage = '비밀번호는 8자 이상 64자 이하여야 합니다.';
+const passwordByteLengthErrorMessage = '비밀번호는 UTF-8 기준 72바이트 이하여야 합니다.';
+const passwordCompositionErrorMessage = '비밀번호는 영문과 숫자를 포함해야 합니다.';
+
+String? newPasswordValidationMessage(String password) {
+  if (password.length < 8 || password.length > 64) {
+    return passwordLengthErrorMessage;
+  }
+  if (utf8.encode(password).length > 72) {
+    return passwordByteLengthErrorMessage;
+  }
+  if (!RegExp(r'[A-Za-z]').hasMatch(password) ||
+      !RegExp(r'\d').hasMatch(password)) {
+    return passwordCompositionErrorMessage;
+  }
+  return null;
+}
 
 abstract interface class AuthRepository {
   Future<AuthSession?> restoreSession();

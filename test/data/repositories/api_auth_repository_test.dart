@@ -305,6 +305,33 @@ void main() {
     });
   });
 
+  test('rejects a weak new password before sending an API request', () async {
+    final apiClient = FakeApiClient(responses: []);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    for (final password in ['abcdefgh', '12345678']) {
+      await expectLater(
+        repository.resetPassword(
+          email: 'user@example.com',
+          passwordResetToken: 'password-reset-token',
+          newPassword: password,
+        ),
+        throwsA(
+          isA<AuthException>().having(
+            (error) => error.message,
+            'message',
+            passwordCompositionErrorMessage,
+          ),
+        ),
+      );
+    }
+
+    expect(apiClient.requests, isEmpty);
+  });
+
   test('signs up and then signs in to create an app session', () async {
     final apiClient = FakeApiClient(
       responses: [
@@ -419,6 +446,36 @@ void main() {
         ),
       ),
     );
+    expect(apiClient.requests, isEmpty);
+  });
+
+  test('rejects a weak signup password before sending an API request',
+      () async {
+    final apiClient = FakeApiClient(responses: []);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    for (final password in ['abcdefgh', '12345678']) {
+      await expectLater(
+        repository.signUp(
+          nickname: '새회원',
+          email: 'new@example.com',
+          password: password,
+          signupVerificationToken: 'signup-verification-token',
+          legalDocuments: mockSignupLegalDocuments,
+        ),
+        throwsA(
+          isA<AuthException>().having(
+            (error) => error.message,
+            'message',
+            passwordCompositionErrorMessage,
+          ),
+        ),
+      );
+    }
+
     expect(apiClient.requests, isEmpty);
   });
 

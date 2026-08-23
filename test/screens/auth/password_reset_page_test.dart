@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/models/password_reset_verification.dart';
 import 'package:meetple/screens/auth/password_reset_page.dart';
@@ -130,6 +131,46 @@ void main() {
     await tester.pump();
 
     expect(find.text('비밀번호가 일치하지 않습니다.'), findsOneWidget);
+    expect(repository.newPassword, isNull);
+  });
+
+  testWidgets('requires letters and numbers in the new password', (
+    tester,
+  ) async {
+    final repository = _RecordingPasswordResetRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PasswordResetPage(
+          authRepository: repository,
+          initialEmail: 'user@example.com',
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('password_reset_primary_button')));
+    await tester.pump();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const Key('password_reset_code')),
+        matching: find.byType(TextField),
+      ),
+      '123456',
+    );
+    await tester.tap(find.byKey(const Key('password_reset_primary_button')));
+    await tester.pump();
+    await tester.enterText(
+      find.byKey(const Key('password_reset_new_password')),
+      '12345678',
+    );
+    await tester.enterText(
+      find.byKey(const Key('password_reset_password_confirm')),
+      '12345678',
+    );
+    await tester.tap(find.byKey(const Key('password_reset_primary_button')));
+    await tester.pump();
+
+    expect(find.text(passwordCompositionErrorMessage), findsOneWidget);
     expect(repository.newPassword, isNull);
   });
 

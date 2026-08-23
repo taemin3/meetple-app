@@ -172,12 +172,12 @@ class _PasswordResetPageState extends State<PasswordResetPage>
               controller: _passwordController,
               label: '새 비밀번호',
               icon: Icons.lock_outline_rounded,
-              hintText: '8자 이상 입력해주세요',
+              hintText: '영문과 숫자를 포함해 입력해주세요',
               keyboardType: TextInputType.visiblePassword,
               obscureText: !_isPasswordVisible,
               enableSuggestions: false,
               autocorrect: false,
-              helperText: '8자 이상 64자 이하로 입력해주세요',
+              helperText: '영문과 숫자를 포함해 8자 이상 입력해주세요',
               suffix: IconButton(
                 tooltip: _isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
                 onPressed: _togglePasswordVisibility,
@@ -382,9 +382,10 @@ class _PasswordResetPageState extends State<PasswordResetPage>
       });
       return;
     }
-    if (password.length < 8 || password.length > 64) {
+    final passwordValidationMessage = newPasswordValidationMessage(password);
+    if (passwordValidationMessage != null) {
       setState(() {
-        _errorMessage = '비밀번호는 8자 이상 64자 이하여야 합니다.';
+        _errorMessage = passwordValidationMessage;
         _message = null;
       });
       return;

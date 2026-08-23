@@ -331,8 +331,10 @@ class ApiAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(passwordResetToken, '이메일 인증을 완료해 주세요.');
     _ensureNotBlank(newPassword, '새 비밀번호를 입력해 주세요.');
-    if (newPassword.length < 8 || newPassword.length > 64) {
-      throw const AuthException('비밀번호는 8자 이상 64자 이하여야 합니다.');
+    final passwordValidationMessage =
+        newPasswordValidationMessage(newPassword);
+    if (passwordValidationMessage != null) {
+      throw AuthException(passwordValidationMessage);
     }
 
     try {
@@ -365,6 +367,10 @@ class ApiAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
     _ensureNotBlank(signupVerificationToken, '이메일 인증을 완료해 주세요.');
+    final passwordValidationMessage = newPasswordValidationMessage(password);
+    if (passwordValidationMessage != null) {
+      throw AuthException(passwordValidationMessage);
+    }
     if (legalDocuments.length != LegalDocumentType.values.length) {
       throw const AuthException('최신 약관을 확인해 주세요.');
     }

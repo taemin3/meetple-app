@@ -250,6 +250,36 @@ void main() {
     expect(find.text('프로필 정보를 입력해주세요'), findsOneWidget);
   });
 
+  testWidgets('requires letters and numbers in the signup password', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _openSignUp(
+      tester,
+      authRepository: _SignUpAuthRepository(),
+      imageUploadRepository: _RecordingImageUploadRepository(),
+      pickProfileImage: () async => null,
+    );
+
+    await _verifyEmail(tester);
+    await tester.enterText(
+      find.byKey(const Key('sign_up_password')),
+      'abcdefgh',
+    );
+    await tester.enterText(
+      find.byKey(const Key('sign_up_password_confirm')),
+      'abcdefgh',
+    );
+    await tester.tap(find.byKey(const Key('sign_up_age_confirmation')));
+    await tester.tap(find.text('다음'));
+    await tester.pump();
+
+    expect(find.text(passwordCompositionErrorMessage), findsOneWidget);
+    expect(find.text('프로필 정보를 입력해주세요'), findsNothing);
+  });
+
   testWidgets('removes region and uploads the selected profile image', (
     tester,
   ) async {
