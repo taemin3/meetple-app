@@ -63,6 +63,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LegalDocumentsPage), findsOneWidget);
+    expect(tester.widget<AppBar>(find.byType(AppBar)).centerTitle, isTrue);
+    expect(find.byKey(const Key('legal_documents_back')), findsOneWidget);
     expect(find.text('서비스 이용약관'), findsOneWidget);
     expect(find.text('개인정보 처리방침'), findsOneWidget);
     expect(find.text('만 14세 이상 확인'), findsNothing);
@@ -73,6 +75,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(LegalDocumentDetailPage), findsOneWidget);
+    expect(tester.widget<AppBar>(find.byType(AppBar)).centerTitle, isTrue);
+    expect(
+      find.byKey(const Key('legal_document_detail_back')),
+      findsOneWidget,
+    );
     expect(
       find.text(mockSignupLegalDocuments.first.content),
       findsOneWidget,

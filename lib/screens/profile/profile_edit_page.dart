@@ -8,6 +8,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/image_upload_repository.dart';
 import '../../models/auth_user.dart';
 import '../../widgets/network_image_with_skeleton.dart';
+import '../../widgets/centered_page_app_bar.dart';
 
 typedef ProfileImagePicker = Future<XFile?> Function();
 
@@ -85,16 +86,10 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
     return PopScope(
       canPop: !_isBusy,
       child: Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            key: const Key('profile_edit_back'),
-            onPressed: _isBusy ? null : () => Navigator.of(context).maybePop(),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          ),
-          title: const Text(
-            '프로필 수정',
-            style: TextStyle(fontWeight: FontWeight.w900),
-          ),
+        appBar: CenteredPageAppBar(
+          title: '프로필 수정',
+          backButtonKey: const Key('profile_edit_back'),
+          backEnabled: !_isBusy,
           actions: [
             TextButton(
               key: const Key('profile_edit_complete'),

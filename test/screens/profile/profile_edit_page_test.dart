@@ -305,6 +305,8 @@ Future<void> _openProfileEdit(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('profile_account_edit')));
   await tester.pumpAndSettle();
+  expect(tester.widget<AppBar>(find.byType(AppBar)).centerTitle, isTrue);
+  expect(find.byKey(const Key('profile_edit_back')), findsOneWidget);
 }
 
 Future<XFile?> _pickPng() async {

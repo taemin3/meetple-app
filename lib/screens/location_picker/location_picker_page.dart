@@ -5,6 +5,7 @@ import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../models/location_search_result.dart';
+import '../../widgets/centered_page_app_bar.dart';
 import '../../widgets/map/naver_location_map.dart';
 
 class LocationPickerPage extends StatefulWidget {
@@ -44,14 +45,10 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(
+      appBar: const CenteredPageAppBar(
+        title: '장소 선택',
+        backButtonKey: Key('location_picker_back'),
         backgroundColor: AppColors.canvas,
-        elevation: 0,
-        foregroundColor: AppColors.ink,
-        title: const Text(
-          '장소 선택',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
       ),
       body: SafeArea(
         top: false,

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../widgets/auth_form_field.dart';
+import '../../widgets/centered_page_app_bar.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
 
@@ -79,17 +80,31 @@ class _PasswordResetPageState extends State<PasswordResetPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      appBar: CenteredPageAppBar(
+        title: _title,
+        backButtonKey: const Key('password_reset_back'),
+      ),
       body: SafeArea(
+        top: false,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 430),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  AuthHeader(title: _title, subtitle: _subtitle),
-                  const SizedBox(height: 34),
+                  Text(
+                    _subtitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: AppColors.muted,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
                   _buildStep(),
                   const SizedBox(height: 18),
                   if (_message != null) ...[

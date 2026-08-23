@@ -41,6 +41,18 @@ void main() {
 
     await tester.tap(find.byKey(const Key('open_password_reset')));
     await tester.pumpAndSettle();
+
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(appBar.centerTitle, isTrue);
+    expect(find.byKey(const Key('password_reset_back')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('password_reset_back')),
+        matching: find.byIcon(Icons.arrow_back_ios_new_rounded),
+      ),
+      findsOneWidget,
+    );
+
     await tester.tap(find.byKey(const Key('password_reset_primary_button')));
     await tester.pump();
 

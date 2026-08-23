@@ -4,6 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../models/legal_document.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/centered_page_app_bar.dart';
 import '../../widgets/surface_panel.dart';
 import '../auth/auth_form_widgets.dart';
 
@@ -40,11 +41,9 @@ class _LegalDocumentsPageState extends State<LegalDocumentsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          '약관 및 정책',
-          style: TextStyle(fontWeight: FontWeight.w900),
-        ),
+      appBar: const CenteredPageAppBar(
+        title: '약관 및 정책',
+        backButtonKey: Key('legal_documents_back'),
       ),
       backgroundColor: AppColors.canvas,
       body: FutureBuilder<List<LegalDocument>>(
@@ -172,11 +171,9 @@ class LegalDocumentDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          document.title,
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
+      appBar: CenteredPageAppBar(
+        title: document.title,
+        backButtonKey: const Key('legal_document_detail_back'),
       ),
       backgroundColor: AppColors.canvas,
       body: SingleChildScrollView(

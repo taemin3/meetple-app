@@ -571,6 +571,9 @@ void main() {
     await tester.tap(find.byKey(const Key('create_meeting_location_name')));
     await tester.pumpAndSettle();
 
+    expect(tester.widget<AppBar>(find.byType(AppBar)).centerTitle, isTrue);
+    expect(find.byKey(const Key('location_picker_back')), findsOneWidget);
+
     await tester.enterText(
       find.byKey(const Key('location_picker_query')),
       '여의도공원',
