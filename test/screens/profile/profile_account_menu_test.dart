@@ -20,6 +20,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('최근 본 모임'), findsNothing);
+    expect(find.text('고객센터'), findsNothing);
+
     await tester.tap(find.byKey(const Key('profile_account_menu_open')));
     await tester.pumpAndSettle();
 
