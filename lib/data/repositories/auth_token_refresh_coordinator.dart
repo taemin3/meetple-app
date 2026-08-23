@@ -131,6 +131,20 @@ class AuthTokenRefreshCoordinator {
     }
   }
 
+  Future<void> clearAfterCredentialReset() async {
+    _refreshGeneration += 1;
+    _refreshSuspended = true;
+    final activeRefresh = _refreshingTokens;
+    if (activeRefresh != null) {
+      try {
+        await activeRefresh;
+      } on Exception {
+        // The credential reset already revoked every server-side session.
+      }
+    }
+    await clearAfterSignOut();
+  }
+
   Future<AuthTokenPair?> _performRefresh(String refreshToken) async {
     try {
       final response = await _apiClient.postJson(

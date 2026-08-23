@@ -284,9 +284,15 @@ void main() {
     final apiClient = FakeApiClient(
       responses: [_apiResponse(data: null)],
     );
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
     final repository = ApiAuthRepository(
       apiClient: apiClient,
-      tokenStore: MemoryAuthTokenStore(),
+      tokenStore: tokenStore,
     );
 
     await repository.resetPassword(
@@ -303,6 +309,7 @@ void main() {
       'passwordResetToken': 'password-reset-token',
       'newPassword': 'new-password123',
     });
+    expect(await tokenStore.read(), isNull);
   });
 
   test('rejects a weak new password before sending an API request', () async {

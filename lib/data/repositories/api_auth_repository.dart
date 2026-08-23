@@ -331,8 +331,7 @@ class ApiAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(passwordResetToken, '이메일 인증을 완료해 주세요.');
     _ensureNotBlank(newPassword, '새 비밀번호를 입력해 주세요.');
-    final passwordValidationMessage =
-        newPasswordValidationMessage(newPassword);
+    final passwordValidationMessage = newPasswordValidationMessage(newPassword);
     if (passwordValidationMessage != null) {
       throw AuthException(passwordValidationMessage);
     }
@@ -348,6 +347,8 @@ class ApiAuthRepository implements AuthRepository {
         },
       );
       _ensureSuccess(response);
+      _session = null;
+      await _tokenRefreshCoordinator.clearAfterCredentialReset();
     } on AuthException {
       rethrow;
     } on ApiException catch (error) {

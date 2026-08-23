@@ -208,6 +208,25 @@ void main() {
     expect(apiClient.postCount, 0);
     expect(await store.read(), isNull);
   });
+
+  test('clears tokens after a credential reset without starting a refresh',
+      () async {
+    const tokens = AuthTokenPair(
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final store = MemoryAuthTokenStore(initialTokens: tokens);
+    final apiClient = _RefreshApiClient();
+    final coordinator = AuthTokenRefreshCoordinator(
+      apiClient: apiClient,
+      tokenStore: store,
+    );
+
+    await coordinator.clearAfterCredentialReset();
+
+    expect(await store.read(), isNull);
+    expect(apiClient.postCount, 0);
+  });
 }
 
 String _jwt({required DateTime expiresAt}) {
