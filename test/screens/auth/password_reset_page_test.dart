@@ -43,6 +43,10 @@ void main() {
 
     expect(repository.sentEmail, 'user@example.com');
     expect(find.byKey(const Key('password_reset_code')), findsOneWidget);
+    expect(
+      find.text('인증번호는 발급 후 5분 동안 유효합니다.'),
+      findsOneWidget,
+    );
 
     await tester.enterText(
       find.descendant(

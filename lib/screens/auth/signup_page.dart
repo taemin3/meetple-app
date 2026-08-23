@@ -976,7 +976,7 @@ class _AccountStep extends StatelessWidget {
           subtitle: '로그인에 사용할 정보를 설정해주세요.',
         ),
         const SizedBox(height: 18),
-        _SignUpField(
+        AuthFormField(
           fieldKey: const Key('sign_up_email'),
           label: '이메일',
           controller: emailController,
@@ -1009,7 +1009,7 @@ class _AccountStep extends StatelessWidget {
         ),
         if (emailVerificationRequested) ...[
           const SizedBox(height: 12),
-          _SignUpField(
+          AuthFormField(
             fieldKey: const Key('sign_up_email_verification_code'),
             label: '인증번호',
             controller: emailVerificationCodeController,
@@ -1053,7 +1053,7 @@ class _AccountStep extends StatelessWidget {
           ),
         ],
         const SizedBox(height: 12),
-        _SignUpField(
+        AuthFormField(
           fieldKey: const Key('sign_up_password'),
           label: '비밀번호',
           controller: passwordController,
@@ -1072,7 +1072,7 @@ class _AccountStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        _SignUpField(
+        AuthFormField(
           fieldKey: const Key('sign_up_password_confirm'),
           label: '비밀번호 확인',
           controller: passwordConfirmController,
@@ -1175,7 +1175,7 @@ class _ProfileStep extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-        _SignUpField(
+        AuthFormField(
           fieldKey: const Key('sign_up_nickname'),
           label: '닉네임',
           controller: nicknameController,
@@ -1185,7 +1185,7 @@ class _ProfileStep extends StatelessWidget {
           trailingText: '${nicknameController.text.length}/10',
         ),
         const SizedBox(height: 18),
-        _SignUpField(
+        AuthFormField(
           fieldKey: const Key('sign_up_introduction'),
           label: '한줄 소개',
           controller: introController,
@@ -1325,176 +1325,6 @@ class _FieldLabel extends StatelessWidget {
         fontWeight: FontWeight.w900,
       ),
     );
-  }
-}
-
-class _SignUpField extends StatelessWidget {
-  const _SignUpField({
-    this.fieldKey,
-    required this.label,
-    required this.controller,
-    required this.icon,
-    required this.hintText,
-    this.keyboardType,
-    this.obscureText = false,
-    this.maxLength,
-    this.maxLines = 1,
-    this.helperText,
-    this.trailingText,
-    this.suffix,
-    this.inputFormatters,
-  });
-
-  final Key? fieldKey;
-  final String label;
-  final TextEditingController controller;
-  final IconData icon;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final int? maxLength;
-  final int maxLines;
-  final String? helperText;
-  final String? trailingText;
-  final Widget? suffix;
-  final List<TextInputFormatter>? inputFormatters;
-
-  @override
-  Widget build(BuildContext context) {
-    final isMultiline = maxLines > 1;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _FieldLabel(label),
-        const SizedBox(height: 7),
-        DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.line, width: 1.4),
-          ),
-          child: SizedBox(
-            height: isMultiline ? 96 : 48,
-            child: Stack(
-              children: [
-                TextField(
-                  key: fieldKey,
-                  controller: controller,
-                  keyboardType: obscureText
-                      ? TextInputType.visiblePassword
-                      : keyboardType,
-                  obscureText: obscureText,
-                  enableSuggestions: !obscureText,
-                  autocorrect: !obscureText,
-                  maxLength: maxLength,
-                  maxLines: maxLines,
-                  inputFormatters: inputFormatters,
-                  scrollPadding: const EdgeInsets.fromLTRB(20, 24, 20, 240),
-                  onTap: () => _ensureVisible(context),
-                  style: const TextStyle(
-                    color: AppColors.ink,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: hintText,
-                    counterText: '',
-                    hintStyle: const TextStyle(
-                      color: AppColors.subtle,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    prefixIcon: Padding(
-                      padding: EdgeInsets.only(
-                        left: 16,
-                        right: 12,
-                        bottom: isMultiline ? 48 : 0,
-                      ),
-                      child: Icon(icon),
-                    ),
-                    prefixIconColor: AppColors.muted,
-                    suffixIcon: suffix == null
-                        ? null
-                        : Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: IconTheme(
-                              data: const IconThemeData(
-                                color: AppColors.muted,
-                                size: 24,
-                              ),
-                              child: suffix!,
-                            ),
-                          ),
-                    suffixIconConstraints: suffix == null
-                        ? null
-                        : const BoxConstraints(minHeight: 48),
-                    suffixIconColor: AppColors.muted,
-                    filled: false,
-                    isDense: false,
-                    contentPadding: EdgeInsets.fromLTRB(
-                      0,
-                      isMultiline ? 14 : 12,
-                      trailingText == null ? 18 : 58,
-                      isMultiline ? 24 : 12,
-                    ),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    disabledBorder: InputBorder.none,
-                  ),
-                ),
-                if (trailingText != null)
-                  Positioned(
-                    right: 20,
-                    bottom: isMultiline ? 12 : 14,
-                    child: Text(
-                      trailingText!,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-        if (helperText != null) ...[
-          const SizedBox(height: 6),
-          Text(
-            helperText!,
-            style: const TextStyle(
-              color: AppColors.muted,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  void _ensureVisible(BuildContext context) {
-    Scrollable.ensureVisible(
-      context,
-      alignment: 0.32,
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-    );
-
-    Future<void>.delayed(const Duration(milliseconds: 280), () {
-      if (!context.mounted) {
-        return;
-      }
-      Scrollable.ensureVisible(
-        context,
-        alignment: 0.32,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-      );
-    });
   }
 }
 

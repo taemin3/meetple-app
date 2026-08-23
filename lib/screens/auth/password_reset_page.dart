@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -36,6 +37,7 @@ class _PasswordResetPageState extends State<PasswordResetPage>
   bool _isSubmitting = false;
   bool _isResending = false;
   bool _isPasswordVisible = false;
+  bool _isPasswordConfirmVisible = false;
   int _resendSeconds = 0;
   String? _requestedEmail;
   String? _passwordResetToken;
@@ -127,10 +129,11 @@ class _PasswordResetPageState extends State<PasswordResetPage>
   Widget _buildStep() {
     switch (_step) {
       case _PasswordResetStep.email:
-        return AuthTextField(
+        return AuthFormField(
           key: const Key('password_reset_email'),
           controller: _emailController,
           label: '이메일',
+          icon: Icons.mail_outline_rounded,
           hintText: '가입할 때 사용한 이메일을 입력해주세요',
           keyboardType: TextInputType.emailAddress,
         );
@@ -138,12 +141,16 @@ class _PasswordResetPageState extends State<PasswordResetPage>
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            AuthTextField(
+            AuthFormField(
               key: const Key('password_reset_code'),
               controller: _codeController,
               label: '인증번호',
+              icon: Icons.verified_outlined,
               hintText: '6자리 인증번호를 입력해주세요',
               keyboardType: TextInputType.number,
+              maxLength: 6,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              helperText: '인증번호는 발급 후 5분 동안 유효합니다.',
             ),
             const SizedBox(height: 8),
             Align(
@@ -159,22 +166,41 @@ class _PasswordResetPageState extends State<PasswordResetPage>
       case _PasswordResetStep.password:
         return Column(
           children: [
-            _PasswordField(
+            AuthFormField(
               fieldKey: const Key('password_reset_new_password'),
               controller: _passwordController,
               label: '새 비밀번호',
+              icon: Icons.lock_outline_rounded,
               hintText: '8자 이상 입력해주세요',
               obscureText: !_isPasswordVisible,
-              onToggleVisibility: _togglePasswordVisibility,
+              helperText: '8자 이상 64자 이하로 입력해주세요',
+              suffix: IconButton(
+                tooltip: _isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
+                onPressed: _togglePasswordVisibility,
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                ),
+              ),
             ),
             const SizedBox(height: 18),
-            _PasswordField(
+            AuthFormField(
               fieldKey: const Key('password_reset_password_confirm'),
               controller: _passwordConfirmController,
               label: '새 비밀번호 확인',
+              icon: Icons.lock_outline_rounded,
               hintText: '비밀번호를 다시 입력해주세요',
-              obscureText: !_isPasswordVisible,
-              onToggleVisibility: _togglePasswordVisibility,
+              obscureText: !_isPasswordConfirmVisible,
+              suffix: IconButton(
+                tooltip: _isPasswordConfirmVisible ? '비밀번호 숨기기' : '비밀번호 보기',
+                onPressed: _togglePasswordConfirmVisibility,
+                icon: Icon(
+                  _isPasswordConfirmVisible
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                ),
+              ),
             ),
           ],
         );
@@ -383,6 +409,12 @@ class _PasswordResetPageState extends State<PasswordResetPage>
     setState(() => _isPasswordVisible = !_isPasswordVisible);
   }
 
+  void _togglePasswordConfirmVisibility() {
+    setState(
+      () => _isPasswordConfirmVisible = !_isPasswordConfirmVisible,
+    );
+  }
+
   void _startResendTimer() {
     _resendTimer?.cancel();
     _resendTimer = Timer.periodic(
@@ -412,60 +444,5 @@ class _PasswordResetPageState extends State<PasswordResetPage>
 
   bool _looksLikeEmail(String email) {
     return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email);
-  }
-}
-
-class _PasswordField extends StatelessWidget {
-  const _PasswordField({
-    required this.fieldKey,
-    required this.controller,
-    required this.label,
-    required this.hintText,
-    required this.obscureText,
-    required this.onToggleVisibility,
-  });
-
-  final Key fieldKey;
-  final TextEditingController controller;
-  final String label;
-  final String hintText;
-  final bool obscureText;
-  final VoidCallback onToggleVisibility;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          key: fieldKey,
-          controller: controller,
-          obscureText: obscureText,
-          keyboardType: TextInputType.visiblePassword,
-          enableSuggestions: false,
-          autocorrect: false,
-          decoration: InputDecoration(
-            hintText: hintText,
-            suffixIcon: IconButton(
-              tooltip: obscureText ? '비밀번호 보기' : '비밀번호 숨기기',
-              onPressed: onToggleVisibility,
-              icon: Icon(
-                obscureText
-                    ? Icons.visibility_outlined
-                    : Icons.visibility_off_outlined,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
