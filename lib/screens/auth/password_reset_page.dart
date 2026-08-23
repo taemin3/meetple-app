@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../widgets/auth_form_field.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
 
@@ -115,7 +116,7 @@ class _PasswordResetPageState extends State<PasswordResetPage>
                     key: const Key('password_reset_primary_button'),
                     label: _primaryLabel,
                     loading: _isSubmitting,
-                    onPressed: _submit,
+                    onPressed: _isResending ? null : _submit,
                   ),
                 ],
               ),
@@ -172,7 +173,10 @@ class _PasswordResetPageState extends State<PasswordResetPage>
               label: '새 비밀번호',
               icon: Icons.lock_outline_rounded,
               hintText: '8자 이상 입력해주세요',
+              keyboardType: TextInputType.visiblePassword,
               obscureText: !_isPasswordVisible,
+              enableSuggestions: false,
+              autocorrect: false,
               helperText: '8자 이상 64자 이하로 입력해주세요',
               suffix: IconButton(
                 tooltip: _isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
@@ -191,7 +195,10 @@ class _PasswordResetPageState extends State<PasswordResetPage>
               label: '새 비밀번호 확인',
               icon: Icons.lock_outline_rounded,
               hintText: '비밀번호를 다시 입력해주세요',
+              keyboardType: TextInputType.visiblePassword,
               obscureText: !_isPasswordConfirmVisible,
+              enableSuggestions: false,
+              autocorrect: false,
               suffix: IconButton(
                 tooltip: _isPasswordConfirmVisible ? '비밀번호 숨기기' : '비밀번호 보기',
                 onPressed: _togglePasswordConfirmVisibility,
@@ -253,7 +260,7 @@ class _PasswordResetPageState extends State<PasswordResetPage>
   }
 
   Future<void> _submit() async {
-    if (_isSubmitting) {
+    if (_isSubmitting || _isResending) {
       return;
     }
     switch (_step) {
@@ -314,7 +321,12 @@ class _PasswordResetPageState extends State<PasswordResetPage>
     }
   }
 
-  Future<void> _resendCode() => _sendCode(isResend: true);
+  Future<void> _resendCode() async {
+    if (!_canResend) {
+      return;
+    }
+    await _sendCode(isResend: true);
+  }
 
   Future<void> _confirmCode() async {
     final email = _requestedEmail;

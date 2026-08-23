@@ -9,6 +9,7 @@ import '../../data/repositories/image_upload_repository.dart';
 import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../models/auth_session.dart';
 import '../../models/legal_document.dart';
+import '../../widgets/auth_form_field.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
 
@@ -1059,7 +1060,10 @@ class _AccountStep extends StatelessWidget {
           controller: passwordController,
           icon: Icons.lock_outline_rounded,
           hintText: '비밀번호를 입력해주세요',
+          keyboardType: TextInputType.visiblePassword,
           obscureText: !isPasswordVisible,
+          enableSuggestions: false,
+          autocorrect: false,
           helperText: '8자 이상, 영문/숫자/특수문자 조합',
           suffix: IconButton(
             tooltip: isPasswordVisible ? '비밀번호 숨기기' : '비밀번호 보기',
@@ -1078,7 +1082,10 @@ class _AccountStep extends StatelessWidget {
           controller: passwordConfirmController,
           icon: Icons.lock_outline_rounded,
           hintText: '비밀번호를 다시 입력해주세요',
+          keyboardType: TextInputType.visiblePassword,
           obscureText: !isPasswordConfirmVisible,
+          enableSuggestions: false,
+          autocorrect: false,
           suffix: IconButton(
             tooltip: isPasswordConfirmVisible ? '비밀번호 숨기기' : '비밀번호 보기',
             onPressed: togglePasswordConfirmVisibility,

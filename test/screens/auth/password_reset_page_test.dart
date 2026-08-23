@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
@@ -61,6 +63,20 @@ void main() {
     expect(repository.confirmedCode, '123456');
     expect(
         find.byKey(const Key('password_reset_new_password')), findsOneWidget);
+    var passwordField = tester.widget<TextField>(
+      find.byKey(const Key('password_reset_new_password')),
+    );
+    expect(passwordField.enableSuggestions, isFalse);
+    expect(passwordField.autocorrect, isFalse);
+
+    await tester.tap(find.byTooltip('비밀번호 보기').first);
+    await tester.pump();
+    passwordField = tester.widget<TextField>(
+      find.byKey(const Key('password_reset_new_password')),
+    );
+    expect(passwordField.obscureText, isFalse);
+    expect(passwordField.enableSuggestions, isFalse);
+    expect(passwordField.autocorrect, isFalse);
 
     await tester.enterText(
       find.byKey(const Key('password_reset_new_password')),
@@ -116,11 +132,61 @@ void main() {
     expect(find.text('비밀번호가 일치하지 않습니다.'), findsOneWidget);
     expect(repository.newPassword, isNull);
   });
+
+  testWidgets('disables confirmation while a resend is pending', (
+    tester,
+  ) async {
+    var now = DateTime(2026, 8, 23, 12);
+    final resendGate = Completer<void>();
+    final repository = _RecordingPasswordResetRepository(
+      resendGate: resendGate,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PasswordResetPage(
+          authRepository: repository,
+          initialEmail: 'user@example.com',
+          now: () => now,
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('password_reset_primary_button')));
+    await tester.pump();
+    await tester.enterText(
+      find.descendant(
+        of: find.byKey(const Key('password_reset_code')),
+        matching: find.byType(TextField),
+      ),
+      '123456',
+    );
+
+    now = now.add(const Duration(seconds: 61));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(find.byKey(const Key('password_reset_resend_button')));
+    await tester.pump();
+
+    final primaryButton = tester.widget<FilledButton>(
+      find.descendant(
+        of: find.byKey(const Key('password_reset_primary_button')),
+        matching: find.byType(FilledButton),
+      ),
+    );
+    expect(primaryButton.onPressed, isNull);
+    expect(repository.confirmedCode, isNull);
+
+    resendGate.complete();
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
 
 class _RecordingPasswordResetRepository extends MockAuthRepository {
-  _RecordingPasswordResetRepository() : super(session: null);
+  _RecordingPasswordResetRepository({this.resendGate}) : super(session: null);
 
+  final Completer<void>? resendGate;
+  int sendCount = 0;
   String? sentEmail;
   String? confirmedCode;
   String? resetEmail;
@@ -130,6 +196,10 @@ class _RecordingPasswordResetRepository extends MockAuthRepository {
   @override
   Future<void> sendPasswordResetVerificationCode(
       {required String email}) async {
+    sendCount += 1;
+    if (sendCount > 1 && resendGate != null) {
+      await resendGate!.future;
+    }
     sentEmail = email;
   }
 
