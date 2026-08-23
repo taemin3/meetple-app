@@ -10,6 +10,7 @@ import 'package:meetple/data/repositories/image_upload_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
 import 'package:meetple/models/legal_document.dart';
+import 'package:meetple/models/password_reset_verification.dart';
 import 'package:meetple/models/signup_email_verification.dart';
 import 'package:meetple/screens/auth/signup_page.dart';
 
@@ -247,6 +248,36 @@ void main() {
     await tester.tap(find.text('다음'));
     await tester.pumpAndSettle();
     expect(find.text('프로필 정보를 입력해주세요'), findsOneWidget);
+  });
+
+  testWidgets('requires letters and numbers in the signup password', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await _openSignUp(
+      tester,
+      authRepository: _SignUpAuthRepository(),
+      imageUploadRepository: _RecordingImageUploadRepository(),
+      pickProfileImage: () async => null,
+    );
+
+    await _verifyEmail(tester);
+    await tester.enterText(
+      find.byKey(const Key('sign_up_password')),
+      'abcdefgh',
+    );
+    await tester.enterText(
+      find.byKey(const Key('sign_up_password_confirm')),
+      'abcdefgh',
+    );
+    await tester.tap(find.byKey(const Key('sign_up_age_confirmation')));
+    await tester.tap(find.text('다음'));
+    await tester.pump();
+
+    expect(find.text(passwordCompositionErrorMessage), findsOneWidget);
+    expect(find.text('프로필 정보를 입력해주세요'), findsNothing);
   });
 
   testWidgets('removes region and uploads the selected profile image', (
@@ -541,6 +572,28 @@ class _SignUpAuthRepository implements AuthRepository {
       token: 'signup-verification-token',
       expiresIn: Duration(minutes: 15),
     );
+  }
+
+  @override
+  Future<void> sendPasswordResetVerificationCode({required String email}) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<PasswordResetVerification> confirmPasswordResetVerificationCode({
+    required String email,
+    required String code,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String passwordResetToken,
+    required String newPassword,
+  }) {
+    throw UnimplementedError();
   }
 
   @override

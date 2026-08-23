@@ -1,6 +1,7 @@
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/legal_document.dart';
+import '../../models/password_reset_verification.dart';
 import '../../models/signup_email_verification.dart';
 import '../mock/mock_auth.dart';
 import '../mock/mock_legal_documents.dart';
@@ -64,6 +65,44 @@ class MockAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> sendPasswordResetVerificationCode(
+      {required String email}) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+  }
+
+  @override
+  Future<PasswordResetVerification> confirmPasswordResetVerificationCode({
+    required String email,
+    required String code,
+  }) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    if (!RegExp(r'^\d{6}$').hasMatch(code.trim())) {
+      throw const AuthException('인증번호는 6자리 숫자로 입력해 주세요.');
+    }
+    return const PasswordResetVerification(
+      token: 'mock-password-reset-token',
+      expiresIn: Duration(minutes: 15),
+    );
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String passwordResetToken,
+    required String newPassword,
+  }) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    _ensureNotBlank(passwordResetToken, '이메일 인증을 완료해 주세요.');
+    _ensureNotBlank(newPassword, '새 비밀번호를 입력해 주세요.');
+    final passwordValidationMessage =
+        newPasswordValidationMessage(newPassword);
+    if (passwordValidationMessage != null) {
+      throw AuthException(passwordValidationMessage);
+    }
+    _session = null;
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
@@ -75,6 +114,10 @@ class MockAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
     _ensureNotBlank(signupVerificationToken, '이메일 인증을 완료해 주세요.');
+    final passwordValidationMessage = newPasswordValidationMessage(password);
+    if (passwordValidationMessage != null) {
+      throw AuthException(passwordValidationMessage);
+    }
     if (legalDocuments.length != LegalDocumentType.values.length) {
       throw const AuthException('최신 약관을 확인해 주세요.');
     }

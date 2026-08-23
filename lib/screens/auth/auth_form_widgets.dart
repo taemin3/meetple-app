@@ -44,49 +44,6 @@ class AuthHeader extends StatelessWidget {
   }
 }
 
-class AuthTextField extends StatelessWidget {
-  const AuthTextField({
-    super.key,
-    required this.controller,
-    required this.label,
-    required this.hintText,
-    this.keyboardType,
-    this.obscureText = false,
-  });
-
-  final TextEditingController controller;
-  final String label;
-  final String hintText;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          controller: controller,
-          keyboardType:
-              obscureText ? TextInputType.visiblePassword : keyboardType,
-          obscureText: obscureText,
-          enableSuggestions: !obscureText,
-          autocorrect: !obscureText,
-          decoration: InputDecoration(hintText: hintText),
-        ),
-      ],
-    );
-  }
-}
-
 class AuthErrorText extends StatelessWidget {
   const AuthErrorText({super.key, required this.message});
 

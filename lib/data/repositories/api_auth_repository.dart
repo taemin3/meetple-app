@@ -3,6 +3,7 @@ import '../../core/network/api_client.dart';
 import '../../models/auth_session.dart';
 import '../../models/auth_user.dart';
 import '../../models/legal_document.dart';
+import '../../models/password_reset_verification.dart';
 import '../../models/signup_email_verification.dart';
 import 'auth_repository.dart';
 import 'auth_token_refresh_coordinator.dart';
@@ -262,6 +263,99 @@ class ApiAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<void> sendPasswordResetVerificationCode(
+      {required String email}) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+
+    try {
+      final response = await _apiClient.postJson(
+        '/api/v1/auth/password-resets/email-verifications',
+        includeAuthorization: false,
+        body: {'email': email.trim()},
+      );
+      _ensureSuccess(response);
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    }
+  }
+
+  @override
+  Future<PasswordResetVerification> confirmPasswordResetVerificationCode({
+    required String email,
+    required String code,
+  }) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    _ensureNotBlank(code, '인증번호를 입력해 주세요.');
+    if (!RegExp(r'^\d{6}$').hasMatch(code.trim())) {
+      throw const AuthException('인증번호는 6자리 숫자로 입력해 주세요.');
+    }
+
+    try {
+      final response = await _apiClient.postJson(
+        '/api/v1/auth/password-resets/email-verifications/confirm',
+        includeAuthorization: false,
+        body: {
+          'email': email.trim(),
+          'code': code.trim(),
+        },
+      );
+      final data = _readData(response);
+      final token = _readString(data['passwordResetToken']);
+      final expiresInSeconds = _readInt(data['expiresIn']);
+      if (token.isEmpty || expiresInSeconds <= 0) {
+        throw const FormatException(
+          'Password reset verification response is missing required fields.',
+        );
+      }
+      return PasswordResetVerification(
+        token: token,
+        expiresIn: Duration(seconds: expiresInSeconds),
+      );
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    } on FormatException {
+      throw const AuthException('비밀번호 재설정 인증 응답 형식이 올바르지 않습니다.');
+    }
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String email,
+    required String passwordResetToken,
+    required String newPassword,
+  }) async {
+    _ensureNotBlank(email, '이메일을 입력해 주세요.');
+    _ensureNotBlank(passwordResetToken, '이메일 인증을 완료해 주세요.');
+    _ensureNotBlank(newPassword, '새 비밀번호를 입력해 주세요.');
+    final passwordValidationMessage =
+        newPasswordValidationMessage(newPassword);
+    if (passwordValidationMessage != null) {
+      throw AuthException(passwordValidationMessage);
+    }
+
+    try {
+      final response = await _apiClient.postJson(
+        '/api/v1/auth/password-resets',
+        includeAuthorization: false,
+        body: {
+          'email': email.trim(),
+          'passwordResetToken': passwordResetToken,
+          'newPassword': newPassword,
+        },
+      );
+      _ensureSuccess(response);
+    } on AuthException {
+      rethrow;
+    } on ApiException catch (error) {
+      throw AuthException(error.message);
+    }
+  }
+
+  @override
   Future<AuthSession> signUp({
     required String nickname,
     required String email,
@@ -273,6 +367,10 @@ class ApiAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(password, '비밀번호를 입력해 주세요.');
     _ensureNotBlank(signupVerificationToken, '이메일 인증을 완료해 주세요.');
+    final passwordValidationMessage = newPasswordValidationMessage(password);
+    if (passwordValidationMessage != null) {
+      throw AuthException(passwordValidationMessage);
+    }
     if (legalDocuments.length != LegalDocumentType.values.length) {
       throw const AuthException('최신 약관을 확인해 주세요.');
     }

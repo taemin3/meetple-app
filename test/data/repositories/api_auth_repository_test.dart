@@ -222,6 +222,116 @@ void main() {
     expect(verification.expiresIn, const Duration(minutes: 15));
   });
 
+  test('requests a password reset code without authorization', () async {
+    final apiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await repository.sendPasswordResetVerificationCode(
+      email: ' user@example.com ',
+    );
+
+    expect(apiClient.requests.single.method, 'POST');
+    expect(
+      apiClient.requests.single.path,
+      '/api/v1/auth/password-resets/email-verifications',
+    );
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {'email': 'user@example.com'});
+  });
+
+  test('confirms a password reset code and returns the one-time token',
+      () async {
+    final apiClient = FakeApiClient(
+      responses: [
+        _apiResponse(
+          data: {
+            'passwordResetToken': 'password-reset-token',
+            'expiresIn': 900,
+          },
+        ),
+      ],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    final verification = await repository.confirmPasswordResetVerificationCode(
+      email: ' user@example.com ',
+      code: '123456',
+    );
+
+    expect(
+      apiClient.requests.single.path,
+      '/api/v1/auth/password-resets/email-verifications/confirm',
+    );
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {
+      'email': 'user@example.com',
+      'code': '123456',
+    });
+    expect(verification.token, 'password-reset-token');
+    expect(verification.expiresIn, const Duration(minutes: 15));
+  });
+
+  test('resets password without authorization using the one-time token',
+      () async {
+    final apiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await repository.resetPassword(
+      email: ' user@example.com ',
+      passwordResetToken: 'password-reset-token',
+      newPassword: 'new-password123',
+    );
+
+    expect(apiClient.requests.single.method, 'POST');
+    expect(apiClient.requests.single.path, '/api/v1/auth/password-resets');
+    expect(apiClient.requests.single.includeAuthorization, isFalse);
+    expect(apiClient.requests.single.body, {
+      'email': 'user@example.com',
+      'passwordResetToken': 'password-reset-token',
+      'newPassword': 'new-password123',
+    });
+  });
+
+  test('rejects a weak new password before sending an API request', () async {
+    final apiClient = FakeApiClient(responses: []);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    for (final password in ['abcdefgh', '12345678']) {
+      await expectLater(
+        repository.resetPassword(
+          email: 'user@example.com',
+          passwordResetToken: 'password-reset-token',
+          newPassword: password,
+        ),
+        throwsA(
+          isA<AuthException>().having(
+            (error) => error.message,
+            'message',
+            passwordCompositionErrorMessage,
+          ),
+        ),
+      );
+    }
+
+    expect(apiClient.requests, isEmpty);
+  });
+
   test('signs up and then signs in to create an app session', () async {
     final apiClient = FakeApiClient(
       responses: [
@@ -336,6 +446,36 @@ void main() {
         ),
       ),
     );
+    expect(apiClient.requests, isEmpty);
+  });
+
+  test('rejects a weak signup password before sending an API request',
+      () async {
+    final apiClient = FakeApiClient(responses: []);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    for (final password in ['abcdefgh', '12345678']) {
+      await expectLater(
+        repository.signUp(
+          nickname: '새회원',
+          email: 'new@example.com',
+          password: password,
+          signupVerificationToken: 'signup-verification-token',
+          legalDocuments: mockSignupLegalDocuments,
+        ),
+        throwsA(
+          isA<AuthException>().having(
+            (error) => error.message,
+            'message',
+            passwordCompositionErrorMessage,
+          ),
+        ),
+      );
+    }
+
     expect(apiClient.requests, isEmpty);
   });
 

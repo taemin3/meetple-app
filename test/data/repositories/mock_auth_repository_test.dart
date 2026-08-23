@@ -42,7 +42,7 @@ void main() {
     final session = await repository.signUp(
       nickname: '밋플러',
       email: 'new@example.com',
-      password: 'password',
+      password: 'password1',
       signupVerificationToken: 'signup-verification-token',
       legalDocuments: mockSignupLegalDocuments,
     );
@@ -52,6 +52,27 @@ void main() {
     expect(session.user.email, 'new@example.com');
     expect(session.user.createdMeetingsCount, 0);
     expect(await repository.restoreSession(), session);
+  });
+
+  test('rejects a weak signup password', () {
+    final repository = MockAuthRepository();
+
+    expect(
+      repository.signUp(
+        nickname: '밋플러',
+        email: 'new@example.com',
+        password: 'abcdefgh',
+        signupVerificationToken: 'signup-verification-token',
+        legalDocuments: mockSignupLegalDocuments,
+      ),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          passwordCompositionErrorMessage,
+        ),
+      ),
+    );
   });
 
   test('signs out by clearing restored session', () async {
