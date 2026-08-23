@@ -396,6 +396,7 @@ class _ProfileContentState extends State<ProfileContent> {
         builder: (_) => PasswordResetPage(
           authRepository: widget.authRepository,
           initialEmail: widget.user.email,
+          emailReadOnly: true,
         ),
       ),
     );

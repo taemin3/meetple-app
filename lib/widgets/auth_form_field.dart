@@ -15,6 +15,7 @@ class AuthFormField extends StatelessWidget {
     this.obscureText = false,
     this.enableSuggestions = true,
     this.autocorrect = true,
+    this.readOnly = false,
     this.maxLength,
     this.maxLines = 1,
     this.helperText,
@@ -32,6 +33,7 @@ class AuthFormField extends StatelessWidget {
   final bool obscureText;
   final bool enableSuggestions;
   final bool autocorrect;
+  final bool readOnly;
   final int? maxLength;
   final int maxLines;
   final String? helperText;
@@ -73,6 +75,7 @@ class AuthFormField extends StatelessWidget {
                   obscureText: obscureText,
                   enableSuggestions: enableSuggestions,
                   autocorrect: autocorrect,
+                  readOnly: readOnly,
                   maxLength: maxLength,
                   maxLines: maxLines,
                   inputFormatters: inputFormatters,

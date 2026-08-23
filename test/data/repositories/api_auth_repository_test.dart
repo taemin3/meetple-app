@@ -312,6 +312,35 @@ void main() {
     expect(await tokenStore.read(), isNull);
   });
 
+  test('keeps password reset successful when local token cleanup fails',
+      () async {
+    final apiClient = FakeApiClient(
+      responses: [_apiResponse(data: null)],
+    );
+    final tokenStore = _ThrowingClearTokenStore(
+      const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+
+    await expectLater(
+      repository.resetPassword(
+        email: 'user@example.com',
+        passwordResetToken: 'password-reset-token',
+        newPassword: 'new-password123',
+      ),
+      completes,
+    );
+
+    expect(apiClient.requests.single.path, '/api/v1/auth/password-resets');
+    expect(tokenStore.clearCount, 1);
+  });
+
   test('rejects a weak new password before sending an API request', () async {
     final apiClient = FakeApiClient(responses: []);
     final repository = ApiAuthRepository(
@@ -1131,5 +1160,26 @@ class _RotateOnFirstReadTokenStore implements AuthTokenStore {
   @override
   Future<void> clear() async {
     _tokens = null;
+  }
+}
+
+class _ThrowingClearTokenStore implements AuthTokenStore {
+  _ThrowingClearTokenStore(this._tokens);
+
+  AuthTokenPair? _tokens;
+  int clearCount = 0;
+
+  @override
+  Future<AuthTokenPair?> read() async => _tokens;
+
+  @override
+  Future<void> write(AuthTokenPair tokens) async {
+    _tokens = tokens;
+  }
+
+  @override
+  Future<void> clear() async {
+    clearCount += 1;
+    throw Exception('secure storage unavailable');
   }
 }

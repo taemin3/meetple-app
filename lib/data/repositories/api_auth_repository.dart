@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../models/auth_session.dart';
@@ -348,7 +350,12 @@ class ApiAuthRepository implements AuthRepository {
       );
       _ensureSuccess(response);
       _session = null;
-      await _tokenRefreshCoordinator.clearAfterCredentialReset();
+      try {
+        await _tokenRefreshCoordinator.clearAfterCredentialReset();
+      } on Exception catch (error) {
+        debugPrint(
+            'Local auth token cleanup failed after password reset: $error');
+      }
     } on AuthException {
       rethrow;
     } on ApiException catch (error) {

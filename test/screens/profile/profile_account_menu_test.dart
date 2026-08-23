@@ -42,6 +42,7 @@ void main() {
       ),
     );
     expect(emailField.controller?.text, mockAuthUser.email);
+    expect(emailField.readOnly, isTrue);
   });
 
   testWidgets('shows current service terms and privacy policy', (
