@@ -19,8 +19,10 @@ import '../../widgets/network_image_with_skeleton.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/surface_panel.dart';
 import '../auth/auth_form_widgets.dart';
+import '../auth/password_reset_page.dart';
 import '../notifications/notifications_page.dart';
 import 'bookmarked_meetings_page.dart';
+import 'legal_documents_page.dart';
 import 'my_applications_page.dart';
 import 'my_meetings_page.dart';
 import 'profile_edit_page.dart';
@@ -190,7 +192,7 @@ class _ProfileContentState extends State<ProfileContent> {
       children: [
         ProfileHeader(
           user: widget.user,
-          onEditProfileImage: _openProfileImageEditor,
+          onOpenAccountMenu: _openAccountMenu,
         ),
         const SizedBox(height: 24),
         ProfileStatsCard(user: widget.user),
@@ -246,7 +248,6 @@ class _ProfileContentState extends State<ProfileContent> {
                     ),
                   ),
             ),
-            (Icons.history, '최근 본 모임', null),
           ],
         ),
         const SizedBox(height: 18),
@@ -265,8 +266,15 @@ class _ProfileContentState extends State<ProfileContent> {
                     ),
                   ),
             ),
-            (Icons.settings_outlined, '설정', null),
-            (Icons.support_agent, '고객센터', null),
+            (
+              Icons.policy_outlined,
+              '약관 및 정책',
+              _openLegalDocuments,
+            ),
+          ],
+          itemKeys: const [
+            null,
+            Key('profile_legal_documents_open'),
           ],
         ),
         const SizedBox(height: 18),
@@ -318,7 +326,50 @@ class _ProfileContentState extends State<ProfileContent> {
     widget.onSignedOut();
   }
 
-  Future<void> _openProfileImageEditor() async {
+  Future<void> _openAccountMenu() async {
+    final action = await showModalBottomSheet<_ProfileAccountAction>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const Key('profile_account_edit'),
+              leading: const Icon(Icons.person_outline_rounded),
+              title: const Text('프로필 수정'),
+              onTap: () => Navigator.of(sheetContext).pop(
+                _ProfileAccountAction.editProfile,
+              ),
+            ),
+            ListTile(
+              key: const Key('profile_account_reset_password'),
+              leading: const Icon(Icons.lock_reset_rounded),
+              title: const Text('비밀번호 재설정'),
+              onTap: () => Navigator.of(sheetContext).pop(
+                _ProfileAccountAction.resetPassword,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+
+    switch (action) {
+      case _ProfileAccountAction.editProfile:
+        await _openProfileEditor();
+        return;
+      case _ProfileAccountAction.resetPassword:
+        await _openPasswordReset();
+        return;
+    }
+  }
+
+  Future<void> _openProfileEditor() async {
     final result = await Navigator.of(context).push<ProfileEditResult>(
       MaterialPageRoute(
         builder: (_) => ProfileEditPage(
@@ -334,6 +385,36 @@ class _ProfileContentState extends State<ProfileContent> {
     }
 
     widget.onProfileUpdated(result);
+  }
+
+  Future<void> _openPasswordReset() async {
+    final passwordChanged = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => PasswordResetPage(
+          authRepository: widget.authRepository,
+          initialEmail: widget.user.email,
+          emailReadOnly: true,
+        ),
+      ),
+    );
+    if (!mounted || passwordChanged != true) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('비밀번호가 변경되어 다시 로그인해 주세요.')),
+    );
+    widget.onSignedOut();
+  }
+
+  void _openLegalDocuments() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => LegalDocumentsPage(
+          authRepository: widget.authRepository,
+        ),
+      ),
+    );
   }
 
   void _openMeetings({
@@ -360,11 +441,11 @@ class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
     super.key,
     required this.user,
-    required this.onEditProfileImage,
+    required this.onOpenAccountMenu,
   });
 
   final AuthUser user;
-  final VoidCallback onEditProfileImage;
+  final VoidCallback onOpenAccountMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -401,9 +482,9 @@ class ProfileHeader extends StatelessWidget {
           ),
         ),
         IconButton(
-          key: const Key('profile_image_edit_open'),
-          tooltip: '프로필 사진 수정',
-          onPressed: onEditProfileImage,
+          key: const Key('profile_account_menu_open'),
+          tooltip: '계정 관리',
+          onPressed: onOpenAccountMenu,
           icon: const Icon(Icons.settings_outlined),
         ),
       ],
@@ -590,9 +671,14 @@ class SignedOutProfile extends StatelessWidget {
 }
 
 class ProfileMenuGroup extends StatelessWidget {
-  const ProfileMenuGroup({super.key, required this.items});
+  const ProfileMenuGroup({
+    super.key,
+    required this.items,
+    this.itemKeys = const [],
+  });
 
   final List<(IconData, String, VoidCallback?)> items;
+  final List<Key?> itemKeys;
 
   @override
   Widget build(BuildContext context) {
@@ -601,6 +687,7 @@ class ProfileMenuGroup extends StatelessWidget {
         children: [
           for (var i = 0; i < items.length; i++) ...[
             ProfileMenuItem(
+              key: i < itemKeys.length ? itemKeys[i] : null,
               icon: items[i].$1,
               label: items[i].$2,
               onTap: items[i].$3,
@@ -613,6 +700,8 @@ class ProfileMenuGroup extends StatelessWidget {
     );
   }
 }
+
+enum _ProfileAccountAction { editProfile, resetPassword }
 
 class ProfileMenuItem extends StatelessWidget {
   const ProfileMenuItem({

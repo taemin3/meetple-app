@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../../core/config/app_config.dart';
 import '../../core/network/api_client.dart';
 import '../../models/auth_session.dart';
@@ -331,8 +333,7 @@ class ApiAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(passwordResetToken, '이메일 인증을 완료해 주세요.');
     _ensureNotBlank(newPassword, '새 비밀번호를 입력해 주세요.');
-    final passwordValidationMessage =
-        newPasswordValidationMessage(newPassword);
+    final passwordValidationMessage = newPasswordValidationMessage(newPassword);
     if (passwordValidationMessage != null) {
       throw AuthException(passwordValidationMessage);
     }
@@ -348,6 +349,13 @@ class ApiAuthRepository implements AuthRepository {
         },
       );
       _ensureSuccess(response);
+      _session = null;
+      try {
+        await _tokenRefreshCoordinator.clearAfterCredentialReset();
+      } on Exception catch (error) {
+        debugPrint(
+            'Local auth token cleanup failed after password reset: $error');
+      }
     } on AuthException {
       rethrow;
     } on ApiException catch (error) {

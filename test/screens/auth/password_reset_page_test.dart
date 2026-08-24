@@ -13,7 +13,8 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    final repository = _RecordingPasswordResetRepository();
+    final resetGate = Completer<void>();
+    final repository = _RecordingPasswordResetRepository(resetGate: resetGate);
     bool? result;
 
     await tester.pumpWidget(
@@ -41,6 +42,25 @@ void main() {
 
     await tester.tap(find.byKey(const Key('open_password_reset')));
     await tester.pumpAndSettle();
+
+    final appBar = tester.widget<AppBar>(find.byType(AppBar));
+    expect(appBar.centerTitle, isTrue);
+    expect(find.byKey(const Key('password_reset_back')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('password_reset_back')),
+        matching: find.byIcon(Icons.arrow_back_ios_new_rounded),
+      ),
+      findsOneWidget,
+    );
+    final emailField = tester.widget<TextField>(
+      find.descendant(
+        of: find.byKey(const Key('password_reset_email')),
+        matching: find.byType(TextField),
+      ),
+    );
+    expect(emailField.readOnly, isFalse);
+
     await tester.tap(find.byKey(const Key('password_reset_primary_button')));
     await tester.pump();
 
@@ -88,6 +108,15 @@ void main() {
       'new-password123',
     );
     await tester.tap(find.byKey(const Key('password_reset_primary_button')));
+    await tester.pump();
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
+    expect(find.byType(PasswordResetPage), findsOneWidget);
+    expect(result, isNull);
+
+    resetGate.complete();
     await tester.pumpAndSettle();
 
     expect(repository.resetEmail, 'user@example.com');
@@ -224,9 +253,11 @@ void main() {
 }
 
 class _RecordingPasswordResetRepository extends MockAuthRepository {
-  _RecordingPasswordResetRepository({this.resendGate}) : super(session: null);
+  _RecordingPasswordResetRepository({this.resendGate, this.resetGate})
+      : super(session: null);
 
   final Completer<void>? resendGate;
+  final Completer<void>? resetGate;
   int sendCount = 0;
   String? sentEmail;
   String? confirmedCode;
@@ -265,5 +296,8 @@ class _RecordingPasswordResetRepository extends MockAuthRepository {
     resetEmail = email;
     resetToken = passwordResetToken;
     this.newPassword = newPassword;
+    if (resetGate != null) {
+      await resetGate!.future;
+    }
   }
 }

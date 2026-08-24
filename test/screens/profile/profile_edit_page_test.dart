@@ -24,7 +24,7 @@ void main() {
         home: Scaffold(
           body: ProfileHeader(
             user: mockAuthUser.copyWith(introduction: introduction),
-            onEditProfileImage: () {},
+            onOpenAccountMenu: () {},
           ),
         ),
       ),
@@ -56,8 +56,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('profile_image_edit_open')));
-    await tester.pumpAndSettle();
+    await _openProfileEdit(tester);
 
     final nicknameField = tester.widget<TextField>(
       find.byKey(const Key('profile_edit_nickname')),
@@ -185,8 +184,7 @@ void main() {
 
     expect(find.byKey(const Key('profile_avatar_image')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('profile_image_edit_open')));
-    await tester.pumpAndSettle();
+    await _openProfileEdit(tester);
 
     expect(
       find.byKey(const Key('profile_edit_current_preview')),
@@ -238,8 +236,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('profile_image_edit_open')));
-    await tester.pumpAndSettle();
+    await _openProfileEdit(tester);
     await tester.enterText(
       find.byKey(const Key('profile_edit_nickname')),
       '정보저장완료',
@@ -301,6 +298,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('프로필 수정'), findsNothing);
   });
+}
+
+Future<void> _openProfileEdit(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('profile_account_menu_open')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('profile_account_edit')));
+  await tester.pumpAndSettle();
+  expect(tester.widget<AppBar>(find.byType(AppBar)).centerTitle, isTrue);
+  expect(find.byKey(const Key('profile_edit_back')), findsOneWidget);
 }
 
 Future<XFile?> _pickPng() async {

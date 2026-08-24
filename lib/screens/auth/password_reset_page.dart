@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../widgets/auth_form_field.dart';
+import '../../widgets/centered_page_app_bar.dart';
 import '../../widgets/primary_button.dart';
 import 'auth_form_widgets.dart';
 
@@ -16,11 +17,13 @@ class PasswordResetPage extends StatefulWidget {
     super.key,
     required this.authRepository,
     this.initialEmail = '',
+    this.emailReadOnly = false,
     this.now,
   });
 
   final AuthRepository authRepository;
   final String initialEmail;
+  final bool emailReadOnly;
   final DateTime Function()? now;
 
   @override
@@ -49,6 +52,7 @@ class _PasswordResetPageState extends State<PasswordResetPage>
   String? _errorMessage;
 
   DateTime get _now => widget.now?.call() ?? DateTime.now();
+  bool get _navigationLocked => _isSubmitting || _isResending;
 
   @override
   void initState() {
@@ -77,48 +81,66 @@ class _PasswordResetPageState extends State<PasswordResetPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 430),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AuthHeader(title: _title, subtitle: _subtitle),
-                  const SizedBox(height: 34),
-                  _buildStep(),
-                  const SizedBox(height: 18),
-                  if (_message != null) ...[
+    return PopScope(
+      canPop: !_navigationLocked,
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: CenteredPageAppBar(
+          title: _title,
+          backButtonKey: const Key('password_reset_back'),
+          backEnabled: !_navigationLocked,
+        ),
+        body: SafeArea(
+          top: false,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 32),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                     Text(
-                      _message!,
-                      key: const Key('password_reset_message'),
+                      _subtitle,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w800,
-                        height: 1.4,
+                        color: AppColors.muted,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                  ],
-                  if (_errorMessage != null) ...[
-                    AuthErrorText(
-                      key: const Key('password_reset_error'),
-                      message: _errorMessage!,
+                    const SizedBox(height: 28),
+                    _buildStep(),
+                    const SizedBox(height: 18),
+                    if (_message != null) ...[
+                      Text(
+                        _message!,
+                        key: const Key('password_reset_message'),
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                          height: 1.4,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    if (_errorMessage != null) ...[
+                      AuthErrorText(
+                        key: const Key('password_reset_error'),
+                        message: _errorMessage!,
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                    const SizedBox(height: 8),
+                    PrimaryButton(
+                      key: const Key('password_reset_primary_button'),
+                      label: _primaryLabel,
+                      loading: _isSubmitting,
+                      onPressed: _isResending ? null : _submit,
                     ),
-                    const SizedBox(height: 10),
                   ],
-                  const SizedBox(height: 8),
-                  PrimaryButton(
-                    key: const Key('password_reset_primary_button'),
-                    label: _primaryLabel,
-                    loading: _isSubmitting,
-                    onPressed: _isResending ? null : _submit,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -137,6 +159,7 @@ class _PasswordResetPageState extends State<PasswordResetPage>
           icon: Icons.mail_outline_rounded,
           hintText: '가입할 때 사용한 이메일을 입력해주세요',
           keyboardType: TextInputType.emailAddress,
+          readOnly: widget.emailReadOnly,
         );
       case _PasswordResetStep.code:
         return Column(
