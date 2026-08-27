@@ -50,6 +50,26 @@ Android 에뮬레이터에서 로컬 백엔드에 연결할 때는 `localhost` �
 flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://10.0.2.2:8080
 ```
 
+AWS staging API에 연결하면 Android에서 Firebase push 구현도 함께 활성화된다. 실행 전에 Firebase Console에서 Android 앱 `com.meetple.app`의 `google-services.json`을 내려받아 `android/app/google-services.json`에 둬야 한다. 이 파일은 환경별 Firebase 설정이므로 Git에서 제외하며 커밋하지 않는다.
+
+PowerShell에서는 Firebase 설정 파일을 확인한 뒤 staging 설정으로 실행한다.
+
+```powershell
+if (-not (Test-Path android/app/google-services.json)) {
+  throw "Firebase 설정이 필요합니다: android/app/google-services.json"
+}
+
+flutter run --dart-define-from-file=config/staging.json
+```
+
+Android staging 릴리스 빌드에도 동일한 Firebase 설정 파일이 필요하며, 같은 staging 설정을 전달한다.
+
+```bash
+flutter build apk --release --dart-define-from-file=config/staging.json
+```
+
+`config/staging.json`에는 공개 가능한 API 선택값과 URL만 둔다. 지도 client ID처럼 별도 관리가 필요한 값은 파일에 추가하지 않고 기존 `--dart-define` 방식으로 전달한다.
+
 ## 검증 명령
 
 작업 후 가능한 경우 아래 순서로 확인한다.
