@@ -62,6 +62,7 @@ abstract interface class AuthRepository {
     required String password,
     required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
+    String introduction = '',
   });
 
   Future<AuthUser> updateProfile({

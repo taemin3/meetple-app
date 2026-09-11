@@ -109,6 +109,7 @@ class MockAuthRepository implements AuthRepository {
     required String password,
     required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
+    String introduction = '',
   }) async {
     _ensureNotBlank(nickname, '닉네임을 입력해 주세요.');
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
@@ -121,12 +122,17 @@ class MockAuthRepository implements AuthRepository {
     if (legalDocuments.length != LegalDocumentType.values.length) {
       throw const AuthException('최신 약관을 확인해 주세요.');
     }
+    final normalizedIntroduction = introduction.trim();
+    if (normalizedIntroduction.length > 30) {
+      throw const AuthException('한줄 소개는 30자 이하여야 합니다.');
+    }
 
     final session = AuthSession(
       user: mockAuthUser.copyWith(
         nickname: nickname,
         handle: nickname,
         email: email,
+        introduction: normalizedIntroduction,
         createdMeetingsCount: 0,
         joinedMeetingsCount: 0,
         likedMeetingsCount: 0,

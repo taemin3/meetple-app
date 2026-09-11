@@ -1234,6 +1234,7 @@ class _DeferredAuthRepository implements AuthRepository {
     required String password,
     required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
+    String introduction = '',
   }) {
     throw UnimplementedError();
   }
