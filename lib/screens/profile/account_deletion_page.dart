@@ -122,7 +122,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
 
   Future<void> _deleteAccount() async {
     final password = _passwordController.text;
-    if (password.isEmpty) {
+    if (password.trim().isEmpty) {
       setState(() => _errorMessage = '현재 비밀번호를 입력해 주세요.');
       return;
     }
@@ -138,6 +138,10 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
       Navigator.of(context).pop(true);
     } on AccountDeletionException catch (error) {
       if (!mounted) return;
+      if (error.failure == AccountDeletionFailure.sessionExpired) {
+        Navigator.of(context).pop(true);
+        return;
+      }
       setState(() {
         _submitting = false;
         _errorMessage = switch (error.failure) {

@@ -385,14 +385,14 @@ class _ProfileContentState extends State<ProfileContent> {
   }
 
   Future<void> _openAccountDeletion() async {
-    final deleted = await Navigator.of(context).push<bool>(
+    final shouldSignOut = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => AccountDeletionPage(
           authRepository: widget.authRepository,
         ),
       ),
     );
-    if (!mounted || deleted != true) return;
+    if (!mounted || shouldSignOut != true) return;
 
     Navigator.of(context, rootNavigator: true)
         .popUntil((route) => route.isFirst);

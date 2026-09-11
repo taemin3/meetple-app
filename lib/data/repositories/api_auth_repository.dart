@@ -492,7 +492,7 @@ class ApiAuthRepository implements AuthRepository {
       _ensureSuccess(response);
     } on ApiException catch (error) {
       if (error.statusCode == 401) {
-        await _clearDeletedAccountSession();
+        await _clearDeletedAccountSessionBestEffort();
         throw const AccountDeletionException(
           '세션이 만료되었습니다. 다시 로그인해 주세요.',
           AccountDeletionFailure.sessionExpired,
@@ -524,13 +524,21 @@ class ApiAuthRepository implements AuthRepository {
     }
 
     await _deactivatePushBeforeSignOut();
-    await _clearDeletedAccountSession();
+    await _clearDeletedAccountSessionBestEffort();
   }
 
-  Future<void> _clearDeletedAccountSession() async {
+  Future<void> _clearDeletedAccountSessionBestEffort() async {
     _session = null;
-    await _tokenRefreshCoordinator.prepareForSignOut();
-    await _tokenRefreshCoordinator.clearAfterSignOut();
+    try {
+      await _tokenRefreshCoordinator.prepareForSignOut();
+    } on Exception {
+      // The server account is already deleted; local cleanup must still continue.
+    }
+    try {
+      await _tokenRefreshCoordinator.clearAfterSignOut();
+    } on Exception {
+      // Keep the app signed out even when secure storage cleanup fails.
+    }
   }
 
   Future<void> _deactivatePushBeforeSignOut() async {

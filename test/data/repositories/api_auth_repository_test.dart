@@ -946,6 +946,29 @@ void main() {
     expect(await tokenStore.read(), isNull);
   });
 
+  test('keeps server deletion successful when local token cleanup fails',
+      () async {
+    final tokenStore = _ThrowingClearTokenStore(
+      const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(responses: [_apiResponse(data: null)]);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+    );
+
+    await expectLater(
+      repository.deleteAccount(currentPassword: 'password123'),
+      completes,
+    );
+
+    expect(apiClient.requests.single.path, '/api/v1/users/me');
+    expect(tokenStore.clearCount, 1);
+  });
+
   test('keeps session when account deletion password is wrong', () async {
     final tokenStore = MemoryAuthTokenStore(
       initialTokens: const AuthTokenPair(

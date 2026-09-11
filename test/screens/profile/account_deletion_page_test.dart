@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/screens/profile/account_deletion_page.dart';
 
@@ -46,11 +47,85 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.ensureVisible(find.byKey(const Key('account_deletion_submit')));
+    await tester
+        .ensureVisible(find.byKey(const Key('account_deletion_submit')));
     await tester.tap(find.byKey(const Key('account_deletion_submit')));
     await tester.pumpAndSettle();
 
     expect(find.text('현재 비밀번호가 올바르지 않습니다.'), findsOneWidget);
+  });
+
+  testWidgets('treats a whitespace-only password as a required field error', (
+    tester,
+  ) async {
+    final repository = _DeferredDeletionRepository();
+    await tester.pumpWidget(
+      MaterialApp(home: AccountDeletionPage(authRepository: repository)),
+    );
+    await tester.enterText(
+      find.byKey(const Key('account_deletion_password')),
+      '   ',
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('account_deletion_confirm')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    await tester.pump();
+    await tester
+        .ensureVisible(find.byKey(const Key('account_deletion_submit')));
+    await tester.tap(find.byKey(const Key('account_deletion_submit')));
+    await tester.pump();
+
+    expect(find.text('현재 비밀번호를 입력해 주세요.'), findsOneWidget);
+    expect(repository.callCount, 0);
+  });
+
+  testWidgets('returns a sign-out result when the session has expired', (
+    tester,
+  ) async {
+    bool? shouldSignOut;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: ElevatedButton(
+              onPressed: () async {
+                shouldSignOut = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (_) => AccountDeletionPage(
+                      authRepository: _SessionExpiredDeletionRepository(),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('account_deletion_password')),
+      'password123',
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('account_deletion_confirm')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    await tester.pump();
+    await tester
+        .ensureVisible(find.byKey(const Key('account_deletion_submit')));
+    await tester.tap(find.byKey(const Key('account_deletion_submit')));
+    await tester.pumpAndSettle();
+
+    expect(shouldSignOut, isTrue);
+    expect(find.byType(AccountDeletionPage), findsNothing);
   });
 
   testWidgets('blocks duplicate submission and returns success once',
@@ -90,7 +165,8 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.ensureVisible(find.byKey(const Key('account_deletion_submit')));
+    await tester
+        .ensureVisible(find.byKey(const Key('account_deletion_submit')));
     await tester.tap(find.byKey(const Key('account_deletion_submit')));
     await tester.tap(find.byKey(const Key('account_deletion_submit')));
     await tester.pump();
@@ -116,4 +192,14 @@ class _DeferredDeletionRepository extends MockAuthRepository {
   }
 
   void complete() => _completer.complete();
+}
+
+class _SessionExpiredDeletionRepository extends MockAuthRepository {
+  @override
+  Future<void> deleteAccount({required String currentPassword}) {
+    throw const AccountDeletionException(
+      '세션이 만료되었습니다. 다시 로그인해 주세요.',
+      AccountDeletionFailure.sessionExpired,
+    );
+  }
 }
