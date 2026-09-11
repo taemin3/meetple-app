@@ -31,6 +31,7 @@ void main() {
       find.byKey(const Key('profile_account_reset_password')),
       findsOneWidget,
     );
+    expect(find.byKey(const Key('profile_account_delete')), findsOneWidget);
 
     await tester.tap(
       find.byKey(const Key('profile_account_reset_password')),

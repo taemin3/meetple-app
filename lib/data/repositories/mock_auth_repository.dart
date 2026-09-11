@@ -94,8 +94,7 @@ class MockAuthRepository implements AuthRepository {
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
     _ensureNotBlank(passwordResetToken, '이메일 인증을 완료해 주세요.');
     _ensureNotBlank(newPassword, '새 비밀번호를 입력해 주세요.');
-    final passwordValidationMessage =
-        newPasswordValidationMessage(newPassword);
+    final passwordValidationMessage = newPasswordValidationMessage(newPassword);
     if (passwordValidationMessage != null) {
       throw AuthException(passwordValidationMessage);
     }
@@ -183,6 +182,24 @@ class MockAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    _session = null;
+  }
+
+  @override
+  Future<void> deleteAccount({required String currentPassword}) async {
+    _ensureNotBlank(currentPassword, '현재 비밀번호를 입력해 주세요.');
+    if (_session == null) {
+      throw const AccountDeletionException(
+        '세션이 만료되었습니다. 다시 로그인해 주세요.',
+        AccountDeletionFailure.sessionExpired,
+      );
+    }
+    if (currentPassword == 'wrong-password') {
+      throw const AccountDeletionException(
+        '현재 비밀번호가 올바르지 않습니다.',
+        AccountDeletionFailure.invalidPassword,
+      );
+    }
     _session = null;
   }
 

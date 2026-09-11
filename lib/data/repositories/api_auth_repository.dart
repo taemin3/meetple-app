@@ -480,6 +480,59 @@ class ApiAuthRepository implements AuthRepository {
     }
   }
 
+  @override
+  Future<void> deleteAccount({required String currentPassword}) async {
+    _ensureNotBlank(currentPassword, '현재 비밀번호를 입력해 주세요.');
+
+    try {
+      final response = await _apiClient.deleteJson(
+        '/api/v1/users/me',
+        body: {'currentPassword': currentPassword},
+      );
+      _ensureSuccess(response);
+    } on ApiException catch (error) {
+      if (error.statusCode == 401) {
+        await _clearDeletedAccountSession();
+        throw const AccountDeletionException(
+          '세션이 만료되었습니다. 다시 로그인해 주세요.',
+          AccountDeletionFailure.sessionExpired,
+        );
+      }
+      if (_readInt(error.body['code']) == 10009) {
+        throw AccountDeletionException(
+          error.message,
+          AccountDeletionFailure.invalidPassword,
+        );
+      }
+      if (error.statusCode >= 500) {
+        throw const AccountDeletionException(
+          '네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+          AccountDeletionFailure.network,
+        );
+      }
+      throw AccountDeletionException(
+        error.message,
+        AccountDeletionFailure.unknown,
+      );
+    } on AccountDeletionException {
+      rethrow;
+    } on Exception {
+      throw const AccountDeletionException(
+        '네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+        AccountDeletionFailure.network,
+      );
+    }
+
+    await _deactivatePushBeforeSignOut();
+    await _clearDeletedAccountSession();
+  }
+
+  Future<void> _clearDeletedAccountSession() async {
+    _session = null;
+    await _tokenRefreshCoordinator.prepareForSignOut();
+    await _tokenRefreshCoordinator.clearAfterSignOut();
+  }
+
   Future<void> _deactivatePushBeforeSignOut() async {
     try {
       await _beforeSignOut?.call();

@@ -919,6 +919,96 @@ void main() {
     expect(await tokenStore.read(), isNull);
   });
 
+  test('deletes account then deactivates push and clears local tokens',
+      () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final apiClient = FakeApiClient(responses: [_apiResponse(data: null)]);
+    var pushDeactivated = false;
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: tokenStore,
+      beforeSignOut: () async => pushDeactivated = true,
+    );
+
+    await repository.deleteAccount(currentPassword: 'password123');
+
+    expect(apiClient.requests.single.method, 'DELETE');
+    expect(apiClient.requests.single.path, '/api/v1/users/me');
+    expect(apiClient.requests.single.body, {
+      'currentPassword': 'password123',
+    });
+    expect(pushDeactivated, isTrue);
+    expect(await tokenStore.read(), isNull);
+  });
+
+  test('keeps session when account deletion password is wrong', () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final repository = ApiAuthRepository(
+      apiClient: FakeApiClient(
+        responses: [
+          const ApiException(
+            statusCode: 400,
+            message: '현재 비밀번호가 올바르지 않습니다.',
+            body: {'code': 10009},
+          ),
+        ],
+      ),
+      tokenStore: tokenStore,
+    );
+
+    await expectLater(
+      repository.deleteAccount(currentPassword: 'wrong-password'),
+      throwsA(
+        isA<AccountDeletionException>().having(
+          (error) => error.failure,
+          'failure',
+          AccountDeletionFailure.invalidPassword,
+        ),
+      ),
+    );
+    expect(await tokenStore.read(), isNotNull);
+  });
+
+  test('clears local session when deletion request finds an expired session',
+      () async {
+    final tokenStore = MemoryAuthTokenStore(
+      initialTokens: const AuthTokenPair(
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final repository = ApiAuthRepository(
+      apiClient: FakeApiClient(
+        responses: [
+          const ApiException(statusCode: 401, message: 'Unauthorized'),
+        ],
+      ),
+      tokenStore: tokenStore,
+    );
+
+    await expectLater(
+      repository.deleteAccount(currentPassword: 'password123'),
+      throwsA(
+        isA<AccountDeletionException>().having(
+          (error) => error.failure,
+          'failure',
+          AccountDeletionFailure.sessionExpired,
+        ),
+      ),
+    );
+    expect(await tokenStore.read(), isNull);
+  });
+
   test('still signs out when the installation ID cannot be read', () async {
     final tokenStore = MemoryAuthTokenStore(
       initialTokens: const AuthTokenPair(
@@ -1112,6 +1202,24 @@ class FakeApiClient extends ApiClient {
     requests.add(
       RecordedApiRequest(
         method: 'PATCH',
+        path: path,
+        queryParameters: const {},
+        body: body,
+        includeAuthorization: true,
+      ),
+    );
+
+    return _nextResponse();
+  }
+
+  @override
+  Future<Map<String, dynamic>> deleteJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) async {
+    requests.add(
+      RecordedApiRequest(
+        method: 'DELETE',
         path: path,
         queryParameters: const {},
         body: body,
