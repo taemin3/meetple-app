@@ -22,7 +22,10 @@ abstract class ApiClient {
     throw UnimplementedError('PATCH is not implemented by this API client.');
   }
 
-  Future<Map<String, dynamic>> deleteJson(String path) {
+  Future<Map<String, dynamic>> deleteJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) {
     throw UnimplementedError('DELETE is not implemented by this API client.');
   }
 }
@@ -99,11 +102,20 @@ class HttpApiClient extends ApiClient {
   }
 
   @override
-  Future<Map<String, dynamic>> deleteJson(String path) async {
+  Future<Map<String, dynamic>> deleteJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) async {
     final uri = _buildUri(path, const {});
+    final encodedBody = body.isEmpty ? null : jsonEncode(body);
     return _sendJson(
       includeAuthorization: true,
-      send: (headers) => _httpClient.delete(uri, headers: headers),
+      contentType: body.isEmpty ? null : 'application/json',
+      send: (headers) => _httpClient.delete(
+        uri,
+        headers: headers,
+        body: encodedBody,
+      ),
     );
   }
 

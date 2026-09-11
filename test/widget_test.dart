@@ -1256,6 +1256,11 @@ class _DeferredAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+
+  @override
+  Future<void> deleteAccount({required String currentPassword}) {
+    throw UnimplementedError();
+  }
 }
 
 class _CountingMeetingRepository extends MockMeetingRepository {

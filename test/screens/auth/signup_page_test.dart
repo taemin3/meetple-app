@@ -641,6 +641,11 @@ class _SignUpAuthRepository implements AuthRepository {
   Future<void> signOut() async {
     _session = null;
   }
+
+  @override
+  Future<void> deleteAccount({required String currentPassword}) {
+    throw UnimplementedError();
+  }
 }
 
 class _RecordingImageUploadRepository implements ImageUploadRepository {

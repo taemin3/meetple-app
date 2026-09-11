@@ -218,7 +218,10 @@ class FakeApiClient extends ApiClient {
   }
 
   @override
-  Future<Map<String, dynamic>> deleteJson(String path) async {
+  Future<Map<String, dynamic>> deleteJson(
+    String path, {
+    Map<String, dynamic> body = const {},
+  }) async {
     deletePath = path;
     return response;
   }

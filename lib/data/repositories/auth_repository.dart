@@ -72,6 +72,8 @@ abstract interface class AuthRepository {
   void synchronizeUser(AuthUser user);
 
   Future<void> signOut();
+
+  Future<void> deleteAccount({required String currentPassword});
 }
 
 class AuthException implements Exception {
@@ -81,4 +83,17 @@ class AuthException implements Exception {
 
   @override
   String toString() => message;
+}
+
+enum AccountDeletionFailure {
+  invalidPassword,
+  sessionExpired,
+  network,
+  unknown,
+}
+
+class AccountDeletionException extends AuthException {
+  const AccountDeletionException(super.message, this.failure);
+
+  final AccountDeletionFailure failure;
 }

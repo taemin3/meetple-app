@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/mock/mock_legal_documents.dart';
+import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/screens/auth/password_reset_page.dart';
 import 'package:meetple/screens/profile/legal_documents_page.dart';
@@ -31,6 +32,7 @@ void main() {
       find.byKey(const Key('profile_account_reset_password')),
       findsOneWidget,
     );
+    expect(find.byKey(const Key('profile_account_delete')), findsOneWidget);
 
     await tester.tap(
       find.byKey(const Key('profile_account_reset_password')),
@@ -140,4 +142,54 @@ void main() {
     expect(find.text('로그인이 필요합니다.'), findsOneWidget);
     expect(find.text('비밀번호가 변경되어 다시 로그인해 주세요.'), findsOneWidget);
   });
+
+  testWidgets('signs out from the auth root when deletion session expires', (
+    tester,
+  ) async {
+    var signedOutCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfilePage(
+            authRepository: _SessionExpiredDeletionRepository(),
+            onSignedOut: () => signedOutCount += 1,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('profile_account_menu_open')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('profile_account_delete')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('account_deletion_password')),
+      'password123',
+    );
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('account_deletion_confirm')),
+        matching: find.byType(Checkbox),
+      ),
+    );
+    await tester.pump();
+    await tester
+        .ensureVisible(find.byKey(const Key('account_deletion_submit')));
+    await tester.tap(find.byKey(const Key('account_deletion_submit')));
+    await tester.pumpAndSettle();
+
+    expect(signedOutCount, 1);
+    expect(find.text('로그인이 필요합니다.'), findsOneWidget);
+  });
+}
+
+class _SessionExpiredDeletionRepository extends MockAuthRepository {
+  @override
+  Future<void> deleteAccount({required String currentPassword}) {
+    throw const AccountDeletionException(
+      '세션이 만료되었습니다. 다시 로그인해 주세요.',
+      AccountDeletionFailure.sessionExpired,
+    );
+  }
 }

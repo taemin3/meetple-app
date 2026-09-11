@@ -22,6 +22,7 @@ import '../auth/auth_form_widgets.dart';
 import '../auth/password_reset_page.dart';
 import '../notifications/notifications_page.dart';
 import 'bookmarked_meetings_page.dart';
+import 'account_deletion_page.dart';
 import 'legal_documents_page.dart';
 import 'my_applications_page.dart';
 import 'my_meetings_page.dart';
@@ -343,6 +344,17 @@ class _ProfileContentState extends State<ProfileContent> {
               ),
             ),
             ListTile(
+              key: const Key('profile_account_delete'),
+              leading: const Icon(Icons.person_remove_outlined),
+              title: const Text(
+                '회원 탈퇴',
+                style: TextStyle(color: AppColors.error),
+              ),
+              onTap: () => Navigator.of(sheetContext).pop(
+                _ProfileAccountAction.deleteAccount,
+              ),
+            ),
+            ListTile(
               key: const Key('profile_account_reset_password'),
               leading: const Icon(Icons.lock_reset_rounded),
               title: const Text('비밀번호 재설정'),
@@ -366,7 +378,25 @@ class _ProfileContentState extends State<ProfileContent> {
       case _ProfileAccountAction.resetPassword:
         await _openPasswordReset();
         return;
+      case _ProfileAccountAction.deleteAccount:
+        await _openAccountDeletion();
+        return;
     }
+  }
+
+  Future<void> _openAccountDeletion() async {
+    final shouldSignOut = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AccountDeletionPage(
+          authRepository: widget.authRepository,
+        ),
+      ),
+    );
+    if (!mounted || shouldSignOut != true) return;
+
+    Navigator.of(context, rootNavigator: true)
+        .popUntil((route) => route.isFirst);
+    widget.onSignedOut();
   }
 
   Future<void> _openProfileEditor() async {
@@ -701,7 +731,7 @@ class ProfileMenuGroup extends StatelessWidget {
   }
 }
 
-enum _ProfileAccountAction { editProfile, resetPassword }
+enum _ProfileAccountAction { editProfile, resetPassword, deleteAccount }
 
 class ProfileMenuItem extends StatelessWidget {
   const ProfileMenuItem({
