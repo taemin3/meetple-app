@@ -370,6 +370,7 @@ class ApiAuthRepository implements AuthRepository {
     required String password,
     required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
+    String introduction = '',
   }) async {
     _ensureNotBlank(nickname, '닉네임을 입력해 주세요.');
     _ensureNotBlank(email, '이메일을 입력해 주세요.');
@@ -382,6 +383,10 @@ class ApiAuthRepository implements AuthRepository {
     if (legalDocuments.length != LegalDocumentType.values.length) {
       throw const AuthException('최신 약관을 확인해 주세요.');
     }
+    final normalizedIntroduction = introduction.trim();
+    if (normalizedIntroduction.length > 30) {
+      throw const AuthException('한줄 소개는 30자 이하여야 합니다.');
+    }
 
     try {
       final response = await _apiClient.postJson(
@@ -391,6 +396,7 @@ class ApiAuthRepository implements AuthRepository {
           'email': email.trim(),
           'password': password,
           'nickname': nickname.trim(),
+          'introduction': normalizedIntroduction,
           'signupVerificationToken': signupVerificationToken,
           'legalDocuments': legalDocuments
               .map((document) => document.toSignupJson())

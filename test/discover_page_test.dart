@@ -51,7 +51,7 @@ void main() {
             find.byKey(const Key('nearby-meeting-skeleton-list')),
           )
           .label,
-      '내 주변 모임을 불러오는 중입니다.',
+      '주변 모임을 불러오는 중입니다.',
     );
     semantics.dispose();
 
@@ -81,7 +81,7 @@ void main() {
 
     expect(find.text('지도'), findsNothing);
     expect(find.text('모임, 장소, 카테고리 검색'), findsOneWidget);
-    expect(find.text('내 주변 모임 🔥'), findsOneWidget);
+    expect(find.text('주변 모임 🔥'), findsOneWidget);
     expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
   });
 
@@ -228,12 +228,12 @@ void main() {
 
     expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
 
-    await tester.tap(find.text('내 주변 모임 🔥'));
+    await tester.tap(find.text('주변 모임 🔥'));
     await tester.pumpAndSettle();
 
     expect(find.text('한강 러닝 크루 🏃'), findsNothing);
 
-    await tester.tap(find.text('내 주변 모임 🔥'));
+    await tester.tap(find.text('주변 모임 🔥'));
     await tester.pumpAndSettle();
 
     expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);

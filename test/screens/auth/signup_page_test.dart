@@ -340,11 +340,16 @@ void main() {
       find.byKey(const Key('sign_up_nickname')),
       '밋플러',
     );
+    await tester.enterText(
+      find.byKey(const Key('sign_up_introduction')),
+      '같이 산책해요',
+    );
     await tester.ensureVisible(find.text('가입 완료'));
     await tester.tap(find.text('가입 완료'));
     await tester.pumpAndSettle();
 
     expect(authRepository.signUpCount, 1);
+    expect(authRepository.submittedIntroduction, '같이 산책해요');
     expect(authRepository.submittedLegalDocuments, hasLength(3));
     expect(
       authRepository.submittedSignupVerificationToken,
@@ -536,6 +541,7 @@ class _SignUpAuthRepository implements AuthRepository {
   int confirmVerificationCodeCount = 0;
   List<LegalDocument>? submittedLegalDocuments;
   String? submittedSignupVerificationToken;
+  String? submittedIntroduction;
   AuthSession? _session;
 
   @override
@@ -603,16 +609,19 @@ class _SignUpAuthRepository implements AuthRepository {
     required String password,
     required String signupVerificationToken,
     required List<LegalDocument> legalDocuments,
+    String introduction = '',
   }) async {
     signUpCount += 1;
     submittedLegalDocuments = legalDocuments;
     submittedSignupVerificationToken = signupVerificationToken;
+    submittedIntroduction = introduction;
     _session = AuthSession(
       user: AuthUser(
         id: 1,
         nickname: nickname.trim(),
         handle: nickname.trim(),
         email: email.trim(),
+        introduction: introduction.trim(),
         profileImageUrl: profileImageUrl,
       ),
       accessToken: 'access-token',

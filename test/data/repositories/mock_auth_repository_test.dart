@@ -45,11 +45,13 @@ void main() {
       password: 'password1',
       signupVerificationToken: 'signup-verification-token',
       legalDocuments: mockSignupLegalDocuments,
+      introduction: ' 같이 산책해요 ',
     );
 
     expect(session.user.nickname, '밋플러');
     expect(session.user.handle, '밋플러');
     expect(session.user.email, 'new@example.com');
+    expect(session.user.introduction, '같이 산책해요');
     expect(session.user.createdMeetingsCount, 0);
     expect(await repository.restoreSession(), session);
   });

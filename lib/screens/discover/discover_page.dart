@@ -399,7 +399,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     setState(() {
       _locationNotice = isForeverDenied
           ? '위치 권한이 꺼져 있어 기본 지역을 보여드려요.'
-          : '위치 권한을 허용하면 내 주변 모임을 볼 수 있어요.';
+          : '위치 권한을 허용하면 주변 모임을 볼 수 있어요.';
     });
   }
 
@@ -735,7 +735,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   child: Row(
                     children: [
                       Text(
-                        '내 주변 모임',
+                        '주변 모임',
                         style: TextStyle(
                           color: AppColors.ink,
                           fontSize: 20,
@@ -1176,7 +1176,7 @@ class NearbyMeetingSheet extends StatelessWidget {
                     children: [
                       const Expanded(
                         child: Text(
-                          '내 주변 모임 🔥',
+                          '주변 모임 🔥',
                           style: TextStyle(
                             color: AppColors.ink,
                             fontSize: 18,
@@ -1255,7 +1255,7 @@ class _NearbyMeetingSkeletonList extends StatelessWidget {
       key: const Key('nearby-meeting-skeleton-list'),
       container: true,
       liveRegion: true,
-      label: '내 주변 모임을 불러오는 중입니다.',
+      label: '주변 모임을 불러오는 중입니다.',
       child: ExcludeSemantics(
         child: ListView.separated(
           padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),

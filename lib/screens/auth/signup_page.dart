@@ -667,6 +667,7 @@ class _SignUpPageState extends State<SignUpPage> with WidgetsBindingObserver {
           password: _passwordController.text,
           signupVerificationToken: _signupVerificationToken!,
           legalDocuments: _legalDocuments!,
+          introduction: _introController.text,
         );
         _createdSession = session;
       }

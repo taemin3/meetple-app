@@ -405,6 +405,7 @@ void main() {
       password: 'password123',
       signupVerificationToken: 'signup-verification-token',
       legalDocuments: mockSignupLegalDocuments,
+      introduction: ' 같이 산책해요 ',
     );
 
     expect(apiClient.requests.map((request) => request.path), [
@@ -416,6 +417,7 @@ void main() {
       'email': 'new@example.com',
       'password': 'password123',
       'nickname': '새회원',
+      'introduction': '같이 산책해요',
       'signupVerificationToken': 'signup-verification-token',
       'legalDocuments': [
         {'type': 'SERVICE_TERMS', 'version': '2026-08-22'},
@@ -425,6 +427,34 @@ void main() {
     });
     expect(session.user.nickname, '새회원');
     expect(session.accessToken, 'new-access-token');
+  });
+
+  test('rejects an introduction over thirty characters before sign up',
+      () async {
+    final apiClient = FakeApiClient(responses: []);
+    final repository = ApiAuthRepository(
+      apiClient: apiClient,
+      tokenStore: MemoryAuthTokenStore(),
+    );
+
+    await expectLater(
+      repository.signUp(
+        nickname: '새회원',
+        email: 'new@example.com',
+        password: 'password123',
+        signupVerificationToken: 'signup-verification-token',
+        legalDocuments: mockSignupLegalDocuments,
+        introduction: 'a' * 31,
+      ),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '한줄 소개는 30자 이하여야 합니다.',
+        ),
+      ),
+    );
+    expect(apiClient.requests, isEmpty);
   });
 
   test('rejects blank sign up fields before sending API request', () async {
