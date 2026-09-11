@@ -344,6 +344,14 @@ class _ProfileContentState extends State<ProfileContent> {
               ),
             ),
             ListTile(
+              key: const Key('profile_account_reset_password'),
+              leading: const Icon(Icons.lock_reset_rounded),
+              title: const Text('비밀번호 재설정'),
+              onTap: () => Navigator.of(sheetContext).pop(
+                _ProfileAccountAction.resetPassword,
+              ),
+            ),
+            ListTile(
               key: const Key('profile_account_delete'),
               leading: const Icon(Icons.person_remove_outlined),
               title: const Text(
@@ -352,14 +360,6 @@ class _ProfileContentState extends State<ProfileContent> {
               ),
               onTap: () => Navigator.of(sheetContext).pop(
                 _ProfileAccountAction.deleteAccount,
-              ),
-            ),
-            ListTile(
-              key: const Key('profile_account_reset_password'),
-              leading: const Icon(Icons.lock_reset_rounded),
-              title: const Text('비밀번호 재설정'),
-              onTap: () => Navigator.of(sheetContext).pop(
-                _ProfileAccountAction.resetPassword,
               ),
             ),
             const SizedBox(height: 8),
