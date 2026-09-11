@@ -215,7 +215,7 @@ void main() {
       meetingRepository.nearbyQueries.last.category,
       '운동',
     );
-    expect(find.text('내 주변 모임 🔥'), findsOneWidget);
+    expect(find.text('주변 모임 🔥'), findsOneWidget);
 
     await tester.tap(find.text('홈'));
     await tester.pumpAndSettle();
@@ -243,7 +243,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('내 주변 모임 🔥'), findsOneWidget);
+    expect(find.text('주변 모임 🔥'), findsOneWidget);
     expect(meetingRepository.nearbyQueries.last.category, isNull);
   });
 
