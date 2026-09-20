@@ -17,6 +17,7 @@ import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/loading_skeleton.dart';
+import '../../widgets/main_tab_header.dart';
 import '../../widgets/meeting_list_card.dart';
 import '../../widgets/section_title.dart';
 import '../notifications/notifications_page.dart';
@@ -131,17 +132,51 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-      children: [
-        HomeGreeting(
+  void _openNotifications() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => NotificationsPage(
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
           onMeetingChanged: widget.onMeetingChanged ?? _reloadMeetings,
         ),
-        const SizedBox(height: 24),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        MainTabHeader(
+          title: '밋플',
+          titleTrailing: Image.asset(
+            'assets/icons/app-icon-foreground.png',
+            key: const Key('home-app-icon'),
+            width: 32,
+            height: 32,
+            filterQuality: FilterQuality.medium,
+          ),
+          actions: [
+            IconButton(
+              key: const Key('home-notifications-open'),
+              tooltip: '알림',
+              onPressed: _openNotifications,
+              icon: const Icon(Icons.notifications_none_rounded),
+            ),
+          ],
+        ),
+        Expanded(child: _buildHomeList()),
+      ],
+    );
+  }
+
+  Widget _buildHomeList() {
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+      children: [
+        const HomeGreeting(),
+        const SizedBox(height: 18),
         HomeSearchField(
           onTap: () => _openDiscover(focusSearch: true),
         ),
@@ -213,23 +248,14 @@ class _HomePageState extends State<HomePage> {
 }
 
 class HomeGreeting extends StatelessWidget {
-  const HomeGreeting({
-    super.key,
-    required this.meetingRepository,
-    required this.notificationRepository,
-    this.onMeetingChanged,
-  });
-
-  final MeetingRepository meetingRepository;
-  final NotificationRepository notificationRepository;
-  final VoidCallback? onMeetingChanged;
+  const HomeGreeting({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -237,16 +263,16 @@ class HomeGreeting extends StatelessWidget {
                 '새로운 모임,',
                 style: TextStyle(
                   color: AppColors.muted,
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(height: 6),
+              SizedBox(height: 4),
               Text(
                 '함께할 사람을\n찾아보세요 👋',
                 style: TextStyle(
                   color: AppColors.ink,
-                  fontSize: 26,
+                  fontSize: 22,
                   height: 1.25,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0,
@@ -254,18 +280,6 @@ class HomeGreeting extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        IconButton(
-          onPressed: () => Navigator.of(context).push<void>(
-            MaterialPageRoute(
-              builder: (_) => NotificationsPage(
-                meetingRepository: meetingRepository,
-                notificationRepository: notificationRepository,
-                onMeetingChanged: onMeetingChanged,
-              ),
-            ),
-          ),
-          icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
     );
@@ -282,22 +296,32 @@ class HomeSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      key: const Key('home-search-field'),
-      readOnly: true,
-      onTap: onTap,
-      decoration: InputDecoration(
-        hintText: '모임, 장소, 키워드 검색',
-        prefixIcon: const Icon(Icons.search),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+    return SizedBox(
+      height: 48,
+      child: TextField(
+        key: const Key('home-search-field'),
+        readOnly: true,
+        onTap: onTap,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: '모임, 장소, 키워드 검색',
+          hintStyle: const TextStyle(fontSize: 14, color: AppColors.muted),
+          prefixIcon: const Icon(Icons.search, size: 21),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 44, minHeight: 44),
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
     );

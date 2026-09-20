@@ -39,13 +39,6 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(
-        const ValueKey('nearby-meeting-skeleton-2'),
-        skipOffstage: false,
-      ),
-      findsOneWidget,
-    );
-    expect(
       tester
           .getSemantics(
             find.byKey(const Key('nearby-meeting-skeleton-list')),

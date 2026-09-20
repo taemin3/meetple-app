@@ -15,6 +15,7 @@ import '../../models/auth_user.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_list_filter.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/main_tab_header.dart';
 import '../../widgets/network_image_with_skeleton.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/surface_panel.dart';
@@ -57,6 +58,7 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   late Future<AuthSession?> _sessionFuture;
   late AuthRepository _authRepository;
+  final _profileContentKey = GlobalKey<_ProfileContentState>();
 
   @override
   void initState() {
@@ -92,37 +94,58 @@ class _ProfilePageState extends State<ProfilePage> {
     return FutureBuilder<AuthSession?>(
       future: _sessionFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const AppLoadingView(message: '내 정보를 불러오는 중입니다.');
-        }
-
-        if (snapshot.hasError) {
-          return AppErrorView(
+        Widget content;
+        final session = snapshot.data;
+        if (snapshot.connectionState != ConnectionState.done &&
+            !snapshot.hasData) {
+          content = const AppLoadingView(message: '내 정보를 불러오는 중입니다.');
+        } else if (snapshot.hasError) {
+          content = AppErrorView(
             message: '내 정보를 불러오지 못했습니다.',
             onRetry: _reloadSession,
           );
-        }
-
-        final session = snapshot.data;
-        if (session == null) {
-          return SignedOutProfile(
+        } else if (session == null) {
+          content = SignedOutProfile(
             authRepository: _authRepository,
             onSignedIn: _showSession,
           );
+        } else {
+          content = ProfileContent(
+            key: _profileContentKey,
+            user: session.user,
+            authRepository: _authRepository,
+            imageUploadRepository: widget.imageUploadRepository,
+            pickProfileImage: widget.pickProfileImage,
+            meetingRepository: widget.meetingRepository,
+            notificationRepository: widget.notificationRepository,
+            onSignedOut: _showSignedOut,
+            onProfileUpdated: (result) {
+              _showProfile(session, result);
+            },
+            onMeetingChanged: widget.onMeetingChanged,
+          );
         }
 
-        return ProfileContent(
-          user: session.user,
-          authRepository: _authRepository,
-          imageUploadRepository: widget.imageUploadRepository,
-          pickProfileImage: widget.pickProfileImage,
-          meetingRepository: widget.meetingRepository,
-          notificationRepository: widget.notificationRepository,
-          onSignedOut: _showSignedOut,
-          onProfileUpdated: (result) {
-            _showProfile(session, result);
-          },
-          onMeetingChanged: widget.onMeetingChanged,
+        return Column(
+          children: [
+            MainTabHeader(
+              title: '마이페이지',
+              actions: [
+                IconButton(
+                  key: const Key('profile_account_menu_open'),
+                  tooltip: '계정 관리',
+                  onPressed: session == null ||
+                          snapshot.hasError ||
+                          snapshot.connectionState != ConnectionState.done
+                      ? null
+                      : () =>
+                          _profileContentKey.currentState?._openAccountMenu(),
+                  icon: const Icon(Icons.settings_outlined),
+                ),
+              ],
+            ),
+            Expanded(child: content),
+          ],
         );
       },
     );
@@ -193,7 +216,6 @@ class _ProfileContentState extends State<ProfileContent> {
       children: [
         ProfileHeader(
           user: widget.user,
-          onOpenAccountMenu: _openAccountMenu,
         ),
         const SizedBox(height: 24),
         ProfileStatsCard(user: widget.user),
@@ -471,11 +493,11 @@ class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
     super.key,
     required this.user,
-    required this.onOpenAccountMenu,
+    this.onOpenAccountMenu,
   });
 
   final AuthUser user;
-  final VoidCallback onOpenAccountMenu;
+  final VoidCallback? onOpenAccountMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -511,12 +533,13 @@ class ProfileHeader extends StatelessWidget {
             ],
           ),
         ),
-        IconButton(
-          key: const Key('profile_account_menu_open'),
-          tooltip: '계정 관리',
-          onPressed: onOpenAccountMenu,
-          icon: const Icon(Icons.settings_outlined),
-        ),
+        if (onOpenAccountMenu != null)
+          IconButton(
+            key: const Key('profile_account_menu_open'),
+            tooltip: '계정 관리',
+            onPressed: onOpenAccountMenu,
+            icon: const Icon(Icons.settings_outlined),
+          ),
       ],
     );
   }

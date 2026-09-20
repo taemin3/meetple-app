@@ -124,49 +124,57 @@ class _AppShellState extends State<AppShell> {
               ],
             ),
           ),
-          bottomNavigationBar: DecoratedBox(
+          bottomNavigationBar: ColoredBox(
             key: const Key('app-bottom-navigation'),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.line)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: NavigationBar(
-                height: 70,
-                elevation: 0,
-                backgroundColor: Colors.white,
-                indicatorColor: AppColors.softSurface,
-                selectedIndex: _indexOfTab(currentTab),
-                onDestinationSelected: _selectDestination,
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home),
-                    label: '홈',
+            color: AppColors.canvas,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  key: Key('app-bottom-navigation-divider'),
+                  width: double.infinity,
+                  height: 0.5,
+                  child: ColoredBox(color: Color(0xFFD8D8D8)),
+                ),
+                SafeArea(
+                  top: false,
+                  child: NavigationBar(
+                    height: 60,
+                    elevation: 0,
+                    backgroundColor: AppColors.canvas,
+                    indicatorColor: AppColors.softSurface,
+                    selectedIndex: _indexOfTab(currentTab),
+                    onDestinationSelected: _selectDestination,
+                    destinations: const [
+                      NavigationDestination(
+                        icon: Icon(Icons.home_outlined),
+                        selectedIcon: Icon(Icons.home),
+                        label: '홈',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.search),
+                        selectedIcon: Icon(Icons.search),
+                        label: '탐색',
+                      ),
+                      NavigationDestination(
+                        icon: _CreateMeetingAction(),
+                        selectedIcon: _CreateMeetingAction(),
+                        label: '모임 만들기',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.chat_bubble_outline),
+                        selectedIcon: Icon(Icons.chat_bubble),
+                        label: '채팅',
+                      ),
+                      NavigationDestination(
+                        icon: Icon(Icons.person_outline),
+                        selectedIcon: Icon(Icons.person),
+                        label: '마이페이지',
+                      ),
+                    ],
                   ),
-                  NavigationDestination(
-                    icon: Icon(Icons.search),
-                    selectedIcon: Icon(Icons.search),
-                    label: '탐색',
-                  ),
-                  NavigationDestination(
-                    icon: _CreateMeetingAction(),
-                    selectedIcon: _CreateMeetingAction(),
-                    label: '모임 만들기',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.chat_bubble_outline),
-                    selectedIcon: Icon(Icons.chat_bubble),
-                    label: '채팅',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.person_outline),
-                    selectedIcon: Icon(Icons.person),
-                    label: '마이',
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
           backgroundColor: AppColors.canvas,
@@ -334,6 +342,9 @@ class _AppShellState extends State<AppShell> {
       case AppTab.chat:
         return ChatPage(
           chatRepository: widget.chatRepository,
+          meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
+          onMeetingChanged: _invalidateMeetingTabs,
           chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
           refreshToken: _chatRefreshToken,

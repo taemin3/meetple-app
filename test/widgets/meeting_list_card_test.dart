@@ -6,8 +6,9 @@ import 'package:meetple/widgets/meeting_list_card.dart';
 import 'package:meetple/widgets/meeting_photo.dart';
 
 void main() {
-  testWidgets('aligns the trailing bookmark at the bottom right',
+  testWidgets('shows the reference card layout and opens the meeting',
       (tester) async {
+    var tapped = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
@@ -15,6 +16,43 @@ void main() {
           body: Center(
             child: SizedBox(
               width: 360,
+              child: MeetingListCard(
+                meeting: _meeting,
+                onTap: () => tapped = true,
+                trailing: const Icon(Icons.bookmark_border),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final photo = tester.getRect(find.byType(MeetingPhoto));
+    final category = tester.getRect(find.text('취미'));
+    final bookmark = tester.getRect(find.byIcon(Icons.bookmark_border));
+    final title = tester.getRect(find.text('도예 원데이 클래스'));
+
+    expect(photo.right, lessThan(category.left));
+    expect(category.top, lessThan(title.top));
+    expect(bookmark.center.dx, greaterThan(title.center.dx));
+    expect(bookmark.top, lessThan(title.top));
+    expect(find.text('흙으로 만드는 특별한 하루'), findsOneWidget);
+    expect(find.text('9/23 (화) 14:00'), findsOneWidget);
+    expect(find.text('수원 행궁동'), findsOneWidget);
+    expect(find.text('6/8명'), findsOneWidget);
+
+    await tester.tap(find.text('도예 원데이 클래스'));
+    expect(tapped, isTrue);
+  });
+
+  testWidgets('keeps the card within a narrow list', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 280,
               child: MeetingListCard(
                 meeting: _meeting,
                 onTap: () {},
@@ -26,87 +64,24 @@ void main() {
       ),
     );
 
-    final cardMaterial = find
-        .descendant(
-          of: find.byType(MeetingListCard),
-          matching: find.byType(Material),
-        )
-        .first;
-    final cardRect = tester.getRect(cardMaterial);
-    final photoRect = tester.getRect(find.byType(MeetingPhoto));
-    final bookmarkRect = tester.getRect(find.byIcon(Icons.bookmark_border));
-
-    expect(bookmarkRect.center.dx, greaterThan(photoRect.right));
-    expect(bookmarkRect.bottom, closeTo(cardRect.bottom - 10, 0.1));
-  });
-
-  testWidgets('aligns trailing to the actual bottom of a variable-height card',
-      (tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light(),
-        home: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 280,
-              child: MeetingListCard(
-                meeting: _meetingWithWrappedTags,
-                onTap: () {},
-                trailing: const Icon(Icons.bookmark_border),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-
-    final cardMaterial = find
-        .descendant(
-          of: find.byType(MeetingListCard),
-          matching: find.byType(Material),
-        )
-        .first;
-    final cardRect = tester.getRect(cardMaterial);
-    final photoRect = tester.getRect(find.byType(MeetingPhoto));
-    final bookmarkRect = tester.getRect(find.byIcon(Icons.bookmark_border));
-
-    expect(cardRect.height, greaterThan(photoRect.height + 20));
-    expect(bookmarkRect.bottom, greaterThan(photoRect.bottom));
-    expect(bookmarkRect.bottom, closeTo(cardRect.bottom - 10, 0.1));
+    expect(tester.takeException(), isNull);
+    expect(find.text('6/8명'), findsOneWidget);
   });
 }
 
 const _meeting = Meeting(
   id: 1,
-  title: '한강 러닝',
-  category: '운동',
-  tags: ['운동'],
-  area: '여의도',
-  date: '8/10',
-  time: '19:00',
+  title: '도예 원데이 클래스',
+  category: '취미',
+  tags: ['도예'],
+  area: '수원 행궁동',
+  date: '9/23 (화)',
+  time: '14:00',
   distance: '1km',
-  capacity: 10,
-  joined: 4,
+  capacity: 8,
+  joined: 6,
   host: '모임장',
-  description: '설명',
-  fee: '무료',
-  rating: 0,
-  reviewCount: 0,
-);
-
-const _meetingWithWrappedTags = Meeting(
-  id: 2,
-  title: '한강 러닝',
-  category: '운동',
-  tags: ['러닝 모임', '주말 운동', '초보 환영'],
-  area: '여의도',
-  date: '8/10',
-  time: '19:00',
-  distance: '1km',
-  capacity: 10,
-  joined: 4,
-  host: '모임장',
-  description: '설명',
+  description: '흙으로 만드는 특별한 하루',
   fee: '무료',
   rating: 0,
   reviewCount: 0,

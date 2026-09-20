@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/theme/app_theme.dart';
@@ -53,6 +54,10 @@ class MeetpleApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: '밋플',
       theme: AppTheme.light(),
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppTheme.systemUiOverlayStyle,
+        child: child ?? const SizedBox.shrink(),
+      ),
       locale: const Locale('ko', 'KR'),
       supportedLocales: const [Locale('ko', 'KR')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,

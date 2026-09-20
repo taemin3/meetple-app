@@ -166,6 +166,16 @@ void main() {
       find.text('\uCD94\uCC9C \uBAA8\uC784', skipOffstage: false),
       findsOneWidget,
     );
+    final divider = find.byKey(const Key('app-bottom-navigation-divider'));
+    expect(tester.getSize(divider), const Size(540, 0.5));
+    expect(
+      tester
+          .widget<ColoredBox>(
+            find.descendant(of: divider, matching: find.byType(ColoredBox)),
+          )
+          .color,
+      const Color(0xFFD8D8D8),
+    );
   });
 
   testWidgets('keeps tab data loaded while switching tabs', (

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/app/meetple_app.dart';
@@ -22,15 +24,23 @@ void main() {
 
     await tester.tap(find.text('홈'));
     await tester.pumpAndSettle();
+    final pendingReload = Completer<ChatRoomListPage>();
+    repository.pendingReload = pendingReload;
     await tester.tap(find.text('채팅'));
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(repository.getRoomsCount, 2);
+    expect(find.text('채팅방을 불러오는 중입니다.'), findsNothing);
+    expect(find.text('참여 중인 채팅방이 없습니다.'), findsOneWidget);
+
+    pendingReload.complete(_emptyPage);
+    await tester.pumpAndSettle();
   });
 }
 
 class _CountingChatRepository implements ChatRepository {
   int getRoomsCount = 0;
+  Completer<ChatRoomListPage>? pendingReload;
 
   @override
   Future<ChatRoom> getRoom(int roomId) {
@@ -40,15 +50,8 @@ class _CountingChatRepository implements ChatRepository {
   @override
   Future<ChatRoomListPage> getRooms({int page = 0, int size = 20}) async {
     getRoomsCount++;
-    return ChatRoomListPage(
-      content: const [],
-      page: page,
-      size: size,
-      totalElements: 0,
-      totalPages: 0,
-      isFirst: true,
-      isLast: true,
-    );
+    if (pendingReload case final pending?) return pending.future;
+    return _emptyPage;
   }
 
   @override
@@ -64,3 +67,13 @@ class _CountingChatRepository implements ChatRepository {
   @override
   Future<void> markRead(int roomId, int lastReadSequence) async {}
 }
+
+const _emptyPage = ChatRoomListPage(
+  content: [],
+  page: 0,
+  size: 20,
+  totalElements: 0,
+  totalPages: 0,
+  isFirst: true,
+  isLast: true,
+);
