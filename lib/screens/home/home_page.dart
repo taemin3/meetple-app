@@ -518,9 +518,14 @@ class _HomeMeetingTileState extends State<HomeMeetingTile> {
             isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border,
             color: isBookmarked ? AppColors.primary : AppColors.subtle,
           ),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-          alignment: Alignment.centerRight,
+          style: IconButton.styleFrom(
+            fixedSize: const Size(32, 24),
+            minimumSize: const Size(32, 24),
+            maximumSize: const Size(32, 24),
+            padding: EdgeInsets.zero,
+            alignment: Alignment.centerRight,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
         ),
       ),
     );

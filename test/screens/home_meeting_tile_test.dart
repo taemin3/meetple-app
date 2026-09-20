@@ -34,6 +34,16 @@ void main() {
 
     final bookmark = find.byKey(Key('home-meeting-bookmark-${meeting.id}'));
     expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
+    final category = tester.getRect(find.text(meeting.category));
+    final bookmarkIcon = tester.getRect(find.byIcon(Icons.bookmark_border));
+    final title = tester.getRect(find.text(meeting.title));
+    expect((category.center.dy - bookmarkIcon.center.dy).abs(), lessThan(5));
+    expect(
+      title.top - bookmarkIcon.bottom,
+      lessThanOrEqualTo(6),
+      reason: 'category=$category icon=$bookmarkIcon '
+          'button=${tester.getRect(bookmark)} title=$title',
+    );
 
     await tester.tap(bookmark);
     await tester.pumpAndSettle();
