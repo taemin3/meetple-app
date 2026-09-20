@@ -629,6 +629,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       final meeting = meetings[index];
                       return MeetingListCard(
                         meeting: meeting,
+                        showDistance: true,
                         onTap: () {
                           Navigator.of(bottomSheetContext).pop();
                           _selectMeeting(meeting);
@@ -752,6 +753,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       final meeting = meetings[index];
                       return MeetingListCard(
                         meeting: meeting,
+                        showDistance: true,
                         onTap: () {
                           Navigator.of(bottomSheetContext).pop();
                           unawaited(_openMeetingDetail(meeting));
@@ -1034,7 +1036,11 @@ class MeetingMapPreviewCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       elevation: 6,
       shadowColor: const Color(0x3017151F),
-      child: MeetingListCard(meeting: meeting, onTap: onTap),
+      child: MeetingListCard(
+        meeting: meeting,
+        onTap: onTap,
+        showDistance: true,
+      ),
     );
   }
 }
@@ -1275,7 +1281,11 @@ class MapMeetingCard extends StatelessWidget {
             elevation: 2,
             borderRadius: BorderRadius.circular(18),
             shadowColor: const Color(0x3017151F),
-            child: MeetingListCard(meeting: meeting, onTap: onTap),
+            child: MeetingListCard(
+              meeting: meeting,
+              onTap: onTap,
+              showDistance: true,
+            ),
           ),
         ),
       ),

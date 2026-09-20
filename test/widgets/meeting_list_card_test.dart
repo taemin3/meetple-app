@@ -67,6 +67,38 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text('6/8명'), findsOneWidget);
   });
+
+  testWidgets('grows with large text and shows discover distance',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 280,
+                child: MeetingListCard(
+                  meeting: _meeting,
+                  onTap: () {},
+                  showDistance: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('1km'), findsOneWidget);
+    final card = tester.getRect(find.byType(MeetingListCard));
+    final photo = tester.getRect(find.byType(MeetingPhoto));
+    final lastMeta = tester.getRect(find.text('6/8명'));
+    expect(card.height, greaterThan(photo.height));
+    expect(lastMeta.bottom, lessThanOrEqualTo(card.bottom));
+  });
 }
 
 const _meeting = Meeting(
