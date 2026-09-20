@@ -22,20 +22,8 @@ class MeetingListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final subtitle = meeting.description.trim().split('\n').first;
-    final endAdornment = trailing ??
-        (showDistance && meeting.distance.trim().isNotEmpty
-            ? Text(
-                meeting.distance,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              )
-            : null);
+    final endAdornment =
+        trailing ?? const Icon(Icons.bookmark_border, color: AppColors.subtle);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -73,15 +61,13 @@ class MeetingListCard extends StatelessWidget {
                               label: meeting.category,
                               color: meetingAccent(meeting),
                             ),
-                            if (endAdornment != null) ...[
-                              const Spacer(),
-                              Flexible(
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: endAdornment,
-                                ),
+                            const Spacer(),
+                            Flexible(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: endAdornment,
                               ),
-                            ],
+                            ),
                           ],
                         ),
                         const SizedBox(height: 3),
@@ -95,17 +81,20 @@ class MeetingListCard extends StatelessWidget {
                             fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle.isEmpty ? meeting.area : subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                        if (showDistance &&
+                            meeting.distance.trim().isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            meeting.distance,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
+                        ],
                         const SizedBox(height: 12),
                         _MeetingCardMeta(
                           icon: Icons.calendar_today_outlined,

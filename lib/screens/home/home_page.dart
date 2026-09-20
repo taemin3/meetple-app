@@ -15,6 +15,7 @@ import '../../data/repositories/mock_meeting_repository.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
+import '../../models/meeting_engagement.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/main_tab_header.dart';
@@ -229,7 +230,9 @@ class _HomePageState extends State<HomePage> {
                 for (final meeting in meetings.take(3))
                   HomeMeetingTile(
                     meeting: meeting,
+                    meetingRepository: widget.meetingRepository,
                     onTap: () => _openMeetingDetail(meeting),
+                    onBookmarkChanged: widget.onMeetingChanged,
                   ),
               ],
             );
@@ -408,26 +411,116 @@ class CategoryShortcutRow extends StatelessWidget {
   }
 }
 
-class HomeMeetingTile extends StatelessWidget {
+class HomeMeetingTile extends StatefulWidget {
   const HomeMeetingTile({
     super.key,
     required this.meeting,
+    required this.meetingRepository,
     required this.onTap,
+    this.onBookmarkChanged,
   });
 
   final Meeting meeting;
-  final VoidCallback onTap;
+  final MeetingRepository meetingRepository;
+  final Future<void> Function() onTap;
+  final VoidCallback? onBookmarkChanged;
+
+  @override
+  State<HomeMeetingTile> createState() => _HomeMeetingTileState();
+}
+
+class _HomeMeetingTileState extends State<HomeMeetingTile> {
+  MeetingEngagement? _engagement;
+  bool _isBookmarkBusy = false;
+  int _engagementRequestGeneration = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEngagement();
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeMeetingTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.meeting.id != widget.meeting.id ||
+        oldWidget.meetingRepository != widget.meetingRepository) {
+      _loadEngagement();
+    }
+  }
+
+  Future<void> _loadEngagement() async {
+    final meetingId = widget.meeting.id;
+    final requestGeneration = ++_engagementRequestGeneration;
+    if (meetingId == null) {
+      setState(() => _engagement = null);
+      return;
+    }
+    try {
+      final engagement =
+          await widget.meetingRepository.getEngagement(meetingId);
+      if (!mounted || requestGeneration != _engagementRequestGeneration) return;
+      setState(() => _engagement = engagement);
+    } on Exception {
+      if (!mounted || requestGeneration != _engagementRequestGeneration) return;
+      setState(() => _engagement = null);
+    }
+  }
+
+  Future<void> _toggleBookmark() async {
+    final meetingId = widget.meeting.id;
+    final engagement = _engagement;
+    if (meetingId == null ||
+        engagement == null ||
+        engagement.isHost ||
+        _isBookmarkBusy) {
+      return;
+    }
+
+    final next = !engagement.isBookmarked;
+    setState(() {
+      _engagement = engagement.copyWith(isBookmarked: next);
+      _isBookmarkBusy = true;
+    });
+    try {
+      await widget.meetingRepository.setBookmarked(meetingId, next);
+      widget.onBookmarkChanged?.call();
+    } on Exception {
+      if (!mounted) return;
+      setState(() => _engagement = engagement);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('찜하기를 변경하지 못했습니다.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isBookmarkBusy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final engagement = _engagement;
+    final isBookmarked = engagement?.isBookmarked == true;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: MeetingListCard(
-        meeting: meeting,
-        onTap: onTap,
-        trailing: const Icon(
-          Icons.bookmark_border,
-          color: AppColors.subtle,
+        meeting: widget.meeting,
+        onTap: () async {
+          await widget.onTap();
+          if (mounted) await _loadEngagement();
+        },
+        trailing: IconButton(
+          key: Key('home-meeting-bookmark-${widget.meeting.id}'),
+          tooltip: isBookmarked ? '찜 취소' : '찜하기',
+          onPressed: engagement == null || engagement.isHost || _isBookmarkBusy
+              ? null
+              : _toggleBookmark,
+          icon: Icon(
+            isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border,
+            color: isBookmarked ? AppColors.primary : AppColors.subtle,
+          ),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+          alignment: Alignment.centerRight,
         ),
       ),
     );

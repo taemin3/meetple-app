@@ -461,14 +461,7 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
             key: ValueKey('global-search-meeting-${meeting.id ?? index}'),
             meeting: meeting,
             onTap: () => _openMeetingDetail(meeting),
-            trailing: Text(
-              meeting.distance,
-              style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 12,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+            showDistance: true,
           );
         },
       ),

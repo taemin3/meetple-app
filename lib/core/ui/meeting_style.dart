@@ -6,10 +6,11 @@ import '../theme/app_colors.dart';
 Color meetingAccent(Meeting meeting) {
   switch (meeting.category) {
     case '스터디':
-      return AppColors.blue;
+      return AppColors.categoryStudy;
     case '취미':
       return AppColors.orange;
     case '운동':
+      return AppColors.categoryExercise;
     default:
       return AppColors.primary;
   }

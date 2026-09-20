@@ -131,7 +131,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final expandedSheetHeight =
-            (constraints.maxHeight * 0.39).clamp(270.0, 310.0);
+            (constraints.maxHeight * 0.55).clamp(330.0, 460.0);
         const collapsedSheetHeight = 78.0;
         final sheetHeight =
             _isSheetCollapsed ? collapsedSheetHeight : expandedSheetHeight;
@@ -1072,7 +1072,7 @@ class NearbyMeetingSheet extends StatelessWidget {
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
-        color: Colors.white,
+        color: AppColors.canvas,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
@@ -1165,9 +1165,8 @@ class NearbyMeetingSheet extends StatelessWidget {
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-      scrollDirection: Axis.horizontal,
       itemCount: meetings.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final meeting = meetings[index];
         return MapMeetingCard(
@@ -1195,9 +1194,8 @@ class _NearbyMeetingSkeletonList extends StatelessWidget {
       child: ExcludeSemantics(
         child: ListView.separated(
           padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-          scrollDirection: Axis.horizontal,
           itemCount: 3,
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             return _MapMeetingSkeletonCard(
               key: ValueKey('nearby-meeting-skeleton-$index'),
@@ -1215,7 +1213,7 @@ class _MapMeetingSkeletonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: MediaQuery.sizeOf(context).width - 36,
+      width: double.infinity,
       child: Align(
         alignment: Alignment.topCenter,
         child: Container(
@@ -1272,7 +1270,7 @@ class MapMeetingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: MediaQuery.sizeOf(context).width - 36,
+      width: double.infinity,
       child: Align(
         alignment: Alignment.topCenter,
         child: Padding(

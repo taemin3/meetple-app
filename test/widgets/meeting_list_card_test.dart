@@ -19,7 +19,6 @@ void main() {
               child: MeetingListCard(
                 meeting: _meeting,
                 onTap: () => tapped = true,
-                trailing: const Icon(Icons.bookmark_border),
               ),
             ),
           ),
@@ -38,7 +37,7 @@ void main() {
     expect(bookmark.center.dx, greaterThan(title.center.dx));
     expect(bookmark.top, lessThan(title.top));
     expect(card.right - bookmark.right, closeTo(8, 0.1));
-    expect(find.text('흙으로 만드는 특별한 하루'), findsOneWidget);
+    expect(find.text('흙으로 만드는 특별한 하루'), findsNothing);
     expect(find.text('9/23 (화) 14:00'), findsOneWidget);
     expect(find.text('수원 행궁동'), findsOneWidget);
     expect(find.text('6/8명'), findsOneWidget);
@@ -58,7 +57,6 @@ void main() {
               child: MeetingListCard(
                 meeting: _meeting,
                 onTap: () {},
-                trailing: const Icon(Icons.bookmark_border),
               ),
             ),
           ),
@@ -95,11 +93,15 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('1km'), findsOneWidget);
+    expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
+    expect(find.text('흙으로 만드는 특별한 하루'), findsNothing);
     final card = tester.getRect(find.byType(MeetingListCard));
     final photo = tester.getRect(find.byType(MeetingPhoto));
     final lastMeta = tester.getRect(find.text('6/8명'));
+    final bookmark = tester.getRect(find.byIcon(Icons.bookmark_border));
     expect(card.height, greaterThan(photo.height));
     expect(lastMeta.bottom, lessThanOrEqualTo(card.bottom));
+    expect(card.right - bookmark.right, closeTo(8, 0.1));
   });
 }
 

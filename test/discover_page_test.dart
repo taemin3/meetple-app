@@ -78,6 +78,26 @@ void main() {
     expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
   });
 
+  testWidgets('shows two nearby cards in the expanded sheet', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: DiscoverPage(meetingRepository: MockMeetingRepository()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final cards = find.byType(MapMeetingCard);
+    expect(cards, findsAtLeastNWidgets(2));
+    final sheet = tester.getRect(find.byType(NearbyMeetingSheet));
+    final secondCard = tester.getRect(cards.at(1));
+    expect(secondCard.bottom, lessThanOrEqualTo(sheet.bottom));
+  });
+
   testWidgets('opens global search entry and preserves the map query on return',
       (tester) async {
     await tester.pumpWidget(
