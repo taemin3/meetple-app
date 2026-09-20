@@ -8,16 +8,18 @@ class MainTabHeader extends StatelessWidget {
     required this.title,
     this.titleTrailing,
     this.actions = const [],
+    this.backgroundColor = AppColors.canvas,
   });
 
   final String title;
   final Widget? titleTrailing;
   final List<Widget> actions;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AppColors.canvas,
+      color: backgroundColor,
       child: SizedBox(
         height: 56,
         child: Padding(

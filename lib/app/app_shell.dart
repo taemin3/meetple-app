@@ -126,7 +126,7 @@ class _AppShellState extends State<AppShell> {
           ),
           bottomNavigationBar: ColoredBox(
             key: const Key('app-bottom-navigation'),
-            color: AppColors.canvas,
+            color: Colors.white,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -141,7 +141,7 @@ class _AppShellState extends State<AppShell> {
                   child: NavigationBar(
                     height: 60,
                     elevation: 0,
-                    backgroundColor: AppColors.canvas,
+                    backgroundColor: Colors.white,
                     indicatorColor: AppColors.softSurface,
                     selectedIndex: _indexOfTab(currentTab),
                     onDestinationSelected: _selectDestination,
@@ -177,7 +177,10 @@ class _AppShellState extends State<AppShell> {
               ],
             ),
           ),
-          backgroundColor: AppColors.canvas,
+          backgroundColor:
+              currentTab == AppTab.chat || currentTab == AppTab.discover
+                  ? Colors.white
+                  : AppColors.canvas,
         ),
       ),
     );

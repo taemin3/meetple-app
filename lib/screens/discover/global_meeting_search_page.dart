@@ -13,7 +13,7 @@ import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../data/repositories/mock_location_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
-import '../../widgets/meeting_list_card.dart';
+import '../../widgets/bookmarkable_meeting_card.dart';
 
 class GlobalMeetingSearchPage extends StatefulWidget {
   const GlobalMeetingSearchPage({
@@ -280,7 +280,7 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       key: const Key('global-meeting-search-page'),
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
@@ -457,11 +457,13 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
           }
 
           final meeting = _meetings[index];
-          return MeetingListCard(
+          return BookmarkableMeetingCard(
             key: ValueKey('global-search-meeting-${meeting.id ?? index}'),
             meeting: meeting,
+            meetingRepository: widget.meetingRepository,
             onTap: () => _openMeetingDetail(meeting),
             showDistance: true,
+            onBookmarkChanged: widget.onMeetingChanged,
           );
         },
       ),

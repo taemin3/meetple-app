@@ -32,7 +32,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final bookmark = find.byKey(Key('home-meeting-bookmark-${meeting.id}'));
+    final bookmark = find.byKey(Key('meeting-bookmark-${meeting.id}'));
     expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
     final category = tester.getRect(find.text(meeting.category));
     final bookmarkIcon = tester.getRect(find.byIcon(Icons.bookmark_border));

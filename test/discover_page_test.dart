@@ -9,7 +9,9 @@ import 'package:meetple/data/repositories/meeting_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_category.dart';
+import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/discover/discover_page.dart';
+import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
 import 'package:meetple/widgets/app_state_view.dart';
 import 'package:meetple/widgets/tag_chip.dart';
 
@@ -96,6 +98,24 @@ void main() {
     final sheet = tester.getRect(find.byType(NearbyMeetingSheet));
     final secondCard = tester.getRect(cards.at(1));
     expect(secondCard.bottom, lessThanOrEqualTo(sheet.bottom));
+  });
+
+  testWidgets('bookmarks a nearby card without opening its detail',
+      (tester) async {
+    final repository = _BookmarkNearbyRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: DiscoverPage(meetingRepository: repository)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('meeting-bookmark-1')));
+    await tester.pumpAndSettle();
+
+    expect(repository.isBookmarked, isTrue);
+    expect(find.byType(MeetingDetailPage), findsNothing);
+    expect(find.byIcon(Icons.bookmark_rounded), findsOneWidget);
   });
 
   testWidgets('opens global search entry and preserves the map query on return',
@@ -441,6 +461,20 @@ class _DeferredCategoryRepository implements CategoryRepository {
 
   void fail() {
     _completer.completeError(StateError('category load failed'));
+  }
+}
+
+class _BookmarkNearbyRepository extends MockMeetingRepository {
+  bool isBookmarked = false;
+
+  @override
+  Future<MeetingEngagement> getEngagement(int meetingId) async {
+    return MeetingEngagement(isHost: false, isBookmarked: isBookmarked);
+  }
+
+  @override
+  Future<void> setBookmarked(int meetingId, bool bookmarked) async {
+    isBookmarked = bookmarked;
   }
 }
 

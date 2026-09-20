@@ -97,11 +97,12 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AppColors.canvas,
+      color: Colors.white,
       child: Column(
         children: [
           MainTabHeader(
             title: '채팅',
+            backgroundColor: Colors.white,
             actions: [
               IconButton(
                 key: const Key('chat-refresh'),

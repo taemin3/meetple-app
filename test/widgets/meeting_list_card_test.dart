@@ -31,12 +31,14 @@ void main() {
     final bookmark = tester.getRect(find.byIcon(Icons.bookmark_border));
     final title = tester.getRect(find.text('도예 원데이 클래스'));
     final card = tester.getRect(find.byType(MeetingListCard));
+    final participants = tester.getRect(find.text('6/8명'));
 
     expect(photo.right, lessThan(category.left));
     expect(category.top, lessThan(title.top));
     expect(bookmark.center.dx, greaterThan(title.center.dx));
     expect(bookmark.top, lessThan(title.top));
     expect(card.right - bookmark.right, closeTo(8, 0.1));
+    expect(photo.bottom - participants.bottom, lessThanOrEqualTo(10));
     expect(find.text('흙으로 만드는 특별한 하루'), findsNothing);
     expect(find.text('9/23 (화) 14:00'), findsOneWidget);
     expect(find.text('수원 행궁동'), findsOneWidget);

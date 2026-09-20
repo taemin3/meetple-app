@@ -13,9 +13,9 @@ import '../../data/repositories/mock_category_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/bookmarkable_meeting_card.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/map/nearby_meeting_map.dart';
-import '../../widgets/meeting_list_card.dart';
 import '../../widgets/tag_chip.dart';
 
 class DiscoverPage extends StatefulWidget {
@@ -292,7 +292,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 bottom: sheetHeight + 18,
                 child: MeetingMapPreviewCard(
                   meeting: _selectedMeeting!,
+                  meetingRepository: widget.meetingRepository,
                   onTap: () => _openMeetingDetail(_selectedMeeting!),
+                  onBookmarkChanged: widget.onMeetingChanged,
                 ),
               ),
             AnimatedPositioned(
@@ -304,6 +306,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
               height: expandedSheetHeight,
               child: NearbyMeetingSheet(
                 meetings: visibleMeetings,
+                meetingRepository: widget.meetingRepository,
                 isLoading: _isLoading,
                 error: _loadError,
                 collapsed: _isSheetCollapsed,
@@ -314,6 +317,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     ? null
                     : () => _openMeetingList(visibleMeetings),
                 onMeetingTap: _openMeetingDetail,
+                onBookmarkChanged: widget.onMeetingChanged,
               ),
             ),
           ],
@@ -627,10 +631,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final meeting = meetings[index];
-                      return MeetingListCard(
+                      return BookmarkableMeetingCard(
                         meeting: meeting,
+                        meetingRepository: widget.meetingRepository,
                         showDistance: true,
-                        onTap: () {
+                        onBookmarkChanged: widget.onMeetingChanged,
+                        onTap: () async {
                           Navigator.of(bottomSheetContext).pop();
                           _selectMeeting(meeting);
                         },
@@ -751,12 +757,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final meeting = meetings[index];
-                      return MeetingListCard(
+                      return BookmarkableMeetingCard(
                         meeting: meeting,
+                        meetingRepository: widget.meetingRepository,
                         showDistance: true,
-                        onTap: () {
+                        onBookmarkChanged: widget.onMeetingChanged,
+                        onTap: () async {
                           Navigator.of(bottomSheetContext).pop();
-                          unawaited(_openMeetingDetail(meeting));
+                          await _openMeetingDetail(meeting);
                         },
                       );
                     },
@@ -1023,11 +1031,15 @@ class MeetingMapPreviewCard extends StatelessWidget {
   const MeetingMapPreviewCard({
     super.key,
     required this.meeting,
+    required this.meetingRepository,
     required this.onTap,
+    this.onBookmarkChanged,
   });
 
   final Meeting meeting;
-  final VoidCallback onTap;
+  final MeetingRepository meetingRepository;
+  final Future<void> Function() onTap;
+  final VoidCallback? onBookmarkChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1036,10 +1048,12 @@ class MeetingMapPreviewCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       elevation: 6,
       shadowColor: const Color(0x3017151F),
-      child: MeetingListCard(
+      child: BookmarkableMeetingCard(
         meeting: meeting,
+        meetingRepository: meetingRepository,
         onTap: onTap,
         showDistance: true,
+        onBookmarkChanged: onBookmarkChanged,
       ),
     );
   }
@@ -1049,6 +1063,7 @@ class NearbyMeetingSheet extends StatelessWidget {
   const NearbyMeetingSheet({
     super.key,
     required this.meetings,
+    required this.meetingRepository,
     required this.isLoading,
     required this.error,
     required this.collapsed,
@@ -1056,23 +1071,26 @@ class NearbyMeetingSheet extends StatelessWidget {
     required this.onRetry,
     required this.onViewAll,
     required this.onMeetingTap,
+    this.onBookmarkChanged,
   });
 
   final List<Meeting> meetings;
+  final MeetingRepository meetingRepository;
   final bool isLoading;
   final Object? error;
   final bool collapsed;
   final ValueChanged<bool> onCollapsedChanged;
   final VoidCallback onRetry;
   final VoidCallback? onViewAll;
-  final ValueChanged<Meeting> onMeetingTap;
+  final Future<void> Function(Meeting) onMeetingTap;
+  final VoidCallback? onBookmarkChanged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       clipBehavior: Clip.hardEdge,
       decoration: const BoxDecoration(
-        color: AppColors.canvas,
+        color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
@@ -1174,7 +1192,9 @@ class NearbyMeetingSheet extends StatelessWidget {
             'nearby-meeting-card-${meeting.id ?? 'index-$index'}',
           ),
           meeting: meeting,
+          meetingRepository: meetingRepository,
           onTap: () => onMeetingTap(meeting),
+          onBookmarkChanged: onBookmarkChanged,
         );
       },
     );
@@ -1261,11 +1281,15 @@ class MapMeetingCard extends StatelessWidget {
   const MapMeetingCard({
     super.key,
     required this.meeting,
+    required this.meetingRepository,
     required this.onTap,
+    this.onBookmarkChanged,
   });
 
   final Meeting meeting;
-  final VoidCallback onTap;
+  final MeetingRepository meetingRepository;
+  final Future<void> Function() onTap;
+  final VoidCallback? onBookmarkChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1279,10 +1303,12 @@ class MapMeetingCard extends StatelessWidget {
             elevation: 2,
             borderRadius: BorderRadius.circular(18),
             shadowColor: const Color(0x3017151F),
-            child: MeetingListCard(
+            child: BookmarkableMeetingCard(
               meeting: meeting,
+              meetingRepository: meetingRepository,
               onTap: onTap,
               showDistance: true,
+              onBookmarkChanged: onBookmarkChanged,
             ),
           ),
         ),

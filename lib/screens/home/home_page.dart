@@ -15,11 +15,10 @@ import '../../data/repositories/mock_meeting_repository.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
-import '../../models/meeting_engagement.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/bookmarkable_meeting_card.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/main_tab_header.dart';
-import '../../widgets/meeting_list_card.dart';
 import '../../widgets/section_title.dart';
 import '../notifications/notifications_page.dart';
 
@@ -147,103 +146,125 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        MainTabHeader(
-          title: '밋플',
-          titleTrailing: Image.asset(
-            'assets/icons/app-icon-foreground.png',
-            key: const Key('home-app-icon'),
-            width: 32,
-            height: 32,
-            filterQuality: FilterQuality.medium,
-          ),
-          actions: [
-            IconButton(
-              key: const Key('home-notifications-open'),
-              tooltip: '알림',
-              onPressed: _openNotifications,
-              icon: const Icon(Icons.notifications_none_rounded),
+    return ColoredBox(
+      color: Colors.white,
+      child: Column(
+        children: [
+          MainTabHeader(
+            title: '밋플',
+            titleTrailing: Image.asset(
+              'assets/icons/app-icon-foreground.png',
+              key: const Key('home-app-icon'),
+              width: 32,
+              height: 32,
+              filterQuality: FilterQuality.medium,
             ),
-          ],
-        ),
-        Expanded(child: _buildHomeList()),
-      ],
+            actions: [
+              IconButton(
+                key: const Key('home-notifications-open'),
+                tooltip: '알림',
+                onPressed: _openNotifications,
+                icon: const Icon(Icons.notifications_none_rounded),
+              ),
+            ],
+          ),
+          Expanded(child: _buildHomeList()),
+        ],
+      ),
     );
   }
 
   Widget _buildHomeList() {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+      padding: const EdgeInsets.only(bottom: 28),
       children: [
-        const HomeGreeting(),
-        const SizedBox(height: 18),
-        HomeSearchField(
-          onTap: () => _openDiscover(focusSearch: true),
-        ),
-        const SizedBox(height: 24),
-        FutureBuilder<List<MeetingCategory>>(
-          future: _categoriesFuture,
-          builder: (context, snapshot) {
-            final categories = snapshot.data ?? const <MeetingCategory>[];
-            return CategoryShortcutRow(
-              categories: categories,
-              onSelected: (category) => _openDiscover(category: category),
-            );
-          },
-        ),
-        const SizedBox(height: 30),
-        SectionTitle(
-          title: '추천 모임',
-          action: '전체보기 >',
-          actionKey: const Key('home-recommendations-view-all'),
-          onActionTap: () => _openDiscover(),
-        ),
-        const SizedBox(height: 14),
-        FutureBuilder<List<Meeting>>(
-          future: _meetingsFuture,
-          builder: (context, snapshot) {
-            final isLoading = snapshot.connectionState != ConnectionState.done;
-            if (isLoading && !snapshot.hasData) {
-              return const _HomeMeetingSkeletonList();
-            }
-
-            if (snapshot.hasError) {
-              return AppErrorView(
-                message: '모임을 불러오지 못했습니다.',
-                onRetry: _reloadMeetings,
-              );
-            }
-
-            final meetings = snapshot.data ?? const <Meeting>[];
-            if (meetings.isEmpty) {
-              return const AppEmptyView(message: '추천 모임이 없습니다.');
-            }
-
-            return Column(
+        ColoredBox(
+          color: AppColors.canvas,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-                for (final meeting in meetings.take(3))
-                  HomeMeetingTile(
-                    meeting: meeting,
-                    meetingRepository: widget.meetingRepository,
-                    onTap: () => _openMeetingDetail(meeting),
-                    onBookmarkChanged: widget.onMeetingChanged,
-                  ),
+                const HomeGreeting(),
+                const SizedBox(height: 18),
+                HomeSearchField(
+                  onTap: () => _openDiscover(focusSearch: true),
+                ),
               ],
-            );
-          },
+            ),
+          ),
         ),
-        const SizedBox(height: 18),
-        CreateMeetingBanner(
-          meetingRepository: widget.meetingRepository,
-          categoryRepository: widget.categoryRepository,
-          locationRepository: widget.locationRepository,
-          onMeetingCreated: widget.onMeetingCreated ?? _reloadMeetings,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FutureBuilder<List<MeetingCategory>>(
+                future: _categoriesFuture,
+                builder: (context, snapshot) {
+                  final categories = snapshot.data ?? const <MeetingCategory>[];
+                  return CategoryShortcutRow(
+                    categories: categories,
+                    onSelected: (category) => _openDiscover(category: category),
+                  );
+                },
+              ),
+              const SizedBox(height: 30),
+              SectionTitle(
+                title: '추천 모임',
+                action: '전체보기 >',
+                actionKey: const Key('home-recommendations-view-all'),
+                onActionTap: () => _openDiscover(),
+              ),
+              const SizedBox(height: 14),
+              FutureBuilder<List<Meeting>>(
+                future: _meetingsFuture,
+                builder: (context, snapshot) {
+                  final isLoading =
+                      snapshot.connectionState != ConnectionState.done;
+                  if (isLoading && !snapshot.hasData) {
+                    return const _HomeMeetingSkeletonList();
+                  }
+
+                  if (snapshot.hasError) {
+                    return AppErrorView(
+                      message: '모임을 불러오지 못했습니다.',
+                      onRetry: _reloadMeetings,
+                    );
+                  }
+
+                  final meetings = snapshot.data ?? const <Meeting>[];
+                  if (meetings.isEmpty) {
+                    return const AppEmptyView(message: '추천 모임이 없습니다.');
+                  }
+
+                  return Column(
+                    children: [
+                      if (isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 10),
+                          child: LinearProgressIndicator(minHeight: 2),
+                        ),
+                      for (final meeting in meetings.take(3))
+                        HomeMeetingTile(
+                          meeting: meeting,
+                          meetingRepository: widget.meetingRepository,
+                          onTap: () => _openMeetingDetail(meeting),
+                          onBookmarkChanged: widget.onMeetingChanged,
+                        ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
+              CreateMeetingBanner(
+                meetingRepository: widget.meetingRepository,
+                categoryRepository: widget.categoryRepository,
+                locationRepository: widget.locationRepository,
+                onMeetingCreated: widget.onMeetingCreated ?? _reloadMeetings,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -411,7 +432,7 @@ class CategoryShortcutRow extends StatelessWidget {
   }
 }
 
-class HomeMeetingTile extends StatefulWidget {
+class HomeMeetingTile extends StatelessWidget {
   const HomeMeetingTile({
     super.key,
     required this.meeting,
@@ -426,107 +447,14 @@ class HomeMeetingTile extends StatefulWidget {
   final VoidCallback? onBookmarkChanged;
 
   @override
-  State<HomeMeetingTile> createState() => _HomeMeetingTileState();
-}
-
-class _HomeMeetingTileState extends State<HomeMeetingTile> {
-  MeetingEngagement? _engagement;
-  bool _isBookmarkBusy = false;
-  int _engagementRequestGeneration = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadEngagement();
-  }
-
-  @override
-  void didUpdateWidget(covariant HomeMeetingTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.meeting.id != widget.meeting.id ||
-        oldWidget.meetingRepository != widget.meetingRepository) {
-      _loadEngagement();
-    }
-  }
-
-  Future<void> _loadEngagement() async {
-    final meetingId = widget.meeting.id;
-    final requestGeneration = ++_engagementRequestGeneration;
-    if (meetingId == null) {
-      setState(() => _engagement = null);
-      return;
-    }
-    try {
-      final engagement =
-          await widget.meetingRepository.getEngagement(meetingId);
-      if (!mounted || requestGeneration != _engagementRequestGeneration) return;
-      setState(() => _engagement = engagement);
-    } on Exception {
-      if (!mounted || requestGeneration != _engagementRequestGeneration) return;
-      setState(() => _engagement = null);
-    }
-  }
-
-  Future<void> _toggleBookmark() async {
-    final meetingId = widget.meeting.id;
-    final engagement = _engagement;
-    if (meetingId == null ||
-        engagement == null ||
-        engagement.isHost ||
-        _isBookmarkBusy) {
-      return;
-    }
-
-    final next = !engagement.isBookmarked;
-    setState(() {
-      _engagement = engagement.copyWith(isBookmarked: next);
-      _isBookmarkBusy = true;
-    });
-    try {
-      await widget.meetingRepository.setBookmarked(meetingId, next);
-      widget.onBookmarkChanged?.call();
-    } on Exception {
-      if (!mounted) return;
-      setState(() => _engagement = engagement);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('찜하기를 변경하지 못했습니다.')),
-      );
-    } finally {
-      if (mounted) setState(() => _isBookmarkBusy = false);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final engagement = _engagement;
-    final isBookmarked = engagement?.isBookmarked == true;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: MeetingListCard(
-        meeting: widget.meeting,
-        onTap: () async {
-          await widget.onTap();
-          if (mounted) await _loadEngagement();
-        },
-        trailing: IconButton(
-          key: Key('home-meeting-bookmark-${widget.meeting.id}'),
-          tooltip: isBookmarked ? '찜 취소' : '찜하기',
-          onPressed: engagement == null || engagement.isHost || _isBookmarkBusy
-              ? null
-              : _toggleBookmark,
-          icon: Icon(
-            isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border,
-            color: isBookmarked ? AppColors.primary : AppColors.subtle,
-          ),
-          style: IconButton.styleFrom(
-            fixedSize: const Size(32, 24),
-            minimumSize: const Size(32, 24),
-            maximumSize: const Size(32, 24),
-            padding: EdgeInsets.zero,
-            alignment: Alignment.centerRight,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ),
+      child: BookmarkableMeetingCard(
+        meeting: meeting,
+        meetingRepository: meetingRepository,
+        onTap: onTap,
+        onBookmarkChanged: onBookmarkChanged,
       ),
     );
   }

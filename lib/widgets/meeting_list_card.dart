@@ -95,7 +95,7 @@ class MeetingListCard extends StatelessWidget {
                             ),
                           ),
                         ],
-                        const SizedBox(height: 12),
+                        SizedBox(height: showDistance ? 14 : 28),
                         _MeetingCardMeta(
                           icon: Icons.calendar_today_outlined,
                           text: '${meeting.date} ${meeting.time}',
