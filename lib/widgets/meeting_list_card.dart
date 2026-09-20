@@ -31,7 +31,12 @@ class MeetingListCard extends StatelessWidget {
 
         return Material(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          elevation: 1,
+          shadowColor: const Color(0x18000000),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+            side: const BorderSide(color: Color(0xFFE9E9ED)),
+          ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onTap,
