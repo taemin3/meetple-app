@@ -75,7 +75,12 @@ class MeetingListCard extends StatelessWidget {
                             ),
                             if (endAdornment != null) ...[
                               const Spacer(),
-                              Flexible(child: endAdornment),
+                              Flexible(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: endAdornment,
+                                ),
+                              ),
                             ],
                           ],
                         ),
