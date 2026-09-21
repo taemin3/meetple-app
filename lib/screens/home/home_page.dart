@@ -17,6 +17,7 @@ import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/bookmarkable_meeting_card.dart';
+import '../../widgets/category_icon.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/main_tab_header.dart';
 import '../../widgets/section_title.dart';
@@ -364,11 +365,7 @@ class CategoryShortcutRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = <(String, IconData)>[
-      ('전체', Icons.grid_view_rounded),
-      for (final category in categories)
-        (category.name, _iconForCategory(category.name)),
-    ];
+    final items = ['전체', for (final category in categories) category.name];
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -376,8 +373,8 @@ class CategoryShortcutRow extends StatelessWidget {
         children: [
           for (final item in items) ...[
             InkWell(
-              key: ValueKey('home-category-${item.$1}'),
-              onTap: () => onSelected(item.$1 == '전체' ? null : item.$1),
+              key: ValueKey('home-category-$item'),
+              onTap: () => onSelected(item == '전체' ? null : item),
               borderRadius: BorderRadius.circular(16),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -385,18 +382,22 @@ class CategoryShortcutRow extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundColor: item.$1 == '전체'
+                      backgroundColor: item == '전체'
                           ? AppColors.primary
                           : AppColors.softSurface,
-                      child: Icon(
-                        item.$2,
-                        color:
-                            item.$1 == '전체' ? Colors.white : AppColors.primary,
-                      ),
+                      child: item == '전체'
+                          ? const Icon(
+                              Icons.grid_view_rounded,
+                              color: Colors.white,
+                            )
+                          : CategoryIcon(
+                              category: item,
+                              color: AppColors.primary,
+                            ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      item.$1,
+                      item,
                       style: const TextStyle(
                         color: AppColors.ink,
                         fontSize: 12,
@@ -412,23 +413,6 @@ class CategoryShortcutRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  IconData _iconForCategory(String category) {
-    switch (category.trim()) {
-      case '운동':
-        return Icons.directions_run;
-      case '스터디':
-        return Icons.menu_book_outlined;
-      case '취미':
-        return Icons.palette_outlined;
-      case '여행':
-        return Icons.flight_takeoff;
-      case '봉사':
-        return Icons.favorite_border;
-      default:
-        return Icons.interests_outlined;
-    }
   }
 }
 

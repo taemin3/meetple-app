@@ -29,15 +29,3 @@ List<Color> meetingPhotoColors(Meeting meeting) {
       return const [Color(0xFFFFB66B), Color(0xFF352D45)];
   }
 }
-
-IconData meetingIcon(Meeting meeting) {
-  switch (meeting.category) {
-    case '스터디':
-      return Icons.menu_book_outlined;
-    case '취미':
-      return Icons.photo_camera_outlined;
-    case '운동':
-    default:
-      return Icons.directions_run;
-  }
-}

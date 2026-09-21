@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/ui/meeting_style.dart';
 import '../models/meeting.dart';
+import 'category_icon.dart';
 import 'loading_skeleton.dart';
 import 'network_image_with_skeleton.dart';
 
@@ -103,8 +104,8 @@ class _MeetingPhotoFallback extends StatelessWidget {
           ),
           if (showIcon)
             Center(
-              child: Icon(
-                meetingIcon(meeting),
+              child: CategoryIcon(
+                category: meeting.category,
                 color: Colors.white.withOpacity(0.84),
                 size: height * 0.32,
               ),
