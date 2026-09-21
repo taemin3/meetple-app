@@ -17,6 +17,7 @@ import '../data/realtime/chat_realtime_client.dart';
 import '../models/auth_session.dart';
 import '../screens/auth/login_page.dart';
 import '../screens/chat/chat_room_page.dart';
+import '../widgets/meeting_bookmark_store.dart';
 import 'app_routes.dart';
 import 'app_shell.dart';
 
@@ -176,6 +177,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
   }
 
   void _showSignedOut() {
+    MeetingBookmarkStore.reset(widget.meetingRepository);
     _pendingOpenedNotification = null;
     unawaited(_deactivatePushNotifications());
     setState(() {

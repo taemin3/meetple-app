@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../data/repositories/meeting_repository.dart';
 import '../models/meeting.dart';
-import '../models/meeting_engagement.dart';
+import 'meeting_bookmark_store.dart';
 import 'meeting_list_card.dart';
 
 class BookmarkableMeetingCard extends StatefulWidget {
@@ -28,96 +28,71 @@ class BookmarkableMeetingCard extends StatefulWidget {
 }
 
 class _BookmarkableMeetingCardState extends State<BookmarkableMeetingCard> {
-  MeetingEngagement? _engagement;
-  bool _isBookmarkBusy = false;
-  int _engagementRequestGeneration = 0;
+  late MeetingBookmarkStore _bookmarks;
 
   @override
   void initState() {
     super.initState();
-    _loadEngagement();
+    _subscribe();
   }
 
   @override
   void didUpdateWidget(covariant BookmarkableMeetingCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.meeting.id != widget.meeting.id ||
-        oldWidget.meetingRepository != widget.meetingRepository) {
-      _engagement = null;
-      _loadEngagement();
+    if (oldWidget.meetingRepository != widget.meetingRepository) {
+      _bookmarks.removeListener(_rebuild);
+      _subscribe();
     }
+  }
+
+  void _subscribe() {
+    _bookmarks = MeetingBookmarkStore.forRepository(widget.meetingRepository);
+    _bookmarks.addListener(_rebuild);
+    _bookmarks.load().catchError((Object _) {
+      // The button retries loading when tapped.
+    });
+  }
+
+  void _rebuild() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _engagementRequestGeneration++;
+    _bookmarks.removeListener(_rebuild);
     super.dispose();
-  }
-
-  Future<void> _loadEngagement() async {
-    final meetingId = widget.meeting.id;
-    final requestGeneration = ++_engagementRequestGeneration;
-    if (meetingId == null) {
-      _engagement = null;
-      return;
-    }
-    try {
-      final engagement =
-          await widget.meetingRepository.getEngagement(meetingId);
-      if (!mounted || requestGeneration != _engagementRequestGeneration) return;
-      setState(() => _engagement = engagement);
-    } on Object {
-      if (!mounted || requestGeneration != _engagementRequestGeneration) return;
-      setState(() => _engagement = null);
-    }
   }
 
   Future<void> _toggleBookmark() async {
     final meetingId = widget.meeting.id;
-    final engagement = _engagement;
-    if (meetingId == null ||
-        engagement == null ||
-        engagement.isHost ||
-        _isBookmarkBusy) {
-      return;
-    }
-
-    final next = !engagement.isBookmarked;
-    setState(() {
-      _engagement = engagement.copyWith(isBookmarked: next);
-      _isBookmarkBusy = true;
-    });
+    if (meetingId == null || _bookmarks.isBusy(meetingId)) return;
     try {
-      await widget.meetingRepository.setBookmarked(meetingId, next);
-      widget.onBookmarkChanged?.call();
-    } on Exception {
+      if (!_bookmarks.isLoaded) await _bookmarks.load();
       if (!mounted) return;
-      setState(() => _engagement = engagement);
+      await _bookmarks.toggle(meetingId);
+      if (mounted) widget.onBookmarkChanged?.call();
+    } on Object {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('찜하기를 변경하지 못했습니다.')),
       );
-    } finally {
-      if (mounted) setState(() => _isBookmarkBusy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final engagement = _engagement;
-    final isBookmarked = engagement?.isBookmarked == true;
+    final meetingId = widget.meeting.id;
+    final isBookmarked =
+        meetingId != null && _bookmarks.isBookmarked(meetingId);
     return MeetingListCard(
       meeting: widget.meeting,
       showDistance: widget.showDistance,
-      onTap: () async {
-        await widget.onTap();
-        if (mounted) await _loadEngagement();
-      },
+      onTap: () async => widget.onTap(),
       trailing: IconButton(
-        key: Key('meeting-bookmark-${widget.meeting.id}'),
+        key: Key('meeting-bookmark-$meetingId'),
         tooltip: isBookmarked ? '찜 취소' : '찜하기',
-        onPressed: engagement == null || engagement.isHost || _isBookmarkBusy
-            ? null
-            : _toggleBookmark,
+        // Keep the callback active so taps never reach the parent card.
+        onPressed: _toggleBookmark,
         icon: Icon(
           isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border,
           color: isBookmarked ? AppColors.primary : AppColors.subtle,

@@ -22,9 +22,6 @@ class MeetingListCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final endAdornment =
-        trailing ?? const Icon(Icons.bookmark_border, color: AppColors.subtle);
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final photoWidth = (constraints.maxWidth * 0.38).clamp(92.0, 136.0);
@@ -63,13 +60,15 @@ class MeetingListCard extends StatelessWidget {
                               label: meeting.category,
                               color: meetingAccent(meeting),
                             ),
-                            const Spacer(),
-                            Flexible(
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: endAdornment,
+                            if (trailing != null) ...[
+                              const Spacer(),
+                              Flexible(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: trailing,
+                                ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 3),

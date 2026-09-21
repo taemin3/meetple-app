@@ -19,6 +19,7 @@ import '../../widgets/meeting_image_gallery.dart';
 import '../../widgets/network_image_with_skeleton.dart';
 import '../../widgets/primary_button.dart';
 import '../../widgets/secondary_button.dart';
+import '../../widgets/meeting_bookmark_store.dart';
 
 part 'widgets/meeting_detail_bottom_bars.dart';
 
@@ -113,6 +114,8 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     });
     try {
       await widget.meetingRepository.setBookmarked(meetingId, next);
+      MeetingBookmarkStore.forRepository(widget.meetingRepository)
+          .recordBookmarkChange(meetingId, next);
     } on Exception catch (error) {
       if (!mounted) return;
       setState(() {

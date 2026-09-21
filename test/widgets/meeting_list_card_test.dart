@@ -19,6 +19,7 @@ void main() {
               child: MeetingListCard(
                 meeting: _meeting,
                 onTap: () => tapped = true,
+                trailing: const Icon(Icons.bookmark_border),
               ),
             ),
           ),
@@ -85,6 +86,7 @@ void main() {
                   meeting: _meeting,
                   onTap: () {},
                   showDistance: true,
+                  trailing: const Icon(Icons.bookmark_border),
                 ),
               ),
             ),
@@ -104,6 +106,21 @@ void main() {
     expect(card.height, greaterThan(photo.height));
     expect(lastMeta.bottom, lessThanOrEqualTo(card.bottom));
     expect(card.right - bookmark.right, closeTo(8, 0.1));
+  });
+
+  testWidgets('omits bookmark when no action is provided', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            child: MeetingListCard(meeting: _meeting, onTap: () {}),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.bookmark_border), findsNothing);
   });
 }
 

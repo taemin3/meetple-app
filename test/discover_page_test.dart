@@ -468,6 +468,10 @@ class _BookmarkNearbyRepository extends MockMeetingRepository {
   bool isBookmarked = false;
 
   @override
+  Future<List<Meeting>> getBookmarkedMeetings() async =>
+      isBookmarked ? [(await findAll()).first] : [];
+
+  @override
   Future<MeetingEngagement> getEngagement(int meetingId) async {
     return MeetingEngagement(isHost: false, isBookmarked: isBookmarked);
   }
