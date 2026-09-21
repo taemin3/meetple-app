@@ -124,7 +124,7 @@ void main() {
     expect(find.byType(LinearProgressIndicator), findsNothing);
   });
 
-  testWidgets('loads home recommendations from the current location first', (
+  testWidgets('loads general recommendations before refreshing from location', (
     WidgetTester tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(540, 1200));
@@ -145,12 +145,43 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(meetingRepository.findAllCount, 0);
+    expect(meetingRepository.findAllCount, 1);
     expect(meetingRepository.findNearbyCount, 1);
     expect(meetingRepository.nearbyQueries.single.latitude, 37.5283);
     expect(meetingRepository.nearbyQueries.single.longitude, 126.9326);
     expect(meetingRepository.nearbyQueries.single.radiusMeters, 5000);
     expect(meetingRepository.nearbyQueries.single.size, 3);
+  });
+
+  testWidgets('keeps general recommendations when location lookup hangs', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final meetingRepository = _CountingMeetingRepository();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: HomePage(
+            meetingRepository: meetingRepository,
+            nearbyLocationProvider: _PendingNearbyLocationProvider(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('한강 러닝 크루 🏃'), findsOneWidget);
+    expect(
+      find.byKey(const Key('home-meeting-skeleton-list')),
+      findsNothing,
+    );
+    expect(meetingRepository.findAllCount, 1);
+    expect(meetingRepository.findNearbyCount, 0);
+
+    await tester.pump(const Duration(seconds: 5));
+    expect(meetingRepository.findNearbyCount, 0);
   });
 
   testWidgets('shows Meetple home when session is restored', (
@@ -1314,6 +1345,14 @@ class _StaticNearbyLocationProvider implements NearbyLocationProvider {
 
   @override
   Future<NearbyLocation?> requestCurrentLocation() async => location;
+}
+
+class _PendingNearbyLocationProvider implements NearbyLocationProvider {
+  final Completer<NearbyLocation?> _completer =
+      Completer<NearbyLocation?>();
+
+  @override
+  Future<NearbyLocation?> requestCurrentLocation() => _completer.future;
 }
 
 class _DeferredFindAllRepository extends MockMeetingRepository {

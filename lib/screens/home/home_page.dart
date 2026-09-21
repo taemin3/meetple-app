@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../app/app_navigation.dart';
@@ -52,8 +54,11 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  static const _nearbyLocationTimeout = Duration(seconds: 5);
+
   late Future<List<Meeting>> _meetingsFuture;
   late Future<List<MeetingCategory>> _categoriesFuture;
+  int _meetingsLoadGeneration = 0;
 
   @override
   void initState() {
@@ -80,33 +85,69 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _loadMeetings() {
-    _meetingsFuture = _findRecommendedMeetings();
+    final loadGeneration = ++_meetingsLoadGeneration;
+    final initialMeetings = widget.meetingRepository.findAll();
+    _meetingsFuture = initialMeetings;
+
+    final injectedProvider = widget.nearbyLocationProvider;
+    if (injectedProvider == null && !AppConfig.hasNaverMapClientId) {
+      return;
+    }
+
+    unawaited(
+      _refreshWithNearbyMeetings(
+        initialMeetings: initialMeetings,
+        loadGeneration: loadGeneration,
+        locationProvider: injectedProvider ?? createNearbyLocationProvider(),
+      ),
+    );
   }
 
   void _loadCategories() {
     _categoriesFuture = widget.categoryRepository.findAll();
   }
 
-  Future<List<Meeting>> _findRecommendedMeetings() async {
-    final injectedProvider = widget.nearbyLocationProvider;
-    if (injectedProvider == null && !AppConfig.hasNaverMapClientId) {
-      return widget.meetingRepository.findAll();
+  Future<void> _refreshWithNearbyMeetings({
+    required Future<List<Meeting>> initialMeetings,
+    required int loadGeneration,
+    required NearbyLocationProvider locationProvider,
+  }) async {
+    try {
+      await initialMeetings;
+    } catch (_) {
+      // A nearby request may still recover when the initial request fails.
     }
 
-    final location = await (injectedProvider ?? createNearbyLocationProvider())
-        .requestCurrentLocation();
-    if (location == null) {
-      return widget.meetingRepository.findAll();
+    if (!mounted || loadGeneration != _meetingsLoadGeneration) {
+      return;
     }
 
-    return widget.meetingRepository.findNearby(
-      NearbyMeetingQuery(
-        latitude: location.latitude,
-        longitude: location.longitude,
-        radiusMeters: 5000,
-        size: 3,
-      ),
-    );
+    NearbyLocation? location;
+    try {
+      location = await locationProvider.requestCurrentLocation().timeout(
+            _nearbyLocationTimeout,
+            onTimeout: () => null,
+          );
+    } catch (_) {
+      location = null;
+    }
+
+    if (location == null ||
+        !mounted ||
+        loadGeneration != _meetingsLoadGeneration) {
+      return;
+    }
+
+    setState(() {
+      _meetingsFuture = widget.meetingRepository.findNearby(
+        NearbyMeetingQuery(
+          latitude: location!.latitude,
+          longitude: location.longitude,
+          radiusMeters: 5000,
+          size: 3,
+        ),
+      );
+    });
   }
 
   void _reloadMeetings() {
