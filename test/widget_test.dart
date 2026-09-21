@@ -424,6 +424,26 @@ void main() {
     expect(meetingRepository.findAllCount, initialLoadCount + 1);
   });
 
+  testWidgets('shows only a centered button for the bottom create action', (
+    WidgetTester tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(540, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const MeetpleApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('모임 만들기'), findsNothing);
+
+    final navigationCenter =
+        tester.getRect(find.byKey(const Key('app-bottom-navigation'))).center;
+    final actionCenter = tester
+        .getRect(find.byKey(const Key('bottom-create-meeting-action')))
+        .center;
+
+    expect((navigationCenter.dy - actionCenter.dy).abs(), lessThanOrEqualTo(2));
+  });
+
   testWidgets('reloads discover meetings after creating from bottom action', (
     WidgetTester tester,
   ) async {

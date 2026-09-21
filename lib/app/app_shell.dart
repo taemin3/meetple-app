@@ -150,7 +150,7 @@ class _AppShellState extends State<AppShell> {
                   NavigationDestination(
                     icon: _CreateMeetingAction(),
                     selectedIcon: _CreateMeetingAction(),
-                    label: '모임 만들기',
+                    label: '',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.chat_bubble_outline),
@@ -361,25 +361,34 @@ class _CreateMeetingAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const Key('bottom-create-meeting-action'),
-      width: 40,
-      height: 40,
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x407B61FF),
-            blurRadius: 10,
-            offset: Offset(0, 3),
+    return Transform.translate(
+      offset: const Offset(0, 10.5),
+      child: Semantics(
+        label: '모임 만들기',
+        button: true,
+        child: ExcludeSemantics(
+          child: Container(
+            key: const Key('bottom-create-meeting-action'),
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x407B61FF),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.add_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
-        ],
-      ),
-      child: const Icon(
-        Icons.add_rounded,
-        color: Colors.white,
-        size: 26,
+        ),
       ),
     );
   }
