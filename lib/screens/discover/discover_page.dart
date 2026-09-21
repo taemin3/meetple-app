@@ -7,17 +7,15 @@ import '../../app/app_navigation.dart';
 import '../../app/app_routes.dart';
 import '../../core/config/app_config.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/ui/meeting_style.dart';
 import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_category_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
-import '../../widgets/category_pill.dart';
+import '../../widgets/bookmarkable_meeting_card.dart';
 import '../../widgets/loading_skeleton.dart';
 import '../../widgets/map/nearby_meeting_map.dart';
-import '../../widgets/meeting_photo.dart';
 import '../../widgets/tag_chip.dart';
 
 class DiscoverPage extends StatefulWidget {
@@ -133,7 +131,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final expandedSheetHeight =
-            (constraints.maxHeight * 0.39).clamp(270.0, 310.0);
+            (constraints.maxHeight * 0.55).clamp(330.0, 460.0);
         const collapsedSheetHeight = 78.0;
         final sheetHeight =
             _isSheetCollapsed ? collapsedSheetHeight : expandedSheetHeight;
@@ -294,7 +292,9 @@ class _DiscoverPageState extends State<DiscoverPage> {
                 bottom: sheetHeight + 18,
                 child: MeetingMapPreviewCard(
                   meeting: _selectedMeeting!,
+                  meetingRepository: widget.meetingRepository,
                   onTap: () => _openMeetingDetail(_selectedMeeting!),
+                  onBookmarkChanged: widget.onMeetingChanged,
                 ),
               ),
             AnimatedPositioned(
@@ -306,6 +306,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
               height: expandedSheetHeight,
               child: NearbyMeetingSheet(
                 meetings: visibleMeetings,
+                meetingRepository: widget.meetingRepository,
                 isLoading: _isLoading,
                 error: _loadError,
                 collapsed: _isSheetCollapsed,
@@ -316,6 +317,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     ? null
                     : () => _openMeetingList(visibleMeetings),
                 onMeetingTap: _openMeetingDetail,
+                onBookmarkChanged: widget.onMeetingChanged,
               ),
             ),
           ],
@@ -629,9 +631,12 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final meeting = meetings[index];
-                      return MeetingListTile(
+                      return BookmarkableMeetingCard(
                         meeting: meeting,
-                        onTap: () {
+                        meetingRepository: widget.meetingRepository,
+                        showDistance: true,
+                        onBookmarkChanged: widget.onMeetingChanged,
+                        onTap: () async {
                           Navigator.of(bottomSheetContext).pop();
                           _selectMeeting(meeting);
                         },
@@ -752,11 +757,14 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final meeting = meetings[index];
-                      return MeetingListTile(
+                      return BookmarkableMeetingCard(
                         meeting: meeting,
-                        onTap: () {
+                        meetingRepository: widget.meetingRepository,
+                        showDistance: true,
+                        onBookmarkChanged: widget.onMeetingChanged,
+                        onTap: () async {
                           Navigator.of(bottomSheetContext).pop();
-                          unawaited(_openMeetingDetail(meeting));
+                          await _openMeetingDetail(meeting);
                         },
                       );
                     },
@@ -1023,87 +1031,29 @@ class MeetingMapPreviewCard extends StatelessWidget {
   const MeetingMapPreviewCard({
     super.key,
     required this.meeting,
+    required this.meetingRepository,
     required this.onTap,
+    this.onBookmarkChanged,
   });
 
   final Meeting meeting;
-  final VoidCallback onTap;
+  final MeetingRepository meetingRepository;
+  final Future<void> Function() onTap;
+  final VoidCallback? onBookmarkChanged;
 
   @override
   Widget build(BuildContext context) {
-    final accent = meetingAccent(meeting);
-
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(18),
       elevation: 6,
       shadowColor: const Color(0x3017151F),
-      child: InkWell(
+      child: BookmarkableMeetingCard(
+        meeting: meeting,
+        meetingRepository: meetingRepository,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 62,
-                child: MeetingPhoto(
-                  meeting: meeting,
-                  height: 62,
-                  borderRadius: 14,
-                  showIcon: false,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      meeting.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${meeting.date} · ${meeting.time}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Row(
-                      children: [
-                        CategoryPill(
-                          label: meeting.category,
-                          color: accent,
-                        ),
-                        const Spacer(),
-                        Text(
-                          '${meeting.joined} / ${meeting.capacity}명',
-                          style: const TextStyle(
-                            color: AppColors.muted,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        showDistance: true,
+        onBookmarkChanged: onBookmarkChanged,
       ),
     );
   }
@@ -1113,6 +1063,7 @@ class NearbyMeetingSheet extends StatelessWidget {
   const NearbyMeetingSheet({
     super.key,
     required this.meetings,
+    required this.meetingRepository,
     required this.isLoading,
     required this.error,
     required this.collapsed,
@@ -1120,16 +1071,19 @@ class NearbyMeetingSheet extends StatelessWidget {
     required this.onRetry,
     required this.onViewAll,
     required this.onMeetingTap,
+    this.onBookmarkChanged,
   });
 
   final List<Meeting> meetings;
+  final MeetingRepository meetingRepository;
   final bool isLoading;
   final Object? error;
   final bool collapsed;
   final ValueChanged<bool> onCollapsedChanged;
   final VoidCallback onRetry;
   final VoidCallback? onViewAll;
-  final ValueChanged<Meeting> onMeetingTap;
+  final Future<void> Function(Meeting) onMeetingTap;
+  final VoidCallback? onBookmarkChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -1229,9 +1183,8 @@ class NearbyMeetingSheet extends StatelessWidget {
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-      scrollDirection: Axis.horizontal,
       itemCount: meetings.length,
-      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final meeting = meetings[index];
         return MapMeetingCard(
@@ -1239,7 +1192,9 @@ class NearbyMeetingSheet extends StatelessWidget {
             'nearby-meeting-card-${meeting.id ?? 'index-$index'}',
           ),
           meeting: meeting,
+          meetingRepository: meetingRepository,
           onTap: () => onMeetingTap(meeting),
+          onBookmarkChanged: onBookmarkChanged,
         );
       },
     );
@@ -1259,9 +1214,8 @@ class _NearbyMeetingSkeletonList extends StatelessWidget {
       child: ExcludeSemantics(
         child: ListView.separated(
           padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-          scrollDirection: Axis.horizontal,
           itemCount: 3,
-          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             return _MapMeetingSkeletonCard(
               key: ValueKey('nearby-meeting-skeleton-$index'),
@@ -1279,11 +1233,11 @@ class _MapMeetingSkeletonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 164,
+      width: double.infinity,
       child: Align(
         alignment: Alignment.topCenter,
         child: Container(
-          height: 161,
+          height: 128,
           margin: const EdgeInsets.fromLTRB(1, 2, 1, 7),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
@@ -1291,32 +1245,31 @@ class _MapMeetingSkeletonCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: const Color(0xFFF0EDF7)),
           ),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SkeletonBox(
-                height: 76,
-                borderRadius: BorderRadius.zero,
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
-                child: SkeletonBox(width: 118, height: 14),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
-                child: Row(
-                  children: [
-                    SkeletonBox(width: 48, height: 20),
-                    Spacer(),
-                    SkeletonBox(width: 38, height: 11),
-                  ],
+          child: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Row(
+              children: [
+                SkeletonBox(
+                  width: 112,
+                  height: 112,
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(8, 9, 8, 0),
-                child: SkeletonBox(width: 124, height: 11),
-              ),
-            ],
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SkeletonBox(width: 48, height: 20),
+                      SkeletonBox(height: 16),
+                      SkeletonBox(height: 12),
+                      SkeletonBox(height: 12),
+                      SkeletonBox(height: 12),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1328,181 +1281,35 @@ class MapMeetingCard extends StatelessWidget {
   const MapMeetingCard({
     super.key,
     required this.meeting,
+    required this.meetingRepository,
     required this.onTap,
+    this.onBookmarkChanged,
   });
 
   final Meeting meeting;
-  final VoidCallback onTap;
+  final MeetingRepository meetingRepository;
+  final Future<void> Function() onTap;
+  final VoidCallback? onBookmarkChanged;
 
   @override
   Widget build(BuildContext context) {
-    final color = meetingAccent(meeting);
-
     return SizedBox(
-      width: 164,
+      width: double.infinity,
       child: Align(
         alignment: Alignment.topCenter,
-        child: SizedBox(
-          height: 168,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(1, 2, 1, 7),
-            child: Material(
-              color: Colors.white,
-              elevation: 2,
-              shadowColor: const Color(0x3017151F),
-              surfaceTintColor: Colors.white,
-              clipBehavior: Clip.antiAlias,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-                side: const BorderSide(color: Color(0xFFF0EDF7)),
-              ),
-              child: InkWell(
-                onTap: onTap,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    MeetingPhoto(
-                      meeting: meeting,
-                      height: 76,
-                      borderRadius: 0,
-                    ),
-                    const SizedBox(height: 7),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        meeting.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.ink,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        children: [
-                          CategoryPill(label: meeting.category, color: color),
-                          const Spacer(),
-                          Text(
-                            '${meeting.joined}/${meeting.capacity}명',
-                            style: const TextStyle(
-                              color: AppColors.muted,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '${meeting.date} · ${meeting.area} · ${meeting.distance}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class MeetingListTile extends StatelessWidget {
-  const MeetingListTile({
-    super.key,
-    required this.meeting,
-    required this.onTap,
-  });
-
-  final Meeting meeting;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.canvas,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 88,
-                child: MeetingPhoto(
-                  meeting: meeting,
-                  height: 82,
-                  borderRadius: 14,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      meeting.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '${meeting.date} · ${meeting.time}',
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${meeting.area} · ${meeting.distance}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppColors.muted,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Text(
-                      '${meeting.joined} / ${meeting.capacity}명 참여',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: AppColors.subtle,
-              ),
-            ],
+          padding: const EdgeInsets.fromLTRB(1, 2, 1, 7),
+          child: Material(
+            elevation: 2,
+            borderRadius: BorderRadius.circular(18),
+            shadowColor: const Color(0x3017151F),
+            child: BookmarkableMeetingCard(
+              meeting: meeting,
+              meetingRepository: meetingRepository,
+              onTap: onTap,
+              showDistance: true,
+              onBookmarkChanged: onBookmarkChanged,
+            ),
           ),
         ),
       ),

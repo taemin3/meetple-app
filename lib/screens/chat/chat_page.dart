@@ -3,14 +3,19 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_theme.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_chat_repository.dart';
+import '../../data/repositories/mock_meeting_repository.dart';
+import '../../data/repositories/mock_notification_repository.dart';
+import '../../data/repositories/notification_repository.dart';
 import '../../data/realtime/chat_realtime_client.dart';
 import '../../data/realtime/mock_chat_realtime_client.dart';
 import '../../models/chat_room.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/main_tab_header.dart';
 import '../../widgets/network_image_with_skeleton.dart';
+import '../notifications/notifications_page.dart';
 import 'chat_room_page.dart';
 
 class ChatPage extends StatefulWidget {
@@ -21,6 +26,9 @@ class ChatPage extends StatefulWidget {
     this.currentMemberId = 1,
     this.refreshToken = 0,
     this.pushNotificationService = const NoopPushNotificationService(),
+    this.meetingRepository = const MockMeetingRepository(),
+    this.notificationRepository = const MockNotificationRepository(),
+    this.onMeetingChanged,
   });
 
   final ChatRepository chatRepository;
@@ -28,6 +36,9 @@ class ChatPage extends StatefulWidget {
   final int currentMemberId;
   final int refreshToken;
   final PushNotificationService pushNotificationService;
+  final MeetingRepository meetingRepository;
+  final NotificationRepository notificationRepository;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -89,12 +100,30 @@ class _ChatPageState extends State<ChatPage> {
       color: Colors.white,
       child: Column(
         children: [
-          _ChatListHeader(onRefresh: _refresh),
+          MainTabHeader(
+            title: '채팅',
+            backgroundColor: Colors.white,
+            actions: [
+              IconButton(
+                key: const Key('chat-refresh'),
+                tooltip: '채팅방 새로고침',
+                onPressed: _refresh,
+                icon: const Icon(Icons.refresh_rounded, size: 22),
+              ),
+              IconButton(
+                key: const Key('chat-notifications-open'),
+                tooltip: '알림',
+                onPressed: _openNotifications,
+                icon: const Icon(Icons.notifications_none_rounded),
+              ),
+            ],
+          ),
           Expanded(
             child: FutureBuilder<List<ChatRoom>>(
               future: _roomsFuture,
               builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
+                if (snapshot.connectionState != ConnectionState.done &&
+                    !snapshot.hasData) {
                   return const AppLoadingView(
                     message: '채팅방을 불러오는 중입니다.',
                     height: double.infinity,
@@ -169,44 +198,21 @@ class _ChatPageState extends State<ChatPage> {
     if (mounted) await _refresh();
   }
 
+  void _openNotifications() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => NotificationsPage(
+          meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
+          onMeetingChanged: widget.onMeetingChanged,
+        ),
+      ),
+    );
+  }
+
   String _errorMessage(Object? error) {
     if (error is ApiException) return error.message;
     return '채팅방을 불러오지 못했습니다.';
-  }
-}
-
-class _ChatListHeader extends StatelessWidget {
-  const _ChatListHeader({required this.onRefresh});
-
-  final Future<void> Function() onRefresh;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 18, 10, 12),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text(
-              '채팅',
-              style: TextStyle(
-                color: AppColors.ink,
-                fontFamily: AppTheme.fontFamily,
-                fontSize: 25,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
-              ),
-            ),
-          ),
-          IconButton(
-            key: const Key('chat-refresh'),
-            tooltip: '채팅방 새로고침',
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh_rounded, size: 24),
-          ),
-        ],
-      ),
-    );
   }
 }
 

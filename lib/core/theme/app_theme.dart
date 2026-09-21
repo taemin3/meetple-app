@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_colors.dart';
 
@@ -6,6 +7,12 @@ class AppTheme {
   const AppTheme._();
 
   static const fontFamily = 'Pretendard';
+
+  static const systemUiOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: AppColors.canvas,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+  );
 
   static ThemeData light() {
     return ThemeData(
@@ -39,11 +46,12 @@ class AppTheme {
         centerTitle: false,
         backgroundColor: AppColors.canvas,
         foregroundColor: AppColors.ink,
+        systemOverlayStyle: systemUiOverlayStyle,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColors.canvas,
         indicatorColor: AppColors.softSurface,
         surfaceTintColor: Colors.transparent,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {

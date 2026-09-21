@@ -6,8 +6,9 @@ import 'package:meetple/widgets/meeting_list_card.dart';
 import 'package:meetple/widgets/meeting_photo.dart';
 
 void main() {
-  testWidgets('aligns the trailing bookmark at the bottom right',
+  testWidgets('shows the reference card layout and opens the meeting',
       (tester) async {
+    var tapped = false;
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
@@ -17,7 +18,7 @@ void main() {
               width: 360,
               child: MeetingListCard(
                 meeting: _meeting,
-                onTap: () {},
+                onTap: () => tapped = true,
                 trailing: const Icon(Icons.bookmark_border),
               ),
             ),
@@ -26,22 +27,29 @@ void main() {
       ),
     );
 
-    final cardMaterial = find
-        .descendant(
-          of: find.byType(MeetingListCard),
-          matching: find.byType(Material),
-        )
-        .first;
-    final cardRect = tester.getRect(cardMaterial);
-    final photoRect = tester.getRect(find.byType(MeetingPhoto));
-    final bookmarkRect = tester.getRect(find.byIcon(Icons.bookmark_border));
+    final photo = tester.getRect(find.byType(MeetingPhoto));
+    final category = tester.getRect(find.text('취미'));
+    final bookmark = tester.getRect(find.byIcon(Icons.bookmark_border));
+    final title = tester.getRect(find.text('도예 원데이 클래스'));
+    final card = tester.getRect(find.byType(MeetingListCard));
+    final participants = tester.getRect(find.text('6/8명'));
 
-    expect(bookmarkRect.center.dx, greaterThan(photoRect.right));
-    expect(bookmarkRect.bottom, closeTo(cardRect.bottom - 10, 0.1));
+    expect(photo.right, lessThan(category.left));
+    expect(category.top, lessThan(title.top));
+    expect(bookmark.center.dx, greaterThan(title.center.dx));
+    expect(bookmark.top, lessThan(title.top));
+    expect(card.right - bookmark.right, closeTo(8, 0.1));
+    expect(photo.bottom - participants.bottom, lessThanOrEqualTo(10));
+    expect(find.text('흙으로 만드는 특별한 하루'), findsNothing);
+    expect(find.text('9/23 (화) 14:00'), findsOneWidget);
+    expect(find.text('수원 행궁동'), findsOneWidget);
+    expect(find.text('6/8명'), findsOneWidget);
+
+    await tester.tap(find.text('도예 원데이 클래스'));
+    expect(tapped, isTrue);
   });
 
-  testWidgets('aligns trailing to the actual bottom of a variable-height card',
-      (tester) async {
+  testWidgets('keeps the card within a narrow list', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light(),
@@ -50,9 +58,8 @@ void main() {
             child: SizedBox(
               width: 280,
               child: MeetingListCard(
-                meeting: _meetingWithWrappedTags,
+                meeting: _meeting,
                 onTap: () {},
-                trailing: const Icon(Icons.bookmark_border),
               ),
             ),
           ),
@@ -60,53 +67,76 @@ void main() {
       ),
     );
 
-    final cardMaterial = find
-        .descendant(
-          of: find.byType(MeetingListCard),
-          matching: find.byType(Material),
-        )
-        .first;
-    final cardRect = tester.getRect(cardMaterial);
-    final photoRect = tester.getRect(find.byType(MeetingPhoto));
-    final bookmarkRect = tester.getRect(find.byIcon(Icons.bookmark_border));
+    expect(tester.takeException(), isNull);
+    expect(find.text('6/8명'), findsOneWidget);
+  });
 
-    expect(cardRect.height, greaterThan(photoRect.height + 20));
-    expect(bookmarkRect.bottom, greaterThan(photoRect.bottom));
-    expect(bookmarkRect.bottom, closeTo(cardRect.bottom - 10, 0.1));
+  testWidgets('grows with large text and shows discover distance',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(
+            body: Center(
+              child: SizedBox(
+                width: 280,
+                child: MeetingListCard(
+                  meeting: _meeting,
+                  onTap: () {},
+                  showDistance: true,
+                  trailing: const Icon(Icons.bookmark_border),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('1km'), findsOneWidget);
+    expect(find.byIcon(Icons.bookmark_border), findsOneWidget);
+    expect(find.text('흙으로 만드는 특별한 하루'), findsNothing);
+    final card = tester.getRect(find.byType(MeetingListCard));
+    final photo = tester.getRect(find.byType(MeetingPhoto));
+    final lastMeta = tester.getRect(find.text('6/8명'));
+    final bookmark = tester.getRect(find.byIcon(Icons.bookmark_border));
+    expect(card.height, greaterThan(photo.height));
+    expect(lastMeta.bottom, lessThanOrEqualTo(card.bottom));
+    expect(card.right - bookmark.right, closeTo(8, 0.1));
+  });
+
+  testWidgets('omits bookmark when no action is provided', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            width: 360,
+            child: MeetingListCard(meeting: _meeting, onTap: () {}),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byIcon(Icons.bookmark_border), findsNothing);
   });
 }
 
 const _meeting = Meeting(
   id: 1,
-  title: '한강 러닝',
-  category: '운동',
-  tags: ['운동'],
-  area: '여의도',
-  date: '8/10',
-  time: '19:00',
+  title: '도예 원데이 클래스',
+  category: '취미',
+  tags: ['도예'],
+  area: '수원 행궁동',
+  date: '9/23 (화)',
+  time: '14:00',
   distance: '1km',
-  capacity: 10,
-  joined: 4,
+  capacity: 8,
+  joined: 6,
   host: '모임장',
-  description: '설명',
-  fee: '무료',
-  rating: 0,
-  reviewCount: 0,
-);
-
-const _meetingWithWrappedTags = Meeting(
-  id: 2,
-  title: '한강 러닝',
-  category: '운동',
-  tags: ['러닝 모임', '주말 운동', '초보 환영'],
-  area: '여의도',
-  date: '8/10',
-  time: '19:00',
-  distance: '1km',
-  capacity: 10,
-  joined: 4,
-  host: '모임장',
-  description: '설명',
+  description: '흙으로 만드는 특별한 하루',
   fee: '무료',
   rating: 0,
   reviewCount: 0,

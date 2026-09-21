@@ -16,8 +16,9 @@ import '../../data/repositories/notification_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
 import '../../widgets/app_state_view.dart';
+import '../../widgets/bookmarkable_meeting_card.dart';
 import '../../widgets/loading_skeleton.dart';
-import '../../widgets/meeting_list_card.dart';
+import '../../widgets/main_tab_header.dart';
 import '../../widgets/section_title.dart';
 import '../notifications/notifications_page.dart';
 
@@ -131,81 +132,139 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
-      children: [
-        HomeGreeting(
+  void _openNotifications() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => NotificationsPage(
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
           onMeetingChanged: widget.onMeetingChanged ?? _reloadMeetings,
         ),
-        const SizedBox(height: 24),
-        HomeSearchField(
-          onTap: () => _openDiscover(focusSearch: true),
-        ),
-        const SizedBox(height: 24),
-        FutureBuilder<List<MeetingCategory>>(
-          future: _categoriesFuture,
-          builder: (context, snapshot) {
-            final categories = snapshot.data ?? const <MeetingCategory>[];
-            return CategoryShortcutRow(
-              categories: categories,
-              onSelected: (category) => _openDiscover(category: category),
-            );
-          },
-        ),
-        const SizedBox(height: 30),
-        SectionTitle(
-          title: '추천 모임',
-          action: '전체보기 >',
-          actionKey: const Key('home-recommendations-view-all'),
-          onActionTap: () => _openDiscover(),
-        ),
-        const SizedBox(height: 14),
-        FutureBuilder<List<Meeting>>(
-          future: _meetingsFuture,
-          builder: (context, snapshot) {
-            final isLoading = snapshot.connectionState != ConnectionState.done;
-            if (isLoading && !snapshot.hasData) {
-              return const _HomeMeetingSkeletonList();
-            }
+      ),
+    );
+  }
 
-            if (snapshot.hasError) {
-              return AppErrorView(
-                message: '모임을 불러오지 못했습니다.',
-                onRetry: _reloadMeetings,
-              );
-            }
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.white,
+      child: Column(
+        children: [
+          MainTabHeader(
+            title: '밋플',
+            titleTrailing: Image.asset(
+              'assets/icons/app-icon-foreground.png',
+              key: const Key('home-app-icon'),
+              width: 32,
+              height: 32,
+              filterQuality: FilterQuality.medium,
+            ),
+            actions: [
+              IconButton(
+                key: const Key('home-notifications-open'),
+                tooltip: '알림',
+                onPressed: _openNotifications,
+                icon: const Icon(Icons.notifications_none_rounded),
+              ),
+            ],
+          ),
+          Expanded(child: _buildHomeList()),
+        ],
+      ),
+    );
+  }
 
-            final meetings = snapshot.data ?? const <Meeting>[];
-            if (meetings.isEmpty) {
-              return const AppEmptyView(message: '추천 모임이 없습니다.');
-            }
-
-            return Column(
+  Widget _buildHomeList() {
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 28),
+      children: [
+        ColoredBox(
+          color: AppColors.canvas,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (isLoading)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 10),
-                    child: LinearProgressIndicator(minHeight: 2),
-                  ),
-                for (final meeting in meetings.take(3))
-                  HomeMeetingTile(
-                    meeting: meeting,
-                    onTap: () => _openMeetingDetail(meeting),
-                  ),
+                const HomeGreeting(),
+                const SizedBox(height: 18),
+                HomeSearchField(
+                  onTap: () => _openDiscover(focusSearch: true),
+                ),
               ],
-            );
-          },
+            ),
+          ),
         ),
-        const SizedBox(height: 18),
-        CreateMeetingBanner(
-          meetingRepository: widget.meetingRepository,
-          categoryRepository: widget.categoryRepository,
-          locationRepository: widget.locationRepository,
-          onMeetingCreated: widget.onMeetingCreated ?? _reloadMeetings,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FutureBuilder<List<MeetingCategory>>(
+                future: _categoriesFuture,
+                builder: (context, snapshot) {
+                  final categories = snapshot.data ?? const <MeetingCategory>[];
+                  return CategoryShortcutRow(
+                    categories: categories,
+                    onSelected: (category) => _openDiscover(category: category),
+                  );
+                },
+              ),
+              const SizedBox(height: 30),
+              SectionTitle(
+                title: '추천 모임',
+                action: '전체보기 >',
+                actionKey: const Key('home-recommendations-view-all'),
+                onActionTap: () => _openDiscover(),
+              ),
+              const SizedBox(height: 14),
+              FutureBuilder<List<Meeting>>(
+                future: _meetingsFuture,
+                builder: (context, snapshot) {
+                  final isLoading =
+                      snapshot.connectionState != ConnectionState.done;
+                  if (isLoading && !snapshot.hasData) {
+                    return const _HomeMeetingSkeletonList();
+                  }
+
+                  if (snapshot.hasError) {
+                    return AppErrorView(
+                      message: '모임을 불러오지 못했습니다.',
+                      onRetry: _reloadMeetings,
+                    );
+                  }
+
+                  final meetings = snapshot.data ?? const <Meeting>[];
+                  if (meetings.isEmpty) {
+                    return const AppEmptyView(message: '추천 모임이 없습니다.');
+                  }
+
+                  return Column(
+                    children: [
+                      if (isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(bottom: 10),
+                          child: LinearProgressIndicator(minHeight: 2),
+                        ),
+                      for (final meeting in meetings.take(3))
+                        HomeMeetingTile(
+                          meeting: meeting,
+                          meetingRepository: widget.meetingRepository,
+                          onTap: () => _openMeetingDetail(meeting),
+                          onBookmarkChanged: widget.onMeetingChanged,
+                        ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 18),
+              CreateMeetingBanner(
+                meetingRepository: widget.meetingRepository,
+                categoryRepository: widget.categoryRepository,
+                locationRepository: widget.locationRepository,
+                onMeetingCreated: widget.onMeetingCreated ?? _reloadMeetings,
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -213,23 +272,14 @@ class _HomePageState extends State<HomePage> {
 }
 
 class HomeGreeting extends StatelessWidget {
-  const HomeGreeting({
-    super.key,
-    required this.meetingRepository,
-    required this.notificationRepository,
-    this.onMeetingChanged,
-  });
-
-  final MeetingRepository meetingRepository;
-  final NotificationRepository notificationRepository;
-  final VoidCallback? onMeetingChanged;
+  const HomeGreeting({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -237,16 +287,16 @@ class HomeGreeting extends StatelessWidget {
                 '새로운 모임,',
                 style: TextStyle(
                   color: AppColors.muted,
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              SizedBox(height: 6),
+              SizedBox(height: 4),
               Text(
                 '함께할 사람을\n찾아보세요 👋',
                 style: TextStyle(
                   color: AppColors.ink,
-                  fontSize: 26,
+                  fontSize: 22,
                   height: 1.25,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 0,
@@ -254,18 +304,6 @@ class HomeGreeting extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        IconButton(
-          onPressed: () => Navigator.of(context).push<void>(
-            MaterialPageRoute(
-              builder: (_) => NotificationsPage(
-                meetingRepository: meetingRepository,
-                notificationRepository: notificationRepository,
-                onMeetingChanged: onMeetingChanged,
-              ),
-            ),
-          ),
-          icon: const Icon(Icons.notifications_none_rounded),
         ),
       ],
     );
@@ -282,22 +320,32 @@ class HomeSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      key: const Key('home-search-field'),
-      readOnly: true,
-      onTap: onTap,
-      decoration: InputDecoration(
-        hintText: '모임, 장소, 키워드 검색',
-        prefixIcon: const Icon(Icons.search),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+    return SizedBox(
+      height: 48,
+      child: TextField(
+        key: const Key('home-search-field'),
+        readOnly: true,
+        onTap: onTap,
+        style: const TextStyle(fontSize: 14),
+        decoration: InputDecoration(
+          hintText: '모임, 장소, 키워드 검색',
+          hintStyle: const TextStyle(fontSize: 14, color: AppColors.muted),
+          prefixIcon: const Icon(Icons.search, size: 21),
+          prefixIconConstraints:
+              const BoxConstraints(minWidth: 44, minHeight: 44),
+          isDense: true,
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
     );
@@ -388,23 +436,25 @@ class HomeMeetingTile extends StatelessWidget {
   const HomeMeetingTile({
     super.key,
     required this.meeting,
+    required this.meetingRepository,
     required this.onTap,
+    this.onBookmarkChanged,
   });
 
   final Meeting meeting;
-  final VoidCallback onTap;
+  final MeetingRepository meetingRepository;
+  final Future<void> Function() onTap;
+  final VoidCallback? onBookmarkChanged;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: MeetingListCard(
+      child: BookmarkableMeetingCard(
         meeting: meeting,
+        meetingRepository: meetingRepository,
         onTap: onTap,
-        trailing: const Icon(
-          Icons.bookmark_border,
-          color: AppColors.subtle,
-        ),
+        onBookmarkChanged: onBookmarkChanged,
       ),
     );
   }

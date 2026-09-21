@@ -20,6 +20,8 @@ class AppColors {
   static const error = Color(0xFFFF6B81);
 
   static const primaryDark = Color(0xFF624BE8);
+  static const categoryStudy = Color(0xFF2563EB);
+  static const categoryExercise = Color(0xFF14866D);
   static const violet = secondary;
   static const blue = secondary;
   static const mint = success;

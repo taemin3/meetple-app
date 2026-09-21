@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/mock/mock_auth.dart';
 import 'package:meetple/data/mock/mock_legal_documents.dart';
 import 'package:meetple/data/repositories/auth_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
+import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/screens/auth/password_reset_page.dart';
 import 'package:meetple/screens/profile/legal_documents_page.dart';
 import 'package:meetple/screens/profile/profile_page.dart';
@@ -182,6 +185,49 @@ void main() {
     expect(signedOutCount, 1);
     expect(find.text('로그인이 필요합니다.'), findsOneWidget);
   });
+
+  testWidgets('keeps profile visible while refreshing on tab return', (
+    tester,
+  ) async {
+    final repository = _DeferredRefreshAuthRepository();
+
+    Widget profile({required bool isActive}) => MaterialApp(
+          home: Scaffold(
+            body: ProfilePage(
+              authRepository: repository,
+              isActive: isActive,
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(profile(isActive: true));
+    await tester.pumpAndSettle();
+    expect(find.text(mockAuthSession.user.nickname), findsOneWidget);
+
+    await tester.pumpWidget(profile(isActive: false));
+    await tester.pump();
+    repository.pendingRefresh = Completer<AuthSession?>();
+    await tester.pumpWidget(profile(isActive: true));
+    await tester.pump();
+
+    expect(find.text('내 정보를 불러오는 중입니다.'), findsNothing);
+    expect(find.text(mockAuthSession.user.nickname), findsOneWidget);
+
+    repository.pendingRefresh!.complete(mockAuthSession);
+    await tester.pumpAndSettle();
+  });
+}
+
+class _DeferredRefreshAuthRepository extends MockAuthRepository {
+  int refreshCount = 0;
+  Completer<AuthSession?>? pendingRefresh;
+
+  @override
+  Future<AuthSession?> refreshSession() {
+    refreshCount++;
+    if (refreshCount > 1) return pendingRefresh!.future;
+    return super.refreshSession();
+  }
 }
 
 class _SessionExpiredDeletionRepository extends MockAuthRepository {

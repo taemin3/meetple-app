@@ -124,16 +124,13 @@ class _AppShellState extends State<AppShell> {
               ],
             ),
           ),
-          bottomNavigationBar: DecoratedBox(
+          bottomNavigationBar: ColoredBox(
             key: const Key('app-bottom-navigation'),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: AppColors.line)),
-            ),
+            color: Colors.white,
             child: SafeArea(
               top: false,
               child: NavigationBar(
-                height: 70,
+                height: 60,
                 elevation: 0,
                 backgroundColor: Colors.white,
                 indicatorColor: AppColors.softSurface,
@@ -153,7 +150,7 @@ class _AppShellState extends State<AppShell> {
                   NavigationDestination(
                     icon: _CreateMeetingAction(),
                     selectedIcon: _CreateMeetingAction(),
-                    label: '모임 만들기',
+                    label: '',
                   ),
                   NavigationDestination(
                     icon: Icon(Icons.chat_bubble_outline),
@@ -163,13 +160,16 @@ class _AppShellState extends State<AppShell> {
                   NavigationDestination(
                     icon: Icon(Icons.person_outline),
                     selectedIcon: Icon(Icons.person),
-                    label: '마이',
+                    label: '마이페이지',
                   ),
                 ],
               ),
             ),
           ),
-          backgroundColor: AppColors.canvas,
+          backgroundColor:
+              currentTab == AppTab.chat || currentTab == AppTab.discover
+                  ? Colors.white
+                  : AppColors.canvas,
         ),
       ),
     );
@@ -334,6 +334,9 @@ class _AppShellState extends State<AppShell> {
       case AppTab.chat:
         return ChatPage(
           chatRepository: widget.chatRepository,
+          meetingRepository: widget.meetingRepository,
+          notificationRepository: widget.notificationRepository,
+          onMeetingChanged: _invalidateMeetingTabs,
           chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
           refreshToken: _chatRefreshToken,
@@ -358,25 +361,34 @@ class _CreateMeetingAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      key: const Key('bottom-create-meeting-action'),
-      width: 40,
-      height: 40,
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x407B61FF),
-            blurRadius: 10,
-            offset: Offset(0, 3),
+    return Transform.translate(
+      offset: const Offset(0, 10.5),
+      child: Semantics(
+        label: '모임 만들기',
+        button: true,
+        child: ExcludeSemantics(
+          child: Container(
+            key: const Key('bottom-create-meeting-action'),
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x407B61FF),
+                  blurRadius: 10,
+                  offset: Offset(0, 3),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.add_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
-        ],
-      ),
-      child: const Icon(
-        Icons.add_rounded,
-        color: Colors.white,
-        size: 26,
+        ),
       ),
     );
   }
