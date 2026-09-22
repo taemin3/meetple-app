@@ -53,6 +53,36 @@ void main() {
     expect(client.deletePath, '/api/v1/users/3/block');
   });
 
+  test('mutations reject failed API envelopes', () async {
+    final client = _RecordingApiClient(
+      postResponse: const {
+        'success': false,
+        'status': 400,
+        'message': '요청을 처리할 수 없습니다.',
+      },
+      deleteResponse: const {
+        'success': false,
+        'status': 400,
+        'message': '차단 해제에 실패했습니다.',
+      },
+    );
+    final repository = ApiModerationRepository(apiClient: client);
+
+    await expectLater(
+      repository.createReport(
+        targetType: ReportTargetType.member,
+        targetId: 3,
+        reason: ReportReason.spam,
+      ),
+      throwsA(isA<ApiException>()),
+    );
+    await expectLater(repository.blockMember(3), throwsA(isA<ApiException>()));
+    await expectLater(
+      repository.unblockMember(3),
+      throwsA(isA<ApiException>()),
+    );
+  });
+
   test('blocked members map paged backend response', () async {
     final client = _RecordingApiClient(getResponse: {
       'data': {
@@ -78,8 +108,14 @@ void main() {
 }
 
 class _RecordingApiClient extends ApiClient {
-  _RecordingApiClient({this.getResponse = const {'data': {}}});
+  _RecordingApiClient({
+    this.getResponse = const {'data': {}},
+    this.postResponse = const {'success': true, 'data': {}},
+    this.deleteResponse = const {'success': true, 'data': {}},
+  });
   final Map<String, dynamic> getResponse;
+  final Map<String, dynamic> postResponse;
+  final Map<String, dynamic> deleteResponse;
   String? getPath;
   Map<String, String?>? getQueryParameters;
   String? postPath;
@@ -100,13 +136,13 @@ class _RecordingApiClient extends ApiClient {
       bool includeAuthorization = true}) async {
     postPath = path;
     postBody = body;
-    return const {'data': {}};
+    return postResponse;
   }
 
   @override
   Future<Map<String, dynamic>> deleteJson(String path,
       {Map<String, dynamic> body = const {}}) async {
     deletePath = path;
-    return const {'data': {}};
+    return deleteResponse;
   }
 }

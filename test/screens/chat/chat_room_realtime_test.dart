@@ -7,14 +7,71 @@ import 'package:meetple/core/push/push_installation_id_store.dart';
 import 'package:meetple/core/push/push_notification_message.dart';
 import 'package:meetple/core/push/push_notification_service.dart';
 import 'package:meetple/data/repositories/chat_repository.dart';
+import 'package:meetple/data/repositories/mock_moderation_repository.dart';
 import 'package:meetple/data/repositories/push_device_token_repository.dart';
 import 'package:meetple/data/realtime/chat_realtime_client.dart';
 import 'package:meetple/models/chat_message.dart';
 import 'package:meetple/models/chat_room.dart';
+import 'package:meetple/models/moderation.dart';
 import 'package:meetple/screens/chat/chat_room_page.dart';
 import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
 void main() {
+  testWidgets('removes realtime messages when the block list finishes loading',
+      (WidgetTester tester) async {
+    final moderationRepository = _DeferredBlockModerationRepository();
+    final realtimeClient = _FakeChatRealtimeClient();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(),
+          chatRealtimeClient: realtimeClient,
+          currentMemberId: 1,
+          moderationRepository: moderationRepository,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    realtimeClient.session.addMessage(
+      _chatMessage(
+        id: 50,
+        sequence: 50,
+        senderId: 2,
+        content: '차단 전에 도착한 메시지',
+      ),
+    );
+    await tester.pump();
+    moderationRepository.completeWithBlockedMember(2);
+    await tester.pumpAndSettle();
+
+    expect(find.text('차단 전에 도착한 메시지'), findsNothing);
+  });
+
+  testWidgets('filters blocked members from older message pages',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _OlderBlockedMessageRepository(),
+          chatRealtimeClient: _FakeChatRealtimeClient(),
+          currentMemberId: 1,
+          moderationRepository: _BlockedModerationRepository(2),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('load-older-chat-messages')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('표시되는 최신 메시지'), findsOneWidget);
+    expect(find.text('차단된 과거 메시지'), findsNothing);
+  });
+
   testWidgets('disables notification toggle until initial setting loads', (
     WidgetTester tester,
   ) async {
@@ -1050,6 +1107,78 @@ class _ChatNotificationSettingRepository extends _ChatRoomRepository
     updatedValues.add(enabled);
     this.enabled = enabled;
     return enabled;
+  }
+}
+
+class _DeferredBlockModerationRepository extends MockModerationRepository {
+  final Completer<List<BlockedMember>> _blockedMembers = Completer();
+
+  void completeWithBlockedMember(int memberId) {
+    _blockedMembers.complete([
+      BlockedMember(
+        memberId: memberId,
+        nickname: '차단 회원',
+        blockedAt: DateTime(2026, 9, 22),
+      ),
+    ]);
+  }
+
+  @override
+  Future<List<BlockedMember>> getBlockedMembers() => _blockedMembers.future;
+}
+
+class _BlockedModerationRepository extends MockModerationRepository {
+  _BlockedModerationRepository(this.memberId);
+
+  final int memberId;
+
+  @override
+  Future<List<BlockedMember>> getBlockedMembers() async => [
+        BlockedMember(
+          memberId: memberId,
+          nickname: '차단 회원',
+          blockedAt: DateTime(2026, 9, 22),
+        ),
+      ];
+}
+
+class _OlderBlockedMessageRepository extends _ChatRoomRepository {
+  @override
+  Future<ChatMessagePage> getMessages(
+    int roomId, {
+    int? beforeSequence,
+    int? afterSequence,
+    int size = 50,
+  }) async {
+    if (afterSequence != null) {
+      return const ChatMessagePage(content: [], hasMore: false);
+    }
+    if (beforeSequence != null) {
+      return ChatMessagePage(
+        content: [
+          _chatMessage(
+            id: 1,
+            sequence: 1,
+            senderId: 2,
+            content: '차단된 과거 메시지',
+          ),
+        ],
+        hasMore: false,
+        latestSequence: 2,
+      );
+    }
+    return ChatMessagePage(
+      content: [
+        _chatMessage(
+          id: 2,
+          sequence: 2,
+          senderId: 3,
+          content: '표시되는 최신 메시지',
+        ),
+      ],
+      hasMore: true,
+      latestSequence: 2,
+    );
   }
 }
 

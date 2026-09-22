@@ -5,6 +5,7 @@ import '../data/repositories/category_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/moderation_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
@@ -92,6 +93,8 @@ abstract final class AppRoutes {
     CategoryRepository? categoryRepository,
     LocationRepository? locationRepository,
     ImageUploadRepository? imageUploadRepository,
+    ModerationRepository? moderationRepository,
+    int? currentMemberId,
   }) {
     final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
     return Navigator.of(context).push<T>(
@@ -108,9 +111,11 @@ abstract final class AppRoutes {
               locationRepository ?? repositoryScope?.locationRepository,
           imageUploadRepository:
               imageUploadRepository ?? repositoryScope?.imageUploadRepository,
-          moderationRepository: repositoryScope?.moderationRepository ??
+          moderationRepository: moderationRepository ??
+              repositoryScope?.moderationRepository ??
               const MockModerationRepository(),
-          currentMemberId: repositoryScope?.currentMemberId ?? 1,
+          currentMemberId:
+              currentMemberId ?? repositoryScope?.currentMemberId ?? 1,
         ),
       ),
     );

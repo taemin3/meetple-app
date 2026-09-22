@@ -41,23 +41,27 @@ class ApiModerationRepository implements ModerationRepository {
     required ReportReason reason,
     String? otherDescription,
   }) async {
-    await _apiClient.postJson('/api/v1/reports', body: {
+    final response = await _apiClient.postJson('/api/v1/reports', body: {
       'targetType': targetType.apiValue,
       'targetId': targetId,
       'reason': reason.apiValue,
       if (otherDescription != null && otherDescription.trim().isNotEmpty)
         'otherDescription': otherDescription.trim(),
     });
+    _ensureSuccess(response);
   }
 
   @override
   Future<void> blockMember(int memberId) async {
-    await _apiClient.postJson('/api/v1/users/$memberId/block');
+    final response = await _apiClient.postJson('/api/v1/users/$memberId/block');
+    _ensureSuccess(response);
   }
 
   @override
   Future<void> unblockMember(int memberId) async {
-    await _apiClient.deleteJson('/api/v1/users/$memberId/block');
+    final response =
+        await _apiClient.deleteJson('/api/v1/users/$memberId/block');
+    _ensureSuccess(response);
   }
 
   @override
@@ -99,6 +103,16 @@ class ApiModerationRepository implements ModerationRepository {
     final data = response['data'];
     if (data is Map<String, dynamic>) return data;
     throw const FormatException('Expected data to be an object.');
+  }
+
+  void _ensureSuccess(Map<String, dynamic> response) {
+    if (response['success'] != true) {
+      throw ApiException(
+        statusCode: _int(response['status']),
+        message: _optionalString(response['message']) ?? 'API request failed.',
+        body: response,
+      );
+    }
   }
 
   int _int(Object? value) => value is int ? value : int.parse(value.toString());

@@ -6,6 +6,7 @@ import 'package:meetple/data/repositories/mock_category_repository.dart';
 import 'package:meetple/data/repositories/mock_image_upload_repository.dart';
 import 'package:meetple/data/repositories/mock_location_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
+import 'package:meetple/data/repositories/mock_moderation_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/discover/global_meeting_search_page.dart';
@@ -19,11 +20,14 @@ void main() {
     const categoryRepository = MockCategoryRepository();
     const locationRepository = MockLocationRepository();
     const imageUploadRepository = MockImageUploadRepository();
+    const moderationRepository = MockModerationRepository();
 
     await tester.pumpWidget(
       MaterialApp(
         home: MeetingRepositoryScope(
           repository: meetingRepository,
+          moderationRepository: moderationRepository,
+          currentMemberId: 77,
           categoryRepository: categoryRepository,
           locationRepository: locationRepository,
           imageUploadRepository: imageUploadRepository,
@@ -52,6 +56,8 @@ void main() {
     expect(detailPage.categoryRepository, same(categoryRepository));
     expect(detailPage.locationRepository, same(locationRepository));
     expect(detailPage.imageUploadRepository, same(imageUploadRepository));
+    expect(detailPage.moderationRepository, same(moderationRepository));
+    expect(detailPage.currentMemberId, 77);
 
     await tester.tap(find.text('수정'));
     await tester.pumpAndSettle();

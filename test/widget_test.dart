@@ -15,6 +15,7 @@ import 'package:meetple/data/repositories/meeting_repository.dart';
 import 'package:meetple/data/repositories/mock_auth_repository.dart';
 import 'package:meetple/data/repositories/mock_chat_repository.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
+import 'package:meetple/data/repositories/mock_moderation_repository.dart';
 import 'package:meetple/data/repositories/notification_repository.dart';
 import 'package:meetple/models/auth_session.dart';
 import 'package:meetple/models/auth_user.dart';
@@ -771,12 +772,14 @@ void main() {
     );
     addTearDown(pushNotificationService.dispose);
     final meetingRepository = _PushNavigationMeetingRepository();
+    final moderationRepository = _RecordingModerationRepository();
 
     await tester.pumpWidget(
       MeetpleApp(
         authRepository: MockAuthRepository(),
         pushNotificationService: pushNotificationService,
         meetingRepository: meetingRepository,
+        moderationRepository: moderationRepository,
         notificationRepository: meetingRepository,
       ),
     );
@@ -785,6 +788,11 @@ void main() {
     expect(find.byType(MeetingDetailPage), findsOneWidget);
     expect(meetingRepository.requestedMeetingIds, [1]);
     expect(meetingRepository.readNotificationIds, [501]);
+    final detailPage = tester.widget<MeetingDetailPage>(
+      find.byType(MeetingDetailPage),
+    );
+    expect(detailPage.moderationRepository, same(moderationRepository));
+    expect(detailPage.currentMemberId, mockAuthSession.user.id);
   });
 
   testWidgets('opens a chat room from a terminated push notification', (
@@ -1039,6 +1047,8 @@ void main() {
     expect(find.text('\uAC00\uC785 \uC644\uB8CC'), findsOneWidget);
   });
 }
+
+class _RecordingModerationRepository extends MockModerationRepository {}
 
 class _RecordingPushNotificationService implements PushNotificationService {
   _RecordingPushNotificationService({

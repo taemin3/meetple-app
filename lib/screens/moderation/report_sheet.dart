@@ -65,9 +65,13 @@ class _ReportSheetState extends State<_ReportSheet> {
   Widget build(BuildContext context) {
     final isOther = _reason == ReportReason.other;
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(
-            20, 0, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
+          20,
+          0,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,

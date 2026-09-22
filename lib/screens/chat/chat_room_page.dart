@@ -98,6 +98,9 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   bool _updatingNotificationSetting = false;
   Set<int> _blockedMemberIds = const {};
 
+  bool _isMessageBlocked(ChatMessage message) =>
+      _blockedMemberIds.contains(message.senderId);
+
   ChatNotificationSettingsRepository? get _notificationSettingsRepository {
     final Object repository = widget.chatRepository;
     return repository is ChatNotificationSettingsRepository ? repository : null;
@@ -498,7 +501,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     bool recoverSequenceGap = true,
   }) {
     if (!mounted || _disposing || message.roomId != widget.room.roomId) return;
-    if (_blockedMemberIds.contains(message.senderId)) {
+    if (_isMessageBlocked(message)) {
       _historySyncSequence = message.sequence > _historySyncSequence
           ? message.sequence
           : _historySyncSequence;
@@ -635,15 +638,17 @@ class _ChatRoomPageState extends State<ChatRoomPage>
         final realtimeMessages = List<ChatMessage>.of(_messages);
         _messages
           ..clear()
-          ..addAll(page.content.where(
-              (message) => !_blockedMemberIds.contains(message.senderId)));
+          ..addAll(
+              page.content.where((message) => !_isMessageBlocked(message)));
         for (final message in realtimeMessages) {
           final isDuplicate = _messages.any(
             (existing) =>
                 existing.id == message.id ||
                 existing.clientMessageId == message.clientMessageId,
           );
-          if (!isDuplicate) _messages.add(message);
+          if (!isDuplicate && !_isMessageBlocked(message)) {
+            _messages.add(message);
+          }
         }
         _messages
             .sort((left, right) => left.sequence.compareTo(right.sequence));
@@ -685,7 +690,11 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       setState(() {
         _messages.insertAll(
           0,
-          page.content.where((message) => !existingIds.contains(message.id)),
+          page.content.where(
+            (message) =>
+                !existingIds.contains(message.id) &&
+                !_isMessageBlocked(message),
+          ),
         );
         _hasMore = page.hasMore;
       });

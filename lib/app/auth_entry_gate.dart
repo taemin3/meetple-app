@@ -320,6 +320,8 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
       categoryRepository: widget.categoryRepository,
       locationRepository: widget.locationRepository,
       imageUploadRepository: widget.imageUploadRepository,
+      moderationRepository: widget.moderationRepository,
+      currentMemberId: _session!.user.id,
     );
     _releaseNotificationNavigation();
     unawaited(_handleMeetingDetailResult(detailResult));
