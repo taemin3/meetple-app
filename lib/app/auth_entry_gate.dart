@@ -11,6 +11,8 @@ import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/moderation_repository.dart';
+import '../data/repositories/mock_moderation_repository.dart';
 import '../data/repositories/notification_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/realtime/chat_realtime_client.dart';
@@ -34,6 +36,7 @@ class AuthEntryGate extends StatefulWidget {
     this.authSessionExpired,
     this.pushNotificationService = const NoopPushNotificationService(),
     required this.meetingRepository,
+    this.moderationRepository = const MockModerationRepository(),
     required this.notificationRepository,
     required this.chatRepository,
     required this.chatRealtimeClient,
@@ -46,6 +49,7 @@ class AuthEntryGate extends StatefulWidget {
   final Stream<void>? authSessionExpired;
   final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
+  final ModerationRepository moderationRepository;
   final NotificationRepository notificationRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
@@ -118,6 +122,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
         return AppShell(
           authRepository: _authRepository,
           meetingRepository: widget.meetingRepository,
+          moderationRepository: widget.moderationRepository,
           notificationRepository: widget.notificationRepository,
           chatRepository: widget.chatRepository,
           chatRealtimeClient: widget.chatRealtimeClient,
@@ -340,6 +345,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           chatRepository: widget.chatRepository,
           chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: _session!.user.id,
+          moderationRepository: widget.moderationRepository,
           pushNotificationService: widget.pushNotificationService,
         ),
       ),

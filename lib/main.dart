@@ -29,6 +29,7 @@ Future<void> main() async {
       ),
       pushNotificationService: pushNotificationService,
       meetingRepository: createMeetingRepository(),
+      moderationRepository: createModerationRepository(),
       notificationRepository: createNotificationRepository(),
       chatRepository: createChatRepository(),
       chatRealtimeClient: createChatRealtimeClient(),

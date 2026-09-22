@@ -4,11 +4,15 @@ import '../data/repositories/category_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/moderation_repository.dart';
+import '../data/repositories/mock_moderation_repository.dart';
 
 class MeetingRepositoryScope extends InheritedWidget {
   const MeetingRepositoryScope({
     super.key,
     required this.repository,
+    this.moderationRepository = const MockModerationRepository(),
+    this.currentMemberId = 1,
     required this.categoryRepository,
     required this.locationRepository,
     required this.imageUploadRepository,
@@ -16,6 +20,8 @@ class MeetingRepositoryScope extends InheritedWidget {
   });
 
   final MeetingRepository repository;
+  final ModerationRepository moderationRepository;
+  final int currentMemberId;
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
@@ -31,6 +37,8 @@ class MeetingRepositoryScope extends InheritedWidget {
   @override
   bool updateShouldNotify(MeetingRepositoryScope oldWidget) {
     return repository != oldWidget.repository ||
+        moderationRepository != oldWidget.moderationRepository ||
+        currentMemberId != oldWidget.currentMemberId ||
         categoryRepository != oldWidget.categoryRepository ||
         locationRepository != oldWidget.locationRepository ||
         imageUploadRepository != oldWidget.imageUploadRepository;

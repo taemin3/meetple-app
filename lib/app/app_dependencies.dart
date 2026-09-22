@@ -8,6 +8,7 @@ import '../data/repositories/api_image_upload_repository.dart';
 import '../data/repositories/api_location_repository.dart';
 import '../data/repositories/api_meeting_repository.dart';
 import '../data/repositories/api_notification_repository.dart';
+import '../data/repositories/api_moderation_repository.dart';
 import '../data/repositories/auth_repository.dart';
 import '../data/repositories/auth_token_refresh_coordinator.dart';
 import '../data/repositories/auth_token_store.dart';
@@ -16,6 +17,8 @@ import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/moderation_repository.dart';
+import '../data/repositories/mock_moderation_repository.dart';
 import '../data/repositories/mock_notification_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
@@ -135,6 +138,26 @@ MeetingRepository createMeetingRepository({
   }
 
   return const MockMeetingRepository();
+}
+
+ModerationRepository createModerationRepository({
+  bool useApiRepository = AppConfig.useApiRepository,
+  String apiBaseUrl = AppConfig.apiBaseUrl,
+  AuthTokenStore? tokenStore,
+  AuthTokenRefreshCoordinator? tokenRefreshCoordinator,
+}) {
+  if (!useApiRepository) return const MockModerationRepository();
+  final resolvedTokenStore = tokenStore ?? _apiAuthTokenStore;
+  final coordinator = _resolveTokenRefreshCoordinator(
+    apiBaseUrl: apiBaseUrl,
+    tokenStore: resolvedTokenStore,
+    tokenRefreshCoordinator: tokenRefreshCoordinator,
+  );
+  return ApiModerationRepository.withBaseUrl(
+    baseUrl: apiBaseUrl,
+    accessTokenProvider: coordinator.getValidAccessToken,
+    unauthorizedTokenRefresher: coordinator.refreshAccessToken,
+  );
 }
 
 NotificationRepository createNotificationRepository({

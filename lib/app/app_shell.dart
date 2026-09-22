@@ -10,6 +10,8 @@ import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/moderation_repository.dart';
+import '../data/repositories/mock_moderation_repository.dart';
 import '../data/repositories/mock_notification_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
@@ -34,6 +36,7 @@ class AppShell extends StatefulWidget {
     super.key,
     this.authRepository,
     this.meetingRepository = const MockMeetingRepository(),
+    this.moderationRepository = const MockModerationRepository(),
     this.notificationRepository = const MockNotificationRepository(),
     this.chatRepository = const MockChatRepository(),
     this.chatRealtimeClient = const MockChatRealtimeClient(),
@@ -49,6 +52,7 @@ class AppShell extends StatefulWidget {
 
   final AuthRepository? authRepository;
   final MeetingRepository meetingRepository;
+  final ModerationRepository moderationRepository;
   final NotificationRepository notificationRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
@@ -102,6 +106,8 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return MeetingRepositoryScope(
       repository: widget.meetingRepository,
+      moderationRepository: widget.moderationRepository,
+      currentMemberId: widget.currentMemberId,
       categoryRepository: widget.categoryRepository,
       locationRepository: widget.locationRepository,
       imageUploadRepository: widget.imageUploadRepository,
@@ -334,6 +340,7 @@ class _AppShellState extends State<AppShell> {
       case AppTab.chat:
         return ChatPage(
           chatRepository: widget.chatRepository,
+          moderationRepository: widget.moderationRepository,
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
           onMeetingChanged: _invalidateMeetingTabs,
@@ -345,6 +352,8 @@ class _AppShellState extends State<AppShell> {
       case AppTab.profile:
         return ProfilePage(
           authRepository: _authRepository,
+          moderationRepository: widget.moderationRepository,
+          currentMemberId: widget.currentMemberId,
           imageUploadRepository: widget.imageUploadRepository,
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,

@@ -10,9 +10,14 @@ import '../../data/repositories/image_upload_repository.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_engagement.dart';
 import '../requests/meeting_participation_management_page.dart';
+import '../moderation/report_sheet.dart';
+import '../profile/public_profile_page.dart';
+import '../../models/moderation.dart';
 import 'meeting_edit_page.dart';
 import '../../widgets/map/meeting_location_map.dart';
 import '../../widgets/meeting_image_gallery.dart';
@@ -31,6 +36,8 @@ class MeetingDetailPage extends StatefulWidget {
     this.categoryRepository,
     this.locationRepository,
     this.imageUploadRepository,
+    this.moderationRepository = const MockModerationRepository(),
+    this.currentMemberId = 1,
   });
 
   final Meeting meeting;
@@ -38,6 +45,8 @@ class MeetingDetailPage extends StatefulWidget {
   final CategoryRepository? categoryRepository;
   final LocationRepository? locationRepository;
   final ImageUploadRepository? imageUploadRepository;
+  final ModerationRepository moderationRepository;
+  final int currentMemberId;
 
   @override
   State<MeetingDetailPage> createState() => _MeetingDetailPageState();
@@ -287,6 +296,45 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     }
   }
 
+  Future<void> _reportMeeting() async {
+    final meetingId = widget.meeting.id;
+    if (meetingId == null) return;
+    await showReportSheet(
+      context,
+      repository: widget.moderationRepository,
+      targetType: ReportTargetType.meeting,
+      targetId: meetingId,
+    );
+  }
+
+  Future<void> _showMeetingMenu() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListTile(
+          key: const Key('meeting-report-menu-item'),
+          leading: const Icon(Icons.flag_outlined),
+          title: const Text('모임 신고'),
+          onTap: () => Navigator.of(sheetContext).pop('report'),
+        ),
+      ),
+    );
+    if (action == 'report' && mounted) {
+      await _reportMeeting();
+    }
+  }
+
+  Future<void> _openPublicProfile(int memberId) async {
+    await Navigator.of(context).push<void>(MaterialPageRoute(
+      builder: (_) => PublicProfilePage(
+        memberId: memberId,
+        currentMemberId: widget.currentMemberId,
+        moderationRepository: widget.moderationRepository,
+      ),
+    ));
+  }
+
   Future<void> _cancelMeeting() async {
     final controller = TextEditingController();
     final reason = await showDialog<String>(
@@ -423,7 +471,12 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
                     const SizedBox(height: 28),
                     const DetailSectionTitle('모임장'),
                     const SizedBox(height: 12),
-                    HostInfoCard(meeting: meeting),
+                    HostInfoCard(
+                      meeting: meeting,
+                      onTap: meeting.hostId == null
+                          ? null
+                          : () => _openPublicProfile(meeting.hostId!),
+                    ),
                     const SizedBox(height: 28),
                     const DetailSectionTitle('모임 위치'),
                     const SizedBox(height: 12),
@@ -432,6 +485,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
                     MeetingMembersSection(
                       meeting: meeting,
                       members: engagement?.members ?? const [],
+                      onMemberTap: _openPublicProfile,
                     ),
                   ],
                 ),
@@ -444,6 +498,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
             showAction: engagement != null && (!isHost || !_isClosed),
             onFavoritePressed: _isFavoriteBusy ? null : _toggleFavorite,
             onHostMenuPressed: _isBusy ? null : _showHostMenu,
+            onReportPressed: isHost ? null : _showMeetingMenu,
           ),
         ],
       ),
@@ -661,6 +716,7 @@ class DetailFloatingHeader extends StatelessWidget {
     required this.showAction,
     required this.onFavoritePressed,
     required this.onHostMenuPressed,
+    required this.onReportPressed,
   });
 
   final bool isFavorite;
@@ -668,6 +724,7 @@ class DetailFloatingHeader extends StatelessWidget {
   final bool showAction;
   final VoidCallback? onFavoritePressed;
   final VoidCallback? onHostMenuPressed;
+  final VoidCallback? onReportPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -704,6 +761,13 @@ class DetailFloatingHeader extends StatelessWidget {
                             : Icons.bookmark_border_rounded,
                     tooltip: isHost ? '모임 관리' : '찜하기',
                     onPressed: isHost ? onHostMenuPressed : onFavoritePressed,
+                  ),
+                if (!isHost)
+                  TransparentHeroIconButton(
+                    key: const Key('meeting-detail-report-button'),
+                    icon: Icons.more_vert_rounded,
+                    tooltip: '더보기',
+                    onPressed: onReportPressed,
                   ),
               ],
             ),
@@ -938,9 +1002,10 @@ class DetailSectionTitle extends StatelessWidget {
 }
 
 class HostInfoCard extends StatelessWidget {
-  const HostInfoCard({super.key, required this.meeting});
+  const HostInfoCard({super.key, required this.meeting, this.onTap});
 
   final Meeting meeting;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -956,115 +1021,119 @@ class HostInfoCard extends StatelessWidget {
       ),
     );
 
-    return Container(
+    return InkWell(
       key: const Key('meeting-host-info-card'),
-      padding: const EdgeInsets.all(16),
-      decoration: detailCardDecoration,
-      child: Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              SizedBox(
-                width: 56,
-                height: 56,
-                child: profileImageUrl == null || profileImageUrl.isEmpty
-                    ? const KeyedSubtree(
-                        key: Key('meeting-host-profile-placeholder'),
-                        child: avatarPlaceholder,
-                      )
-                    : ClipOval(
-                        child: NetworkImageWithSkeleton(
-                          imageKey: const Key('meeting-host-profile-image'),
-                          imageUrl: profileImageUrl,
-                          width: 56,
-                          height: 56,
-                          fit: BoxFit.cover,
-                          cacheWidth: 168,
-                          cacheHeight: 168,
-                          skeleton: avatarPlaceholder,
-                          errorWidget: avatarPlaceholder,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: detailCardDecoration,
+        child: Row(
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: profileImageUrl == null || profileImageUrl.isEmpty
+                      ? const KeyedSubtree(
+                          key: Key('meeting-host-profile-placeholder'),
+                          child: avatarPlaceholder,
+                        )
+                      : ClipOval(
+                          child: NetworkImageWithSkeleton(
+                            imageKey: const Key('meeting-host-profile-image'),
+                            imageUrl: profileImageUrl,
+                            width: 56,
+                            height: 56,
+                            fit: BoxFit.cover,
+                            cacheWidth: 168,
+                            cacheHeight: 168,
+                            skeleton: avatarPlaceholder,
+                            errorWidget: avatarPlaceholder,
+                          ),
                         ),
-                      ),
-              ),
-              Positioned(
-                right: -2,
-                top: -3,
-                child: Container(
-                  width: 20,
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                  child: const Icon(
-                    Icons.workspace_premium_rounded,
-                    color: Colors.white,
-                    size: 12,
+                ),
+                Positioned(
+                  right: -2,
+                  top: -3,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: Colors.white,
+                      size: 12,
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.softSurface,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Text(
-                        '모임장',
-                        style: TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.softSurface,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Text(
+                          '모임장',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: Text(
-                        meeting.host,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: AppColors.ink,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          meeting.host,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.ink,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
+                      ),
+                    ],
+                  ),
+                  if (introduction != null && introduction.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      introduction,
+                      key: const Key('meeting-host-introduction'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
-                ),
-                if (introduction != null && introduction.isNotEmpty) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    introduction,
-                    key: const Key('meeting-host-introduction'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                 ],
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1269,10 +1338,12 @@ class MeetingMembersSection extends StatelessWidget {
     super.key,
     required this.meeting,
     this.members = const [],
+    this.onMemberTap,
   });
 
   final Meeting meeting;
   final List<MeetingMember> members;
+  final ValueChanged<int>? onMemberTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1283,7 +1354,8 @@ class MeetingMembersSection extends StatelessWidget {
       children: [
         DetailSectionTitle('참여 멤버 $memberCount / ${meeting.capacity}'),
         const SizedBox(height: 14),
-        MemberAvatars(meeting: meeting, members: members),
+        MemberAvatars(
+            meeting: meeting, members: members, onMemberTap: onMemberTap),
       ],
     );
   }
@@ -1294,10 +1366,12 @@ class MemberAvatars extends StatelessWidget {
     super.key,
     required this.meeting,
     this.members = const [],
+    this.onMemberTap,
   });
 
   final Meeting meeting;
   final List<MeetingMember> members;
+  final ValueChanged<int>? onMemberTap;
 
   static const _avatarColors = [
     AppColors.primary,
@@ -1459,6 +1533,12 @@ class MemberAvatars extends StatelessWidget {
                           horizontal: 20,
                           vertical: 4,
                         ),
+                        onTap: onMemberTap == null
+                            ? null
+                            : () {
+                                Navigator.of(sheetContext).pop();
+                                onMemberTap!(member.memberId);
+                              },
                         leading: _MemberAvatar(
                           member: member,
                           color: _avatarColors[index % _avatarColors.length],

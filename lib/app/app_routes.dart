@@ -9,6 +9,7 @@ import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
+import '../data/repositories/mock_moderation_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../models/auth_session.dart';
 import '../models/meeting.dart';
@@ -107,6 +108,9 @@ abstract final class AppRoutes {
               locationRepository ?? repositoryScope?.locationRepository,
           imageUploadRepository:
               imageUploadRepository ?? repositoryScope?.imageUploadRepository,
+          moderationRepository: repositoryScope?.moderationRepository ??
+              const MockModerationRepository(),
+          currentMemberId: repositoryScope?.currentMemberId ?? 1,
         ),
       ),
     );

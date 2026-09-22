@@ -5,6 +5,8 @@ import '../../core/push/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/chat_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../data/repositories/mock_chat_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../data/repositories/mock_notification_repository.dart';
@@ -28,6 +30,7 @@ class ChatPage extends StatefulWidget {
     this.pushNotificationService = const NoopPushNotificationService(),
     this.meetingRepository = const MockMeetingRepository(),
     this.notificationRepository = const MockNotificationRepository(),
+    this.moderationRepository = const MockModerationRepository(),
     this.onMeetingChanged,
   });
 
@@ -38,6 +41,7 @@ class ChatPage extends StatefulWidget {
   final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
+  final ModerationRepository moderationRepository;
   final VoidCallback? onMeetingChanged;
 
   @override
@@ -187,6 +191,7 @@ class _ChatPageState extends State<ChatPage> {
           chatRepository: widget.chatRepository,
           chatRealtimeClient: widget.chatRealtimeClient,
           currentMemberId: widget.currentMemberId,
+          moderationRepository: widget.moderationRepository,
           pushNotificationService: widget.pushNotificationService,
           onReadStarted: (completion) => readCompletion = completion,
         ),
