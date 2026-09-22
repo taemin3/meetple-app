@@ -62,21 +62,37 @@ class ApiModerationRepository implements ModerationRepository {
 
   @override
   Future<List<BlockedMember>> getBlockedMembers() async {
-    final response = await _apiClient.getJson('/api/v1/users/me/blocks');
-    final data = response['data'];
-    if (data is! List) {
-      throw const FormatException('Expected data to be a list.');
+    final blockedMembers = <BlockedMember>[];
+    for (var page = 0;; page++) {
+      final response = await _apiClient.getJson(
+        '/api/v1/users/me/blocks',
+        queryParameters: {'page': '$page', 'size': '100'},
+      );
+      final data = response['data'];
+      final List<dynamic> items;
+      final bool last;
+      if (data is List) {
+        items = data;
+        last = true;
+      } else if (data is Map<String, dynamic> && data['content'] is List) {
+        items = data['content'] as List<dynamic>;
+        last = data['last'] is bool ? data['last'] as bool : true;
+      } else {
+        throw const FormatException('Expected blocked-member page data.');
+      }
+      blockedMembers.addAll([
+        for (final item in items)
+          if (item is Map<String, dynamic>)
+            BlockedMember(
+              memberId: _int(item['memberId']),
+              nickname: item['nickname']?.toString() ?? '',
+              profileImageUrl: _optionalString(item['profileImageUrl']),
+              blockedAt: DateTime.parse(item['blockedAt'].toString()),
+            ),
+      ]);
+      if (last) break;
     }
-    return [
-      for (final item in data)
-        if (item is Map<String, dynamic>)
-          BlockedMember(
-            memberId: _int(item['memberId']),
-            nickname: item['nickname']?.toString() ?? '',
-            profileImageUrl: _optionalString(item['profileImageUrl']),
-            blockedAt: DateTime.parse(item['blockedAt'].toString()),
-          ),
-    ];
+    return blockedMembers;
   }
 
   Map<String, dynamic> _dataMap(Map<String, dynamic> response) {

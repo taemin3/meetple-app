@@ -52,12 +52,36 @@ void main() {
     await repository.unblockMember(3);
     expect(client.deletePath, '/api/v1/users/3/block');
   });
+
+  test('blocked members map paged backend response', () async {
+    final client = _RecordingApiClient(getResponse: {
+      'data': {
+        'content': [
+          {
+            'memberId': 3,
+            'nickname': '차단 회원',
+            'profileImageUrl': null,
+            'blockedAt': '2026-09-22T10:00:00',
+          }
+        ],
+        'last': true,
+      }
+    });
+    final repository = ApiModerationRepository(apiClient: client);
+
+    final result = await repository.getBlockedMembers();
+
+    expect(result.single.memberId, 3);
+    expect(client.getPath, '/api/v1/users/me/blocks');
+    expect(client.getQueryParameters, {'page': '0', 'size': '100'});
+  });
 }
 
 class _RecordingApiClient extends ApiClient {
   _RecordingApiClient({this.getResponse = const {'data': {}}});
   final Map<String, dynamic> getResponse;
   String? getPath;
+  Map<String, String?>? getQueryParameters;
   String? postPath;
   Map<String, dynamic>? postBody;
   String? deletePath;
@@ -66,6 +90,7 @@ class _RecordingApiClient extends ApiClient {
   Future<Map<String, dynamic>> getJson(String path,
       {Map<String, String?> queryParameters = const {}}) async {
     getPath = path;
+    getQueryParameters = queryParameters;
     return getResponse;
   }
 
