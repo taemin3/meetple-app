@@ -380,6 +380,7 @@ void main() {
       find.byKey(const Key('home-create-meeting-people')),
       findsOneWidget,
     );
+    expect(find.text('관심사에 맞는\n모임을 열어보세요'), findsOneWidget);
     await tester.tap(find.byKey(const Key('home-create-meeting-button')));
     await tester.pumpAndSettle();
 

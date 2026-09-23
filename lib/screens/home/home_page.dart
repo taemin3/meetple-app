@@ -564,7 +564,7 @@ class CreateMeetingBanner extends StatelessWidget {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  '관심사에 맞는 모임을 열어보세요',
+                  '관심사에 맞는\n모임을 열어보세요',
                   style: TextStyle(
                     color: Color(0xFFE8E1FF),
                     fontWeight: FontWeight.w700,
