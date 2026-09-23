@@ -22,6 +22,10 @@ void main() {
     expect(find.text('함께 운동해요.'), findsOneWidget);
     expect(find.textContaining('@'), findsNothing);
     expect(find.byKey(const Key('public-profile-more')), findsOneWidget);
+    expect(
+      tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+      Colors.white,
+    );
 
     await tester.tap(find.byKey(const Key('public-profile-more')));
     await tester.pumpAndSettle();

@@ -38,7 +38,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
   Widget build(BuildContext context) {
     final isMine = widget.memberId == widget.currentMemberId;
     return Scaffold(
-      backgroundColor: AppColors.canvas,
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Column(
           children: [
