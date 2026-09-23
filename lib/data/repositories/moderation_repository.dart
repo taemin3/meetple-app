@@ -9,8 +9,4 @@ abstract interface class ModerationRepository {
     required ReportReason reason,
     String? otherDescription,
   });
-
-  Future<void> blockMember(int memberId);
-  Future<void> unblockMember(int memberId);
-  Future<List<BlockedMember>> getBlockedMembers();
 }

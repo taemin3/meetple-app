@@ -26,7 +26,7 @@ void main() {
     await tester.tap(find.byKey(const Key('public-profile-more')));
     await tester.pumpAndSettle();
     expect(find.text('사용자 신고'), findsOneWidget);
-    expect(find.text('사용자 차단'), findsOneWidget);
+    expect(find.text('사용자 차단'), findsNothing);
   });
 
   testWidgets('does not show report or block menu on my profile',
@@ -54,19 +54,10 @@ class _FakeModerationRepository implements ModerationRepository {
       );
 
   @override
-  Future<void> blockMember(int memberId) async {}
-
-  @override
   Future<void> createReport({
     required ReportTargetType targetType,
     required int targetId,
     required ReportReason reason,
     String? otherDescription,
   }) async {}
-
-  @override
-  Future<List<BlockedMember>> getBlockedMembers() async => const [];
-
-  @override
-  Future<void> unblockMember(int memberId) async {}
 }

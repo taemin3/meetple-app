@@ -96,11 +96,6 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   bool _notificationEnabled = true;
   bool _notificationSettingLoaded = false;
   bool _updatingNotificationSetting = false;
-  Set<int> _blockedMemberIds = const {};
-
-  bool _isMessageBlocked(ChatMessage message) =>
-      _blockedMemberIds.contains(message.senderId);
-
   ChatNotificationSettingsRepository? get _notificationSettingsRepository {
     final Object repository = widget.chatRepository;
     return repository is ChatNotificationSettingsRepository ? repository : null;
@@ -501,13 +496,6 @@ class _ChatRoomPageState extends State<ChatRoomPage>
     bool recoverSequenceGap = true,
   }) {
     if (!mounted || _disposing || message.roomId != widget.room.roomId) return;
-    if (_isMessageBlocked(message)) {
-      _historySyncSequence = message.sequence > _historySyncSequence
-          ? message.sequence
-          : _historySyncSequence;
-      _queueRead(message.sequence);
-      return;
-    }
     final isDuplicate = _messages.any(
       (existing) =>
           existing.id == message.id ||
@@ -628,25 +616,20 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       _historyErrorMessage = null;
     });
     try {
-      final blockedMembers =
-          await widget.moderationRepository.getBlockedMembers();
-      _blockedMemberIds =
-          blockedMembers.map((member) => member.memberId).toSet();
       final page = await widget.chatRepository.getMessages(widget.room.roomId);
       if (!mounted) return;
       setState(() {
         final realtimeMessages = List<ChatMessage>.of(_messages);
         _messages
           ..clear()
-          ..addAll(
-              page.content.where((message) => !_isMessageBlocked(message)));
+          ..addAll(page.content);
         for (final message in realtimeMessages) {
           final isDuplicate = _messages.any(
             (existing) =>
                 existing.id == message.id ||
                 existing.clientMessageId == message.clientMessageId,
           );
-          if (!isDuplicate && !_isMessageBlocked(message)) {
+          if (!isDuplicate) {
             _messages.add(message);
           }
         }
@@ -690,11 +673,7 @@ class _ChatRoomPageState extends State<ChatRoomPage>
       setState(() {
         _messages.insertAll(
           0,
-          page.content.where(
-            (message) =>
-                !existingIds.contains(message.id) &&
-                !_isMessageBlocked(message),
-          ),
+          page.content.where((message) => !existingIds.contains(message.id)),
         );
         _hasMore = page.hasMore;
       });
@@ -893,24 +872,13 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Future<void> _openPublicProfile(int memberId) async {
-    final blocked = await Navigator.of(context).push<bool>(MaterialPageRoute(
+    await Navigator.of(context).push<void>(MaterialPageRoute(
       builder: (_) => PublicProfilePage(
         memberId: memberId,
         currentMemberId: widget.currentMemberId,
         moderationRepository: widget.moderationRepository,
       ),
     ));
-    if (blocked == true && mounted) {
-      final blockedMembers =
-          await widget.moderationRepository.getBlockedMembers();
-      if (!mounted) return;
-      setState(() {
-        _blockedMemberIds =
-            blockedMembers.map((member) => member.memberId).toSet();
-        _messages.removeWhere(
-            (message) => _blockedMemberIds.contains(message.senderId));
-      });
-    }
   }
 
   Future<void> _reportMessage(ChatMessage message) async {

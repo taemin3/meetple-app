@@ -326,16 +326,13 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
   }
 
   Future<void> _openPublicProfile(int memberId) async {
-    final blocked = await Navigator.of(context).push<bool>(MaterialPageRoute(
+    await Navigator.of(context).push<void>(MaterialPageRoute(
       builder: (_) => PublicProfilePage(
         memberId: memberId,
         currentMemberId: widget.currentMemberId,
         moderationRepository: widget.moderationRepository,
       ),
     ));
-    if (blocked == true && mounted) {
-      Navigator.of(context).pop(true);
-    }
   }
 
   Future<void> _cancelMeeting() async {
