@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:meetple/data/repositories/mock_meeting_repository.dart';
+import 'package:meetple/data/repositories/mock_moderation_repository.dart';
 import 'package:meetple/models/meeting.dart';
 import 'package:meetple/models/meeting_engagement.dart';
 import 'package:meetple/screens/meeting_detail/meeting_detail_page.dart';
@@ -8,6 +9,64 @@ import 'package:meetple/widgets/map/meeting_location_map.dart';
 import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
 void main() {
+  testWidgets('hides the report menu for the host before engagement loads',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingDetailPage(
+          meeting: _meeting(hostId: 1),
+          currentMemberId: 1,
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const Key('meeting-detail-report-button')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('returns a changed result after blocking a member profile',
+      (tester) async {
+    late BuildContext rootContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) {
+            rootContext = context;
+            return const Scaffold(body: Text('목록'));
+          },
+        ),
+      ),
+    );
+
+    final resultFuture = Navigator.of(rootContext).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => MeetingDetailPage(
+          meeting: _meeting(hostId: 2),
+          currentMemberId: 1,
+          moderationRepository: const MockModerationRepository(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const Key('meeting-host-info-card')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('meeting-host-info-card')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('public-profile-more')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('사용자 차단'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '차단'));
+    await tester.pumpAndSettle();
+
+    expect(await resultFuture, isTrue);
+    expect(find.text('목록'), findsOneWidget);
+  });
+
   testWidgets('shows unknown end time in meeting information', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -211,6 +270,38 @@ void main() {
     expect(memberAvatars.members.map((member) => member.memberId), [1]);
   });
 
+  testWidgets('keeps the participation submit button inside a safe scroll area',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingDetailPage(meeting: _meeting()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('참여 신청하기'));
+    await tester.pumpAndSettle();
+
+    final submitButton = find.byKey(
+      const Key('participation-request-submit'),
+    );
+    expect(submitButton, findsOneWidget);
+    expect(
+      find.ancestor(
+        of: submitButton,
+        matching: find.byKey(const Key('participation-request-sheet')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: submitButton,
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('keeps approved members after canceling a pending request',
       (tester) async {
     final repository = _PendingParticipationRepository();
@@ -245,9 +336,11 @@ Meeting _meeting({
   String? hostProfileImageUrl,
   String? hostIntroduction,
   int joined = 3,
+  int? hostId,
 }) {
   return Meeting(
     id: 10,
+    hostId: hostId,
     title: '한강 산책',
     category: '취미',
     tags: const ['취미'],

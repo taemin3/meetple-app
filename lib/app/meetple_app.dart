@@ -10,6 +10,8 @@ import '../data/repositories/chat_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/moderation_repository.dart';
+import '../data/repositories/mock_moderation_repository.dart';
 import '../data/repositories/mock_notification_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_chat_repository.dart';
@@ -29,18 +31,21 @@ class MeetpleApp extends StatelessWidget {
     this.authSessionExpired,
     this.pushNotificationService = const NoopPushNotificationService(),
     this.meetingRepository = const MockMeetingRepository(),
+    ModerationRepository? moderationRepository,
     this.notificationRepository = const MockNotificationRepository(),
     this.chatRepository = const MockChatRepository(),
     this.chatRealtimeClient = const MockChatRealtimeClient(),
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.imageUploadRepository = const MockImageUploadRepository(),
-  });
+  }) : moderationRepository =
+            moderationRepository ?? const MockModerationRepository();
 
   final AuthRepository? authRepository;
   final Stream<void>? authSessionExpired;
   final PushNotificationService pushNotificationService;
   final MeetingRepository meetingRepository;
+  final ModerationRepository moderationRepository;
   final NotificationRepository notificationRepository;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
@@ -67,6 +72,7 @@ class MeetpleApp extends StatelessWidget {
         authSessionExpired: authSessionExpired,
         pushNotificationService: pushNotificationService,
         meetingRepository: meetingRepository,
+        moderationRepository: moderationRepository,
         notificationRepository: notificationRepository,
         chatRepository: chatRepository,
         chatRealtimeClient: chatRealtimeClient,

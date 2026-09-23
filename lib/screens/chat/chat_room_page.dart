@@ -8,13 +8,18 @@ import '../../core/network/api_client.dart';
 import '../../core/push/push_notification_service.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/chat_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../data/realtime/chat_client_message_id.dart';
 import '../../data/realtime/chat_realtime_client.dart';
 import '../../models/chat_message.dart';
 import '../../models/chat_room.dart';
+import '../../models/moderation.dart';
 import '../../widgets/app_page_header.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/network_image_with_skeleton.dart';
+import '../moderation/report_sheet.dart';
+import '../profile/public_profile_page.dart';
 
 class ChatRoomPage extends StatefulWidget {
   const ChatRoomPage({
@@ -23,16 +28,20 @@ class ChatRoomPage extends StatefulWidget {
     required this.chatRepository,
     required this.chatRealtimeClient,
     required this.currentMemberId,
+    this.moderationRepository = const MockModerationRepository(),
     this.pushNotificationService = const NoopPushNotificationService(),
     this.onReadStarted,
+    this.onMeetingChanged,
   });
 
   final ChatRoom room;
   final ChatRepository chatRepository;
   final ChatRealtimeClient chatRealtimeClient;
   final int currentMemberId;
+  final ModerationRepository moderationRepository;
   final PushNotificationService pushNotificationService;
   final ValueChanged<Future<void>>? onReadStarted;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<ChatRoomPage> createState() => _ChatRoomPageState();
@@ -89,7 +98,6 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   bool _notificationEnabled = true;
   bool _notificationSettingLoaded = false;
   bool _updatingNotificationSetting = false;
-
   ChatNotificationSettingsRepository? get _notificationSettingsRepository {
     final Object repository = widget.chatRepository;
     return repository is ChatNotificationSettingsRepository ? repository : null;
@@ -623,7 +631,9 @@ class _ChatRoomPageState extends State<ChatRoomPage>
                 existing.id == message.id ||
                 existing.clientMessageId == message.clientMessageId,
           );
-          if (!isDuplicate) _messages.add(message);
+          if (!isDuplicate) {
+            _messages.add(message);
+          }
         }
         _messages
             .sort((left, right) => left.sequence.compareTo(right.sequence));
@@ -832,6 +842,10 @@ class _ChatRoomPageState extends State<ChatRoomPage>
                   isMine: message.senderId == widget.currentMemberId,
                   showSender: showSender,
                   showTime: showTime,
+                  onAuthorTap: () => _openPublicProfile(message.senderId),
+                  onLongPress: message.senderId == widget.currentMemberId
+                      ? null
+                      : () => _reportMessage(message),
                 ),
               ],
             );
@@ -856,6 +870,28 @@ class _ChatRoomPageState extends State<ChatRoomPage>
             ),
           ),
       ],
+    );
+  }
+
+  Future<void> _openPublicProfile(int memberId) async {
+    final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => PublicProfilePage(
+        memberId: memberId,
+        currentMemberId: widget.currentMemberId,
+        moderationRepository: widget.moderationRepository,
+      ),
+    ));
+    if (changed == true && mounted) {
+      widget.onMeetingChanged?.call();
+    }
+  }
+
+  Future<void> _reportMessage(ChatMessage message) async {
+    await showReportSheet(
+      context,
+      repository: widget.moderationRepository,
+      targetType: ReportTargetType.chatMessage,
+      targetId: message.id,
     );
   }
 
@@ -963,12 +999,16 @@ class _MessageBubble extends StatelessWidget {
     required this.isMine,
     required this.showSender,
     required this.showTime,
+    required this.onAuthorTap,
+    this.onLongPress,
   });
 
   final ChatMessage message;
   final bool isMine;
   final bool showSender;
   final bool showTime;
+  final VoidCallback onAuthorTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -979,13 +1019,16 @@ class _MessageBubble extends StatelessWidget {
         if (!isMine && showSender)
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 5),
-            child: Text(
-              key: Key('chat-message-sender-${message.id}'),
-              message.senderNickname,
-              style: const TextStyle(
-                color: AppColors.muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
+            child: InkWell(
+              onTap: onAuthorTap,
+              child: Text(
+                key: Key('chat-message-sender-${message.id}'),
+                message.senderNickname,
+                style: const TextStyle(
+                  color: AppColors.muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
           ),
@@ -1042,18 +1085,23 @@ class _MessageBubble extends StatelessWidget {
       );
     }
 
-    return Padding(
-      padding: bottomPadding,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (showSender)
-            _ChatSenderAvatar(message: message)
-          else
-            const SizedBox(width: 36),
-          const SizedBox(width: 8),
-          Expanded(child: content),
-        ],
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: bottomPadding,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (showSender)
+              GestureDetector(
+                  onTap: onAuthorTap,
+                  child: _ChatSenderAvatar(message: message))
+            else
+              const SizedBox(width: 36),
+            const SizedBox(width: 8),
+            Expanded(child: content),
+          ],
+        ),
       ),
     );
   }

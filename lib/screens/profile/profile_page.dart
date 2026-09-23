@@ -7,6 +7,8 @@ import '../../data/repositories/image_upload_repository.dart';
 import '../../data/repositories/mock_auth_repository.dart';
 import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../data/repositories/mock_notification_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
 import '../../data/repositories/notification_repository.dart';
@@ -28,6 +30,7 @@ import 'legal_documents_page.dart';
 import 'my_applications_page.dart';
 import 'my_meetings_page.dart';
 import 'profile_edit_page.dart';
+import 'blocked_users_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
@@ -37,6 +40,8 @@ class ProfilePage extends StatefulWidget {
     this.pickProfileImage,
     this.meetingRepository = const MockMeetingRepository(),
     this.notificationRepository = const MockNotificationRepository(),
+    this.moderationRepository = const MockModerationRepository(),
+    this.currentMemberId = 1,
     this.isActive = true,
     this.onSignedOut,
     this.onMeetingChanged,
@@ -47,6 +52,8 @@ class ProfilePage extends StatefulWidget {
   final ProfileImagePicker? pickProfileImage;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
+  final ModerationRepository moderationRepository;
+  final int currentMemberId;
   final bool isActive;
   final VoidCallback? onSignedOut;
   final VoidCallback? onMeetingChanged;
@@ -118,6 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
             pickProfileImage: widget.pickProfileImage,
             meetingRepository: widget.meetingRepository,
             notificationRepository: widget.notificationRepository,
+            moderationRepository: widget.moderationRepository,
             onSignedOut: _showSignedOut,
             onProfileUpdated: (result) {
               _showProfile(session, result);
@@ -187,6 +195,7 @@ class ProfileContent extends StatefulWidget {
     this.pickProfileImage,
     required this.meetingRepository,
     required this.notificationRepository,
+    required this.moderationRepository,
     required this.onSignedOut,
     required this.onProfileUpdated,
     this.onMeetingChanged,
@@ -198,6 +207,7 @@ class ProfileContent extends StatefulWidget {
   final ProfileImagePicker? pickProfileImage;
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
+  final ModerationRepository moderationRepository;
   final VoidCallback onSignedOut;
   final ValueChanged<ProfileEditResult> onProfileUpdated;
   final VoidCallback? onMeetingChanged;
@@ -256,6 +266,9 @@ class _ProfileContentState extends State<ProfileContent> {
                     MaterialPageRoute(
                       builder: (_) => MyApplicationsPage(
                         meetingRepository: widget.meetingRepository,
+                        moderationRepository: widget.moderationRepository,
+                        currentMemberId: widget.user.id,
+                        onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),
                   ),
@@ -267,6 +280,9 @@ class _ProfileContentState extends State<ProfileContent> {
                     MaterialPageRoute(
                       builder: (_) => BookmarkedMeetingsPage(
                         meetingRepository: widget.meetingRepository,
+                        moderationRepository: widget.moderationRepository,
+                        currentMemberId: widget.user.id,
+                        onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),
                   ),
@@ -284,6 +300,8 @@ class _ProfileContentState extends State<ProfileContent> {
                       builder: (_) => NotificationsPage(
                         meetingRepository: widget.meetingRepository,
                         notificationRepository: widget.notificationRepository,
+                        moderationRepository: widget.moderationRepository,
+                        currentMemberId: widget.user.id,
                         onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),
@@ -294,10 +312,23 @@ class _ProfileContentState extends State<ProfileContent> {
               '약관 및 정책',
               _openLegalDocuments,
             ),
+            (
+              Icons.block_outlined,
+              '차단한 사용자 관리',
+              () => Navigator.of(context).push<void>(
+                    MaterialPageRoute(
+                      builder: (_) => BlockedUsersPage(
+                        repository: widget.moderationRepository,
+                        onChanged: widget.onMeetingChanged,
+                      ),
+                    ),
+                  ),
+            ),
           ],
           itemKeys: const [
             null,
             Key('profile_legal_documents_open'),
+            Key('profile_blocked_users_open'),
           ],
         ),
         const SizedBox(height: 18),
@@ -483,6 +514,9 @@ class _ProfileContentState extends State<ProfileContent> {
           meetingRepository: widget.meetingRepository,
           loader: loader,
           filters: filters,
+          moderationRepository: widget.moderationRepository,
+          currentMemberId: widget.user.id,
+          onMeetingChanged: widget.onMeetingChanged,
         ),
       ),
     );

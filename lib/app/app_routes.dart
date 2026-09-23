@@ -5,10 +5,12 @@ import '../data/repositories/category_repository.dart';
 import '../data/repositories/image_upload_repository.dart';
 import '../data/repositories/location_repository.dart';
 import '../data/repositories/meeting_repository.dart';
+import '../data/repositories/moderation_repository.dart';
 import '../data/repositories/mock_auth_repository.dart';
 import '../data/repositories/mock_category_repository.dart';
 import '../data/repositories/mock_image_upload_repository.dart';
 import '../data/repositories/mock_location_repository.dart';
+import '../data/repositories/mock_moderation_repository.dart';
 import '../data/repositories/mock_meeting_repository.dart';
 import '../models/auth_session.dart';
 import '../models/meeting.dart';
@@ -91,6 +93,8 @@ abstract final class AppRoutes {
     CategoryRepository? categoryRepository,
     LocationRepository? locationRepository,
     ImageUploadRepository? imageUploadRepository,
+    ModerationRepository? moderationRepository,
+    int? currentMemberId,
   }) {
     final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
     return Navigator.of(context).push<T>(
@@ -107,6 +111,11 @@ abstract final class AppRoutes {
               locationRepository ?? repositoryScope?.locationRepository,
           imageUploadRepository:
               imageUploadRepository ?? repositoryScope?.imageUploadRepository,
+          moderationRepository: moderationRepository ??
+              repositoryScope?.moderationRepository ??
+              const MockModerationRepository(),
+          currentMemberId:
+              currentMemberId ?? repositoryScope?.currentMemberId ?? 1,
         ),
       ),
     );
@@ -123,6 +132,8 @@ abstract final class AppRoutes {
     CategoryRepository? categoryRepository,
     LocationRepository? locationRepository,
     ImageUploadRepository? imageUploadRepository,
+    ModerationRepository? moderationRepository,
+    int? currentMemberId,
     VoidCallback? onMeetingChanged,
   }) {
     final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
@@ -142,6 +153,11 @@ abstract final class AppRoutes {
           imageUploadRepository: imageUploadRepository ??
               repositoryScope?.imageUploadRepository ??
               const MockImageUploadRepository(),
+          moderationRepository: moderationRepository ??
+              repositoryScope?.moderationRepository ??
+              const MockModerationRepository(),
+          currentMemberId:
+              currentMemberId ?? repositoryScope?.currentMemberId ?? 1,
           initialKeyword: keyword,
           originLatitude: originLatitude,
           originLongitude: originLongitude,

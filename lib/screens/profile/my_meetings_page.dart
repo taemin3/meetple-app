@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_list_filter.dart';
 import '../../widgets/app_page_header.dart';
@@ -18,15 +20,21 @@ class MyMeetingsPage extends StatefulWidget {
     required this.meetingRepository,
     required this.loader,
     required this.filters,
+    this.moderationRepository = const MockModerationRepository(),
+    this.currentMemberId = 1,
     this.trailingBuilder,
+    this.onMeetingChanged,
   });
 
   final String title;
   final String emptyMessage;
   final MeetingRepository meetingRepository;
+  final ModerationRepository moderationRepository;
+  final int currentMemberId;
   final Future<List<Meeting>> Function() loader;
   final List<MeetingListFilter> filters;
   final Widget Function(Meeting meeting)? trailingBuilder;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<MyMeetingsPage> createState() => _MyMeetingsPageState();
@@ -133,12 +141,20 @@ class _MyMeetingsPageState extends State<MyMeetingsPage> {
                                       ),
                                       meeting: meeting,
                                       onTap: () async {
-                                        await AppRoutes.openMeetingDetail(
+                                        final result = await AppRoutes
+                                            .openMeetingDetail<Object>(
                                           context,
                                           meeting,
                                           meetingRepository:
                                               widget.meetingRepository,
+                                          moderationRepository:
+                                              widget.moderationRepository,
+                                          currentMemberId:
+                                              widget.currentMemberId,
                                         );
+                                        if (result != null) {
+                                          widget.onMeetingChanged?.call();
+                                        }
                                         if (mounted) {
                                           _reload();
                                         }

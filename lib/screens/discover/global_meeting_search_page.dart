@@ -8,9 +8,11 @@ import '../../data/repositories/category_repository.dart';
 import '../../data/repositories/image_upload_repository.dart';
 import '../../data/repositories/location_repository.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
 import '../../data/repositories/mock_category_repository.dart';
 import '../../data/repositories/mock_image_upload_repository.dart';
 import '../../data/repositories/mock_location_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../models/meeting.dart';
 import '../../widgets/app_state_view.dart';
 import '../../widgets/bookmarkable_meeting_card.dart';
@@ -22,6 +24,8 @@ class GlobalMeetingSearchPage extends StatefulWidget {
     this.categoryRepository = const MockCategoryRepository(),
     this.locationRepository = const MockLocationRepository(),
     this.imageUploadRepository = const MockImageUploadRepository(),
+    this.moderationRepository = const MockModerationRepository(),
+    this.currentMemberId = 1,
     required this.initialKeyword,
     required this.originLatitude,
     required this.originLongitude,
@@ -34,6 +38,8 @@ class GlobalMeetingSearchPage extends StatefulWidget {
   final CategoryRepository categoryRepository;
   final LocationRepository locationRepository;
   final ImageUploadRepository imageUploadRepository;
+  final ModerationRepository moderationRepository;
+  final int currentMemberId;
   final String initialKeyword;
   final double originLatitude;
   final double originLongitude;
@@ -269,6 +275,8 @@ class _GlobalMeetingSearchPageState extends State<GlobalMeetingSearchPage> {
       categoryRepository: widget.categoryRepository,
       locationRepository: widget.locationRepository,
       imageUploadRepository: widget.imageUploadRepository,
+      moderationRepository: widget.moderationRepository,
+      currentMemberId: widget.currentMemberId,
     );
     if (result != null && mounted) {
       widget.onMeetingChanged?.call();

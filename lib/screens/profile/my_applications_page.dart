@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../app/app_routes.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../models/meeting_engagement.dart';
 import '../../widgets/app_page_header.dart';
 import '../../widgets/app_state_view.dart';
@@ -13,9 +15,15 @@ class MyApplicationsPage extends StatefulWidget {
   const MyApplicationsPage({
     super.key,
     required this.meetingRepository,
+    this.moderationRepository = const MockModerationRepository(),
+    this.currentMemberId = 1,
+    this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
+  final ModerationRepository moderationRepository;
+  final int currentMemberId;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<MyApplicationsPage> createState() => _MyApplicationsPageState();
@@ -127,11 +135,16 @@ class _MyApplicationsPageState extends State<MyApplicationsPage> {
       if (!mounted) {
         return;
       }
-      await AppRoutes.openMeetingDetail(
+      final result = await AppRoutes.openMeetingDetail<Object>(
         context,
         meeting,
         meetingRepository: widget.meetingRepository,
+        moderationRepository: widget.moderationRepository,
+        currentMemberId: widget.currentMemberId,
       );
+      if (result != null) {
+        widget.onMeetingChanged?.call();
+      }
       if (mounted) {
         _reload();
       }
