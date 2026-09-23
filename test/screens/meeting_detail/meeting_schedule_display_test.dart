@@ -228,6 +228,38 @@ void main() {
     expect(memberAvatars.members.map((member) => member.memberId), [1]);
   });
 
+  testWidgets('keeps the participation submit button inside a safe scroll area',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MeetingDetailPage(meeting: _meeting()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('참여 신청하기'));
+    await tester.pumpAndSettle();
+
+    final submitButton = find.byKey(
+      const Key('participation-request-submit'),
+    );
+    expect(submitButton, findsOneWidget);
+    expect(
+      find.ancestor(
+        of: submitButton,
+        matching: find.byKey(const Key('participation-request-sheet')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: submitButton,
+        matching: find.byType(SingleChildScrollView),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('keeps approved members after canceling a pending request',
       (tester) async {
     final repository = _PendingParticipationRepository();

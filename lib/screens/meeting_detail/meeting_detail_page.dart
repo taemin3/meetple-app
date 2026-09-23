@@ -145,6 +145,7 @@ class _MeetingDetailPageState extends State<MeetingDetailPage> {
     final message = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
       showDragHandle: true,
       builder: (_) => const _ParticipationRequestSheet(),
     );
@@ -591,42 +592,47 @@ class _ParticipationRequestSheetState
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        20,
-        4,
-        20,
-        20 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '참여 신청',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-          ),
-          const SizedBox(height: 8),
-          const Text('모임장에게 전할 메시지가 있다면 적어주세요. (선택)'),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _messageController,
-            maxLength: 500,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: '신청 메시지를 입력해 주세요.',
-              border: OutlineInputBorder(),
+    return SafeArea(
+      key: const Key('participation-request-sheet'),
+      top: false,
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '참여 신청',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: _submit,
-              child: const Text('신청하기'),
+            const SizedBox(height: 8),
+            const Text('모임장에게 전할 메시지가 있다면 적어주세요. (선택)'),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _messageController,
+              maxLength: 500,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                hintText: '신청 메시지를 입력해 주세요.',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                key: const Key('participation-request-submit'),
+                onPressed: _submit,
+                child: const Text('신청하기'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
