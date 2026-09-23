@@ -31,6 +31,7 @@ class ChatRoomPage extends StatefulWidget {
     this.moderationRepository = const MockModerationRepository(),
     this.pushNotificationService = const NoopPushNotificationService(),
     this.onReadStarted,
+    this.onMeetingChanged,
   });
 
   final ChatRoom room;
@@ -40,6 +41,7 @@ class ChatRoomPage extends StatefulWidget {
   final ModerationRepository moderationRepository;
   final PushNotificationService pushNotificationService;
   final ValueChanged<Future<void>>? onReadStarted;
+  final VoidCallback? onMeetingChanged;
 
   @override
   State<ChatRoomPage> createState() => _ChatRoomPageState();
@@ -872,13 +874,16 @@ class _ChatRoomPageState extends State<ChatRoomPage>
   }
 
   Future<void> _openPublicProfile(int memberId) async {
-    await Navigator.of(context).push<void>(MaterialPageRoute(
+    final changed = await Navigator.of(context).push<bool>(MaterialPageRoute(
       builder: (_) => PublicProfilePage(
         memberId: memberId,
         currentMemberId: widget.currentMemberId,
         moderationRepository: widget.moderationRepository,
       ),
     ));
+    if (changed == true && mounted) {
+      widget.onMeetingChanged?.call();
+    }
   }
 
   Future<void> _reportMessage(ChatMessage message) async {

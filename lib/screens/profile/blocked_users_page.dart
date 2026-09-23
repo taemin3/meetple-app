@@ -7,8 +7,14 @@ import '../../widgets/app_page_header.dart';
 import '../../widgets/app_state_view.dart';
 
 class BlockedUsersPage extends StatefulWidget {
-  const BlockedUsersPage({super.key, required this.repository});
+  const BlockedUsersPage({
+    super.key,
+    required this.repository,
+    this.onChanged,
+  });
   final ModerationRepository repository;
+  final VoidCallback? onChanged;
+
   @override
   State<BlockedUsersPage> createState() => _BlockedUsersPageState();
 }
@@ -67,8 +73,12 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
         ])),
       );
 
-  void _reload() =>
-      setState(() => _future = widget.repository.getBlockedMembers());
+  void _reload() {
+    setState(() {
+      _future = widget.repository.getBlockedMembers();
+    });
+  }
+
   Future<void> _unblock(BlockedMember member) async {
     try {
       await widget.repository.unblockMember(member.memberId);
@@ -77,6 +87,7 @@ class _BlockedUsersPageState extends State<BlockedUsersPage> {
       }
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('차단을 해제했습니다.')));
+      widget.onChanged?.call();
       _reload();
     } on Exception catch (error) {
       if (mounted) {

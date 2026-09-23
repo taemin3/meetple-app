@@ -132,6 +132,8 @@ abstract final class AppRoutes {
     CategoryRepository? categoryRepository,
     LocationRepository? locationRepository,
     ImageUploadRepository? imageUploadRepository,
+    ModerationRepository? moderationRepository,
+    int? currentMemberId,
     VoidCallback? onMeetingChanged,
   }) {
     final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
@@ -151,6 +153,11 @@ abstract final class AppRoutes {
           imageUploadRepository: imageUploadRepository ??
               repositoryScope?.imageUploadRepository ??
               const MockImageUploadRepository(),
+          moderationRepository: moderationRepository ??
+              repositoryScope?.moderationRepository ??
+              const MockModerationRepository(),
+          currentMemberId:
+              currentMemberId ?? repositoryScope?.currentMemberId ?? 1,
           initialKeyword: keyword,
           originLatitude: originLatitude,
           originLongitude: originLongitude,

@@ -84,11 +84,14 @@ void main() {
     const categoryRepository = MockCategoryRepository();
     const locationRepository = MockLocationRepository();
     const imageUploadRepository = MockImageUploadRepository();
+    const moderationRepository = MockModerationRepository();
 
     await tester.pumpWidget(
       MaterialApp(
         home: MeetingRepositoryScope(
           repository: meetingRepository,
+          moderationRepository: moderationRepository,
+          currentMemberId: 77,
           categoryRepository: categoryRepository,
           locationRepository: locationRepository,
           imageUploadRepository: imageUploadRepository,
@@ -120,6 +123,8 @@ void main() {
     expect(searchPage.categoryRepository, same(categoryRepository));
     expect(searchPage.locationRepository, same(locationRepository));
     expect(searchPage.imageUploadRepository, same(imageUploadRepository));
+    expect(searchPage.moderationRepository, same(moderationRepository));
+    expect(searchPage.currentMemberId, 77);
   });
 }
 

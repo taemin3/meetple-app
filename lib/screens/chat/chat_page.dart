@@ -194,6 +194,7 @@ class _ChatPageState extends State<ChatPage> {
           moderationRepository: widget.moderationRepository,
           pushNotificationService: widget.pushNotificationService,
           onReadStarted: (completion) => readCompletion = completion,
+          onMeetingChanged: widget.onMeetingChanged,
         ),
       ),
     );
@@ -209,6 +210,8 @@ class _ChatPageState extends State<ChatPage> {
         builder: (_) => NotificationsPage(
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
+          moderationRepository: widget.moderationRepository,
+          currentMemberId: widget.currentMemberId,
           onMeetingChanged: widget.onMeetingChanged,
         ),
       ),

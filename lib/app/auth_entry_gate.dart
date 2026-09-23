@@ -349,6 +349,7 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
           currentMemberId: _session!.user.id,
           moderationRepository: widget.moderationRepository,
           pushNotificationService: widget.pushNotificationService,
+          onMeetingChanged: _invalidateMeetingTabs,
         ),
       ),
     );
@@ -374,6 +375,12 @@ class _AuthEntryGateState extends State<AuthEntryGate> {
     }
 
     setState(() => _meetingRefreshToken++);
+  }
+
+  void _invalidateMeetingTabs() {
+    if (mounted && _state == _AuthEntryState.signedIn) {
+      setState(() => _meetingRefreshToken++);
+    }
   }
 
   Future<void> _handleChatRoomClosed(Future<void> roomFuture) async {

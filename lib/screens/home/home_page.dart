@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/app_navigation.dart';
 import '../../app/app_routes.dart';
+import '../../app/meeting_repository_scope.dart';
 import '../../core/config/app_config.dart';
 import '../../core/map/nearby_location_provider.dart';
 import '../../core/theme/app_colors.dart';
@@ -12,6 +13,7 @@ import '../../data/repositories/mock_notification_repository.dart';
 import '../../data/repositories/mock_category_repository.dart';
 import '../../data/repositories/mock_location_repository.dart';
 import '../../data/repositories/mock_meeting_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../models/meeting.dart';
 import '../../models/meeting_category.dart';
@@ -134,11 +136,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _openNotifications() {
+    final repositoryScope = MeetingRepositoryScope.maybeScopeOf(context);
     Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => NotificationsPage(
           meetingRepository: widget.meetingRepository,
           notificationRepository: widget.notificationRepository,
+          moderationRepository: repositoryScope?.moderationRepository ??
+              const MockModerationRepository(),
+          currentMemberId: repositoryScope?.currentMemberId ?? 1,
           onMeetingChanged: widget.onMeetingChanged ?? _reloadMeetings,
         ),
       ),

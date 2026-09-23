@@ -7,10 +7,12 @@ import 'package:meetple/core/push/push_installation_id_store.dart';
 import 'package:meetple/core/push/push_notification_message.dart';
 import 'package:meetple/core/push/push_notification_service.dart';
 import 'package:meetple/data/repositories/chat_repository.dart';
+import 'package:meetple/data/repositories/moderation_repository.dart';
 import 'package:meetple/data/repositories/push_device_token_repository.dart';
 import 'package:meetple/data/realtime/chat_realtime_client.dart';
 import 'package:meetple/models/chat_message.dart';
 import 'package:meetple/models/chat_room.dart';
+import 'package:meetple/models/moderation.dart';
 import 'package:meetple/screens/chat/chat_room_page.dart';
 import 'package:meetple/widgets/network_image_with_skeleton.dart';
 
@@ -958,6 +960,39 @@ void main() {
     expect(find.text(previousDateLabel), findsOneWidget);
     expect(find.text('오늘'), findsOneWidget);
   });
+  testWidgets('refreshes meeting tabs after blocking from a chat profile', (
+    WidgetTester tester,
+  ) async {
+    var meetingChangeCount = 0;
+    final moderationRepository = _ChatModerationRepository();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChatRoomPage(
+          room: _room,
+          chatRepository: _ChatRoomRepository(messages: [_receivedMessage]),
+          chatRealtimeClient: _FakeChatRealtimeClient(),
+          currentMemberId: 1,
+          moderationRepository: moderationRepository,
+          onMeetingChanged: () => meetingChangeCount++,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('민준').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('public-profile-more')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('사용자 차단'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('차단'));
+    await tester.pumpAndSettle();
+
+    expect(moderationRepository.blockedMemberIds, [2]);
+    expect(meetingChangeCount, 1);
+    expect(find.byType(ChatRoomPage), findsOneWidget);
+  });
 }
 
 class _ChatRoomRepository implements ChatRepository {
@@ -1194,4 +1229,36 @@ ChatMessage _chatMessage({
     createdAt:
         createdAt ?? DateTime(2026, 8, 4, 10).add(Duration(minutes: sequence)),
   );
+}
+
+class _ChatModerationRepository implements ModerationRepository {
+  final List<int> blockedMemberIds = [];
+
+  @override
+  Future<PublicMemberProfile> getPublicProfile(int memberId) async {
+    return PublicMemberProfile(
+      memberId: memberId,
+      nickname: '민준',
+      introduction: '함께 운동해요.',
+    );
+  }
+
+  @override
+  Future<void> blockMember(int memberId) async {
+    blockedMemberIds.add(memberId);
+  }
+
+  @override
+  Future<void> createReport({
+    required ReportTargetType targetType,
+    required int targetId,
+    required ReportReason reason,
+    String? otherDescription,
+  }) async {}
+
+  @override
+  Future<List<BlockedMember>> getBlockedMembers() async => const [];
+
+  @override
+  Future<void> unblockMember(int memberId) async {}
 }

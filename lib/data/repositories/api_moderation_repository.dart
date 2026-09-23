@@ -25,6 +25,7 @@ class ApiModerationRepository implements ModerationRepository {
   Future<PublicMemberProfile> getPublicProfile(int memberId) async {
     final response =
         await _apiClient.getJson('/api/v1/users/$memberId/public-profile');
+    _ensureSuccess(response);
     final data = _dataMap(response);
     return PublicMemberProfile(
       memberId: memberId,
@@ -72,6 +73,7 @@ class ApiModerationRepository implements ModerationRepository {
         '/api/v1/users/me/blocks',
         queryParameters: {'page': '$page', 'size': '100'},
       );
+      _ensureSuccess(response);
       final data = response['data'];
       final List<dynamic> items;
       final bool last;

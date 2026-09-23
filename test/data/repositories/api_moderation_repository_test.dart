@@ -6,6 +6,7 @@ import 'package:meetple/models/moderation.dart';
 void main() {
   test('public profile maps only public fields', () async {
     final client = _RecordingApiClient(getResponse: {
+      'success': true,
       'data': {
         'profileImageUrl': 'https://example.com/profile.png',
         'nickname': '민준',
@@ -83,8 +84,28 @@ void main() {
     );
   });
 
+  test('queries reject failed API envelopes before parsing data', () async {
+    final client = _RecordingApiClient(getResponse: const {
+      'success': false,
+      'status': 500,
+      'message': '조회에 실패했습니다.',
+      'data': {},
+    });
+    final repository = ApiModerationRepository(apiClient: client);
+
+    await expectLater(
+      repository.getPublicProfile(7),
+      throwsA(isA<ApiException>()),
+    );
+    await expectLater(
+      repository.getBlockedMembers(),
+      throwsA(isA<ApiException>()),
+    );
+  });
+
   test('blocked members map paged backend response', () async {
     final client = _RecordingApiClient(getResponse: {
+      'success': true,
       'data': {
         'content': [
           {
@@ -109,7 +130,7 @@ void main() {
 
 class _RecordingApiClient extends ApiClient {
   _RecordingApiClient({
-    this.getResponse = const {'data': {}},
+    this.getResponse = const {'success': true, 'data': {}},
     this.postResponse = const {'success': true, 'data': {}},
     this.deleteResponse = const {'success': true, 'data': {}},
   });

@@ -266,6 +266,9 @@ class _ProfileContentState extends State<ProfileContent> {
                     MaterialPageRoute(
                       builder: (_) => MyApplicationsPage(
                         meetingRepository: widget.meetingRepository,
+                        moderationRepository: widget.moderationRepository,
+                        currentMemberId: widget.user.id,
+                        onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),
                   ),
@@ -277,6 +280,9 @@ class _ProfileContentState extends State<ProfileContent> {
                     MaterialPageRoute(
                       builder: (_) => BookmarkedMeetingsPage(
                         meetingRepository: widget.meetingRepository,
+                        moderationRepository: widget.moderationRepository,
+                        currentMemberId: widget.user.id,
+                        onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),
                   ),
@@ -294,6 +300,8 @@ class _ProfileContentState extends State<ProfileContent> {
                       builder: (_) => NotificationsPage(
                         meetingRepository: widget.meetingRepository,
                         notificationRepository: widget.notificationRepository,
+                        moderationRepository: widget.moderationRepository,
+                        currentMemberId: widget.user.id,
                         onMeetingChanged: widget.onMeetingChanged,
                       ),
                     ),
@@ -310,7 +318,9 @@ class _ProfileContentState extends State<ProfileContent> {
               () => Navigator.of(context).push<void>(
                     MaterialPageRoute(
                       builder: (_) => BlockedUsersPage(
-                          repository: widget.moderationRepository),
+                        repository: widget.moderationRepository,
+                        onChanged: widget.onMeetingChanged,
+                      ),
                     ),
                   ),
             ),
@@ -504,6 +514,9 @@ class _ProfileContentState extends State<ProfileContent> {
           meetingRepository: widget.meetingRepository,
           loader: loader,
           filters: filters,
+          moderationRepository: widget.moderationRepository,
+          currentMemberId: widget.user.id,
+          onMeetingChanged: widget.onMeetingChanged,
         ),
       ),
     );

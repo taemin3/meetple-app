@@ -4,6 +4,8 @@ import '../../app/app_routes.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_colors.dart';
 import '../../data/repositories/meeting_repository.dart';
+import '../../data/repositories/moderation_repository.dart';
+import '../../data/repositories/mock_moderation_repository.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../models/app_notification.dart';
 import '../../widgets/app_page_header.dart';
@@ -13,11 +15,15 @@ class NotificationsPage extends StatefulWidget {
     super.key,
     required this.meetingRepository,
     required this.notificationRepository,
+    this.moderationRepository = const MockModerationRepository(),
+    this.currentMemberId = 1,
     this.onMeetingChanged,
   });
 
   final MeetingRepository meetingRepository;
   final NotificationRepository notificationRepository;
+  final ModerationRepository moderationRepository;
+  final int currentMemberId;
   final VoidCallback? onMeetingChanged;
 
   @override
@@ -78,6 +84,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
         context,
         meeting,
         meetingRepository: widget.meetingRepository,
+        moderationRepository: widget.moderationRepository,
+        currentMemberId: widget.currentMemberId,
       );
       if (result != null && mounted) {
         widget.onMeetingChanged?.call();
