@@ -43,12 +43,27 @@ void main() {
     });
   });
 
-  test('report rejects a failed API envelope', () async {
+  test('block and unblock use idempotent member endpoints', () async {
+    final client = _RecordingApiClient();
+    final repository = ApiModerationRepository(apiClient: client);
+
+    await repository.blockMember(3);
+    expect(client.postPath, '/api/v1/users/3/block');
+    await repository.unblockMember(3);
+    expect(client.deletePath, '/api/v1/users/3/block');
+  });
+
+  test('mutations reject failed API envelopes', () async {
     final client = _RecordingApiClient(
       postResponse: const {
         'success': false,
         'status': 400,
         'message': '요청을 처리할 수 없습니다.',
+      },
+      deleteResponse: const {
+        'success': false,
+        'status': 400,
+        'message': '차단 해제에 실패했습니다.',
       },
     );
     final repository = ApiModerationRepository(apiClient: client);
@@ -61,6 +76,34 @@ void main() {
       ),
       throwsA(isA<ApiException>()),
     );
+    await expectLater(repository.blockMember(3), throwsA(isA<ApiException>()));
+    await expectLater(
+      repository.unblockMember(3),
+      throwsA(isA<ApiException>()),
+    );
+  });
+
+  test('blocked members map paged backend response', () async {
+    final client = _RecordingApiClient(getResponse: {
+      'data': {
+        'content': [
+          {
+            'memberId': 3,
+            'nickname': '차단 회원',
+            'profileImageUrl': null,
+            'blockedAt': '2026-09-22T10:00:00',
+          }
+        ],
+        'last': true,
+      }
+    });
+    final repository = ApiModerationRepository(apiClient: client);
+
+    final result = await repository.getBlockedMembers();
+
+    expect(result.single.memberId, 3);
+    expect(client.getPath, '/api/v1/users/me/blocks');
+    expect(client.getQueryParameters, {'page': '0', 'size': '100'});
   });
 }
 
@@ -68,13 +111,16 @@ class _RecordingApiClient extends ApiClient {
   _RecordingApiClient({
     this.getResponse = const {'data': {}},
     this.postResponse = const {'success': true, 'data': {}},
+    this.deleteResponse = const {'success': true, 'data': {}},
   });
   final Map<String, dynamic> getResponse;
   final Map<String, dynamic> postResponse;
+  final Map<String, dynamic> deleteResponse;
   String? getPath;
   Map<String, String?>? getQueryParameters;
   String? postPath;
   Map<String, dynamic>? postBody;
+  String? deletePath;
 
   @override
   Future<Map<String, dynamic>> getJson(String path,
@@ -91,5 +137,12 @@ class _RecordingApiClient extends ApiClient {
     postPath = path;
     postBody = body;
     return postResponse;
+  }
+
+  @override
+  Future<Map<String, dynamic>> deleteJson(String path,
+      {Map<String, dynamic> body = const {}}) async {
+    deletePath = path;
+    return deleteResponse;
   }
 }

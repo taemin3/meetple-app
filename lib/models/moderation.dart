@@ -32,3 +32,17 @@ class PublicMemberProfile {
   final String? profileImageUrl;
   final String? introduction;
 }
+
+class BlockedMember {
+  const BlockedMember({
+    required this.memberId,
+    required this.nickname,
+    this.profileImageUrl,
+    required this.blockedAt,
+  });
+
+  final int memberId;
+  final String nickname;
+  final String? profileImageUrl;
+  final DateTime blockedAt;
+}

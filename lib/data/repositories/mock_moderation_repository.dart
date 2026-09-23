@@ -17,4 +17,13 @@ class MockModerationRepository implements ModerationRepository {
       required int targetId,
       required ReportReason reason,
       String? otherDescription}) async {}
+
+  @override
+  Future<void> blockMember(int memberId) async {}
+
+  @override
+  Future<void> unblockMember(int memberId) async {}
+
+  @override
+  Future<List<BlockedMember>> getBlockedMembers() async => const [];
 }

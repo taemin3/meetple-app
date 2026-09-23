@@ -51,6 +51,7 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
                       onSelected: _handleAction,
                       itemBuilder: (_) => const [
                         PopupMenuItem(value: 'report', child: Text('사용자 신고')),
+                        PopupMenuItem(value: 'block', child: Text('사용자 차단')),
                       ],
                     ),
             ),
@@ -111,6 +112,40 @@ class _PublicProfilePageState extends State<PublicProfilePage> {
           repository: widget.moderationRepository,
           targetType: ReportTargetType.member,
           targetId: widget.memberId);
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('이 사용자를 차단할까요?'),
+        content: const Text('이 사용자가 만든 모임이 표시되지 않습니다.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('취소')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('차단')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.moderationRepository.blockMember(widget.memberId);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('사용자를 차단했습니다.')));
+      Navigator.of(context).pop(true);
+    } on Exception catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text(error is ApiException ? error.message : '차단하지 못했습니다.')),
+        );
+      }
     }
   }
 }
