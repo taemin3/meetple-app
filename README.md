@@ -1,156 +1,95 @@
-# Meetple Flutter App
+# Meetple App
 
-`meetple-app`은 모임 탐색, 모임 만들기, 참여 신청, 채팅 흐름을 구현하는 Flutter 모바일 앱이다. 백엔드 API가 준비된 기능은 API repository를 우선 연결하고, mock은 테스트와 오프라인 프리뷰 보조용으로 사용한다.
+> 주변 모임을 탐색하고 만들고 참여하며, 실시간 채팅으로 이어지는 Flutter 모바일 클라이언트
 
-## 현재 상태
+Meetple 전체 구성과 저장소 링크는 [프로젝트 허브](https://github.com/taemin3/meetple)에서 확인할 수 있습니다.
 
-- Flutter 기반 모바일 앱
-- iOS/Android 우선 개발
-- Web은 리뷰와 프리뷰 용도
-- 모임 목록은 repository 기반 목업/API 전환 구조 준비
-- 인증은 repository 기반 foundation 준비
-- 백엔드 API가 준비된 기능은 API repository 우선 연동
-- MockRepository는 테스트, 오프라인 프리뷰, API 미구현 화면 보조용
-- 보라색 지도/카드형 UI 방향 적용 중
+## 주요 기능
 
-## 실행 준비
+- 이메일 인증 기반 회원가입·로그인·비밀번호 재설정과 안전한 토큰 갱신
+- 지도와 카테고리를 이용한 주변 모임 탐색 및 일반 모임 검색
+- 모임 생성·수정, 다중 이미지 업로드, 참여 신청과 승인·거절·취소
+- STOMP WebSocket 기반 실시간 채팅과 재연결 후 누락 메시지 복구
+- Firebase 푸시 알림과 앱 내 알림 목록
+- 사용자·모임·채팅 신고, 사용자 차단, 계정 삭제
 
-Flutter SDK가 설치되어 있어야 한다. 모든 Flutter 명령은 `pubspec.yaml`이 있는 저장소 루트에서 실행한다.
+## 기술 구성
 
-```bash
-flutter --version
+| 구분 | 기술 |
+| --- | --- |
+| UI | Flutter, Dart, Material 3, Pretendard |
+| 통신 | HTTP API, STOMP WebSocket |
+| 지도 | Naver Map |
+| 알림 | Firebase Messaging, Local Notifications |
+| 로컬 보안 | Flutter Secure Storage |
+| 테스트 | Flutter Test |
+
+## 애플리케이션 구조
+
+```text
+lib/
+  app/                 앱 초기화, 라우팅, 의존성 연결
+  core/                설정, 네트워크, 푸시, 테마, 공통 UI 규칙
+  data/
+    repositories/      API와 mock 데이터 접근 구현
+    realtime/          STOMP 실시간 연결
+  models/              화면과 API가 공유하는 모델
+  screens/             기능별 화면
+  widgets/             공통 UI 컴포넌트
+```
+
+화면은 데이터 출처를 직접 참조하지 않고 repository 인터페이스에 의존합니다. API가 준비된 기능은 `Api*Repository`를 사용하며, `Mock*Repository`는 테스트와 오프라인 프리뷰를 위한 보조 구현입니다.
+
+## 실행
+
+Flutter SDK를 준비한 뒤 저장소 루트에서 의존성을 설치합니다.
+
+```powershell
 flutter pub get
 ```
 
-## 개발 실행
+기본 실행은 백엔드 없이 화면을 확인할 수 있는 mock 모드입니다.
 
-연결된 디바이스나 에뮬레이터에서 실행한다.
-
-```bash
+```powershell
 flutter run
 ```
 
-웹으로 빠르게 확인할 때는 아래 명령을 사용할 수 있다.
-
-```bash
-flutter run -d chrome
-```
-
-## API 연동 실행
-
-기본 실행은 로컬 프리뷰를 위해 mock repository를 사용한다. 백엔드 API로 모임 목록을 불러오려면 `MEETPLE_USE_API=true`와 `MEETPLE_API_BASE_URL`을 함께 넘긴다.
-
-```bash
-flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://localhost:8080
-```
-
-Android 에뮬레이터에서 로컬 백엔드에 연결할 때는 `localhost` 대신 `10.0.2.2`를 사용한다.
-
-```bash
-flutter run --dart-define=MEETPLE_USE_API=true --dart-define=MEETPLE_API_BASE_URL=http://10.0.2.2:8080
-```
-
-AWS staging API에 연결하면 Android에서 Firebase push 구현도 함께 활성화된다. 실행 전에 Firebase Console에서 Android 앱 `com.meetple.app`의 `google-services.json`을 내려받아 `android/app/google-services.json`에 둬야 한다. 이 파일은 환경별 Firebase 설정이므로 Git에서 제외하며 커밋하지 않는다.
-
-PowerShell에서는 Firebase 설정 파일을 확인한 뒤 staging 설정으로 실행한다.
+로컬 백엔드에 연결할 때는 API 사용 여부와 주소를 명시합니다. Android Emulator에서는 호스트 PC를 `10.0.2.2`로 접근합니다.
 
 ```powershell
-if (-not (Test-Path android/app/google-services.json)) {
-  throw "Firebase 설정이 필요합니다: android/app/google-services.json"
-}
-
-flutter run --dart-define-from-file=config/staging.json
+flutter run `
+  --dart-define=MEETPLE_USE_API=true `
+  --dart-define=MEETPLE_API_BASE_URL=http://10.0.2.2:8080 `
+  --dart-define=MEETPLE_NAVER_MAP_CLIENT_ID=<client-id>
 ```
 
-Android staging 릴리스 빌드에도 동일한 Firebase 설정 파일이 필요하며, 같은 staging 설정을 전달한다.
+staging API에 연결할 때는 공개 가능한 API 설정 파일과 지도 Client ID를 분리해 전달합니다.
 
-```bash
-flutter build apk --release --dart-define-from-file=config/staging.json
+```powershell
+flutter run `
+  --dart-define-from-file=config/staging.json `
+  --dart-define=MEETPLE_NAVER_MAP_CLIENT_ID=<client-id>
 ```
 
-`config/staging.json`에는 공개 가능한 API 선택값과 URL만 둔다. 지도 client ID처럼 별도 관리가 필요한 값은 파일에 추가하지 않고 기존 `--dart-define` 방식으로 전달한다.
+Android에서 Firebase 푸시를 사용할 때는 Firebase Console에서 받은 `google-services.json`을 `android/app/google-services.json`에 둡니다. 환경별 Firebase 설정과 실제 Client ID는 Git에 커밋하지 않습니다.
 
-## 검증 명령
+## 검증
 
-작업 후 가능한 경우 아래 순서로 확인한다.
-
-```bash
+```powershell
 dart format lib test
 flutter analyze
 flutter test
 ```
 
-웹 빌드까지 확인해야 하는 UI 변경이면 아래 명령도 실행한다.
+웹 프리뷰에 영향을 주는 변경은 빌드도 확인합니다.
 
-```bash
+```powershell
 flutter build web --pwa-strategy=none
-```
-
-빌드된 웹 결과를 로컬에서 볼 때는 다음 도구를 사용한다.
-
-```bash
 node tools/serve_web_build.js
 ```
 
-## 주요 구조
+## 관련 저장소
 
-```text
-lib/
-  main.dart
-  app/
-    app_navigation.dart
-    app_route_names.dart
-    app_routes.dart
-    app_shell.dart
-    meetple_app.dart
-  core/
-    config/
-    network/
-    theme/
-    ui/
-  data/
-    mock/
-    repositories/
-  models/
-  screens/
-    auth/
-  widgets/
-```
-
-역할 기준:
-
-- `main.dart`: 앱 실행 진입점
-- `app/`: `MaterialApp`, 앱 shell, 탭/상세 화면 라우팅 연결
-- `core/config/`: 빌드 환경별 설정값
-- `core/network/`: HTTP API 클라이언트
-- `core/theme/`: 전역 색상과 테마
-- `core/ui/`: 화면 표현용 공통 변환 규칙
-- `data/mock/`: 테스트와 오프라인 프리뷰용 mock 데이터
-- `data/repositories/`: API/mock 데이터 접근 인터페이스와 구현체
-- `models/`: 화면과 API가 공유할 데이터 모델
-- `screens/`: 사용자 화면 단위 구현
-- `widgets/`: 여러 화면에서 쓰는 공통 위젯
-
-## 관련 문서
-
-- `AGENTS.md`: 앱 전용 Codex 작업 기준
-- `.github/copilot-instructions.md`: 앱 PR 리뷰 기준
-- `CONTRIBUTING.md`: Git/GitHub 작업 규칙
-
-## 개발 원칙
-
-- 백엔드 API가 준비된 기능은 API repository를 우선 구현한다.
-- MockRepository는 테스트, 오프라인 프리뷰, API 미구현 화면 보조용으로만 사용한다.
-- 화면은 mock 데이터를 직접 참조하지 않고 repository 인터페이스를 통해 데이터를 받는다.
-- 새 기능은 가능하면 백엔드 API contract 기준으로 구현하고, mock은 같은 인터페이스를 따르는 최소 구현만 둔다.
-- 공통 UI는 `widgets/`, 전역 스타일은 `core/` 기준으로 정리한다.
-- 새 패키지는 꼭 필요할 때만 추가한다.
-- 플랫폼 폴더는 실제 설정 변경이 필요한 경우에만 수정한다.
-- PowerShell에서 한글이 깨져 보여도 콘솔 출력만 보고 소스나 문서를 임의로 고치지 않는다.
-
-## 다음 작업 후보
-
-1. 인증 토큰 저장소와 `HttpApiClient` token provider 연결
-2. `ApiAuthRepository` 추가 후 로그인/회원가입 API 연동
-3. 모임 만들기 화면 입력 상태와 검증 흐름 정리
-4. 백엔드 meeting API 연동 검증
+- [Meetple Backend](https://github.com/taemin3/meetple-backend)
+- [Meetple AI](https://github.com/taemin3/meetple-ai)
+- [Meetple Admin](https://github.com/taemin3/meetple-admin)
